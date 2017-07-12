@@ -26,20 +26,20 @@ def sample_model(model_name, X, y, num_samples=NUM_SAMPLES):
     Raises:
         ValueError: if the specified model name is not supported
     """
-    return {
-        'glm': sample_glm(X, y, num_samples),
-        'gp' : sample_gp(X, y, num_samples)
-    }.get(model_name, unsupported_model(model_name))
-
-    def unsupported_model(model_name):
+    if 'glm' == model_name:
+        sample_glm(X, y, num_samples)
+    elif 'gp' == model_name:
+        sample_gp(X, y, num_samples)
+    else:
         raise ValueError('Unsupported model: {}\nSupported models: {}'
                          .format(model_name, MODEL_NAMES))
-    
-    
+
+        
 def sample_glm(X, y, num_samples=NUM_SAMPLES):
     """Sample from Generalized Linear Model"""
-    pm.GLM(X, y)
-    trace = pm.sample(num_samples)
+    with pm.Model() as model_glm:
+        pm.GLM(X, y)
+        trace = pm.sample(num_samples)
     return trace
     
 
