@@ -9,6 +9,10 @@ import numpy as np
 
 
 def logical_filter(l, logicals):
+    """
+    Filter the list l down to the elements that correspond to the True
+    elements in the list logicals.
+    """
     return [val for (val, b) in zip(l, logicals) if b]
 
 
@@ -30,7 +34,6 @@ def separate_categorical(X, categorical, column_names=None):
          (non-categorical portion of X, names of non-categorical features))
         
     """
-    
     non_categorical = np.logical_not(categorical)
     
     if column_names:
@@ -38,8 +41,8 @@ def separate_categorical(X, categorical, column_names=None):
         names_non_categ = logical_filter(column_names, non_categorical)
         return ((X[:, categorical], names_categ),
                 (X[:, non_categorical], names_non_categ))
-    
-    return X[:, categorical], X[:, non_categorical]
+    else:
+        return X[:, categorical], X[:, non_categorical]
 
 
 def separate_discrete(X, column_names=None):
@@ -59,7 +62,6 @@ def separate_discrete(X, column_names=None):
         (("discrete" portion of X, corresponding feature names),
          ("continuous" portion of X, corresponding feature names))
     """
-    
     is_integer = np.vectorize(lambda x: x.is_integer(), otypes=[np.bool])
 
     def is_int_column(col):
@@ -73,8 +75,8 @@ def separate_discrete(X, column_names=None):
         names_continuous = logical_filter(column_names, continuous)
         return ((X[:, discrete], names_discrete),
                 (X[:, continuous], names_continuous))
-
-    return X[:, discrete], X[:, continuous]
+    else:
+        return X[:, discrete], X[:, continuous]
 
 
 def separate_features(X, categorical, column_names=None):
