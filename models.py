@@ -6,8 +6,8 @@ constant.
 
 import pymc3 as pm
 
-MODEL_NAMES = ['glm', 'gp']
-NUM_SAMPLES = 5000
+MODEL_NAMES = ['glm']
+NUM_SAMPLES = 500
 
 
 def sample_model(model_name, X, y, num_samples=NUM_SAMPLES):
