@@ -6,7 +6,7 @@ conditioned on all of the specified datasts.
 import openml
 
 from models import MODEL_NAMES, sample_model
-from preprocessing.separation import separate_categorical
+from preprocessing import separate_categorical
 
 if __name__ == '__main__':
     dataset_ids = [23]
