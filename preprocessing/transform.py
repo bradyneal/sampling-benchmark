@@ -140,4 +140,4 @@ def whiten_and_one_hot(X, categorical, transform=None, return_transform=False):
     X_one_hot = one_hot(X_categ)
     
     X_new = np.concatenate((X_whitened, X_one_hot), axis=1)
-    return (X_new, transform) if return_transform else X_new    
+    return (X_new, transform) if return_transform else X_new

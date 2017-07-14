@@ -111,3 +111,4 @@ def separate_features(X, categorical, column_names=None):
         X_categ, X_non_categ = separate_categorical(X, categorical)
         X_discrete, X_continuous = separate_discrete(X_non_categ)
         return X_categ, X_discrete, X_continuous
+    

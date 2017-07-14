@@ -26,3 +26,4 @@ if __name__ == '__main__':
         # loops over models
         for model_name in MODEL_NAMES:
             sample_model(model_name, X_non_categ, y)
+            
