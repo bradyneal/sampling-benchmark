@@ -8,7 +8,8 @@ Benchmark for samplers that sample from posterior distributions over model param
 │   └── ...
 ├── models.py
 ├── processing
-│   └── separation.py
+│   ├── separation.py
+│   └── transform.py
 └── sample_posteriors.py
         
 ```
@@ -23,10 +24,10 @@ different models
 * MODEL_NAMES constant: specifies supported models
 * **TODO:** implement more models
 
-### processing
+### preprocessing
 * Package for data processing modules
 * **separation.py** - provides functions for separating data based on the types of variables
-* **TODO: preprocessing.py** - provides functions for preprocessing of data (e.g. standardization, whitening, etc.)
+* **transform.py** - provides functions for transformations of data (e.g. one-hot encoding, standardization, whitening)
 
 ### TODO: data
 * Package for downloading, saving, and loading of data
