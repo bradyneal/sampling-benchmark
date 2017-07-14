@@ -22,6 +22,8 @@ def one_hot(X, categorical=None):
     Returns:
         one-hot representation of X
     """
+    if X.shape[1] == 0:
+        return X
     if categorical is None:
         categorical = [True] * X.shape[1]
     sparse_one_hot = OneHotEncoder(categorical_features=categorical) \
@@ -45,6 +47,8 @@ def standardize(X, scaler=None, return_scaler=False):
         standardized X and, optionally, the scaler object that contains the
         standardization information of X (training set)
     """
+    if X.shape[1] == 0:
+        return X, None if return_scaler else X
     if scaler is None:
         scaler = StandardScaler().fit(X)
     if return_scaler:
