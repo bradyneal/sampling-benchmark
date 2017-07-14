@@ -7,7 +7,7 @@ Benchmark for samplers that sample from posterior distributions over model param
 ├── exploring-packages
 │   └── ...
 ├── models.py
-├── processing
+├── preprocessing
 │   ├── separation.py
 │   └── transform.py
 └── sample_posteriors.py
