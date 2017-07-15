@@ -1,4 +1,4 @@
-# sampler-benchmark
+# sampling-benchmark
 Benchmark for samplers that sample from posterior distributions over model parameters
 
 ## File Structure
