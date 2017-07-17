@@ -18,7 +18,7 @@ Benchmark for samplers that sample from posterior distributions over model param
 * Main file for building "grid"
 * Draws samples from the posteriors of all of the supported models, conditioned on all of the specified datasts (double for loop)
 
-### model.py
+### models.py
 * Provides functions for sampling from the posteriors of various
 different models
 * MODEL_NAMES constant: specifies supported models
