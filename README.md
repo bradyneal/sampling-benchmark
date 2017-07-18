@@ -6,13 +6,13 @@ Benchmark for samplers that sample from posterior distributions over model param
 .
 ├── data
 │   ├── download_datasets.py
-│   └── preprocess_datasets.py
+│   └── preprocessing
+│       ├── separation.py
+│       └── transform.py
 ├── exploring-packages
 │   └── ...
 ├── models.py
-├── preprocessing
-│   ├── separation.py
-│   └── transform.py
+├── README.md
 └── sample_posteriors.py
         
 ```
@@ -32,10 +32,10 @@ different models
 * [**download_datasets.py**](https://github.com/bradyneal/sampling-benchmark/blob/master/data/download_datasets.py) - download and save the raw datasets
 * **TODO: preprocess_datasets.py** - preprocess raw datasets and save according to the [**Datasets Format**](https://github.com/bradyneal/sampling-benchmark#datasets-format) below
 
-### [preprocessing](https://github.com/bradyneal/sampling-benchmark/tree/master/preprocessing)
+### [preprocessing](https://github.com/bradyneal/sampling-benchmark/tree/master/data/preprocessing)
 * Package for data processing modules
-* [**separation.py**](https://github.com/bradyneal/sampling-benchmark/blob/master/preprocessing/separation.py) - provides functions for separating data based on the types of variables
-* [**transform.py**](https://github.com/bradyneal/sampling-benchmark/blob/master/preprocessing/transform.py) - provides functions for transformations of data (e.g. one-hot encoding, standardization, robust standardization, whitening)
+* [**separation.py**](https://github.com/bradyneal/sampling-benchmark/blob/master/data/preprocessing/separation.py) - provides functions for separating data based on the types of variables
+* [**transform.py**](https://github.com/bradyneal/sampling-benchmark/blob/master/data/preprocessing/transform.py) - provides functions for transformations of data (e.g. one-hot encoding, standardization, robust standardization, whitening)
 
 ### Datasets Format
 ```
