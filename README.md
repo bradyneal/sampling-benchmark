@@ -4,12 +4,12 @@ Benchmark for samplers that sample from posterior distributions over model param
 ## File Structure
 ```
 .
-├── exploring-packages
-│   └── ...
-├── models.py
 ├── data
 │   ├── download_datasets.py
 │   └── preprocess_datasets.py
+├── exploring-packages
+│   └── ...
+├── models.py
 ├── preprocessing
 │   ├── separation.py
 │   └── transform.py
@@ -30,7 +30,7 @@ different models
 ### [data](https://github.com/bradyneal/sampling-benchmark/tree/master/data)
 * Package for downloading, preprocessing, saving, and loading of data
 * [**download_datasets.py**](https://github.com/bradyneal/sampling-benchmark/blob/master/data/download_datasets.py) - download and save the raw datasets
-* **preprocess_datasets.py** - preprocess raw datasets and save according to the [**Datasets Format**](https://github.com/bradyneal/sampling-benchmark#datasets-format) below
+* **TODO: preprocess_datasets.py** - preprocess raw datasets and save according to the [**Datasets Format**](https://github.com/bradyneal/sampling-benchmark#datasets-format) below
 
 ### [preprocessing](https://github.com/bradyneal/sampling-benchmark/tree/master/preprocessing)
 * Package for data processing modules
