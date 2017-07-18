@@ -27,7 +27,7 @@ different models
 ### preprocessing
 * Package for data processing modules
 * **separation.py** - provides functions for separating data based on the types of variables
-* **transform.py** - provides functions for transformations of data (e.g. one-hot encoding, standardization, whitening)
+* **transform.py** - provides functions for transformations of data (e.g. one-hot encoding, standardization, robust standardization, whitening)
 
 ### data
 * Package for downloading, preprocessing, saving, and loading of data
