@@ -29,8 +29,21 @@ different models
 * **separation.py** - provides functions for separating data based on the types of variables
 * **transform.py** - provides functions for transformations of data (e.g. one-hot encoding, standardization, whitening)
 
-### TODO: data
-* Package for downloading, saving, and loading of data
+### data
+* Package for downloading, preprocessing, saving, and loading of data
+* **download_datasets.py** - download and save the raw datasets
+* **preprocess_datasets.py** - preprocess raw datasets and save according to the **Datasets Format** below
+
+### Datasets Format
+```
+...
+└── datasets
+    ├── raw
+    ├── one-hot
+    ├── standardized
+    ├── robust_standardized
+    └── whitened
+```
 
 ### exploring-packages
 * Jupyter Notebook code for exploring packages such as OpenML and PyMC3
