@@ -36,13 +36,14 @@ different models
 
 ### Datasets Format
 ```
-...
+... (e.g. /data/lisa/data/openml)
 └── datasets
     ├── raw
-    ├── one-hot
-    ├── standardized
-    ├── robust_standardized
-    └── whitened
+        └── {dataset_id}.pickle (same format for all folders below)
+    ├── one-hot - one-hot encoded categorical features (same for all preprocessing below)
+    ├── standardized - standardized non-categorical features
+    ├── robust_standardized - robust standardized non-categorical features
+    └── whitened - whitened non-categorical features
 ```
 
 ### exploring-packages
