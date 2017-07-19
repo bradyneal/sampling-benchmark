@@ -6,7 +6,7 @@ constant.
 
 import pymc3 as pm
 
-MODEL_NAMES = ['glm']
+MODEL_NAMES = ['ls_linear']
 NUM_SAMPLES = 500
 
 
@@ -26,22 +26,32 @@ def sample_model(model_name, X, y, num_samples=NUM_SAMPLES):
     Raises:
         ValueError: if the specified model name is not supported
     """
-    if 'glm' == model_name:
-        sample_glm(X, y, num_samples)
+    if 'ls_linear' == model_name:
+        sample_ls_linear(X, y, num_samples)
     elif 'gp' == model_name:
         sample_gp(X, y, num_samples)
     else:
         raise ValueError('Unsupported model: {}\nSupported models: {}'
                          .format(model_name, MODEL_NAMES))
 
-        
-def sample_glm(X, y, num_samples=NUM_SAMPLES):
-    """Sample from Generalized Linear Model"""
+    
+# GLM Defaults:
+# intercept:  flat prior
+# weights:    N(0, 10^6) prior
+# likelihood: Normal
+
+
+def sample_ls_linear(X, y, num_samples=NUM_SAMPLES):
+    """
+    Sample from Bayesian Least Squares Linear Regression. Uses Normal
+    likelihood, which is equivalent to minimizing the mean squared error
+    in the frequentist version of Least Squares.
+    """
     with pm.Model() as model_glm:
         pm.GLM(X, y)
         trace = pm.sample(num_samples)
     return trace
-    
+
 
 def sample_gp(X, y, num_samples=NUM_SAMPLES):
     """Sample from Gaussian Process"""
