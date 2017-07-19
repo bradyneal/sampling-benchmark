@@ -6,7 +6,7 @@ constant.
 
 import pymc3 as pm
 
-MODEL_NAMES = ['ls_linear']
+MODEL_NAMES = ['ls_linear', 'robust_linear']
 NUM_SAMPLES = 500
 
 
@@ -28,6 +28,8 @@ def sample_model(model_name, X, y, num_samples=NUM_SAMPLES):
     """
     if 'ls_linear' == model_name:
         sample_ls_linear(X, y, num_samples)
+    elif 'robust_linear' == model_name:
+        sample_robust_linear(X, y, num_samples)
     elif 'gp' == model_name:
         sample_gp(X, y, num_samples)
     else:
@@ -35,11 +37,10 @@ def sample_model(model_name, X, y, num_samples=NUM_SAMPLES):
                          .format(model_name, MODEL_NAMES))
 
     
-# GLM Defaults:
+# GLM Defaults
 # intercept:  flat prior
 # weights:    N(0, 10^6) prior
 # likelihood: Normal
-
 
 def sample_ls_linear(X, y, num_samples=NUM_SAMPLES):
     """
@@ -49,6 +50,19 @@ def sample_ls_linear(X, y, num_samples=NUM_SAMPLES):
     """
     with pm.Model() as model_glm:
         pm.GLM(X, y)
+        trace = pm.sample(num_samples)
+    return trace
+
+
+def sample_robust_linear(X, y, num_samples=NUM_SAMPLES):
+    """
+    Sample from Bayesian Robust Regression. Uses Student's T likelihood as it
+    has heavier tails than the Normal likelihood, allowing it to place less
+    emphasis on outliers.
+    """
+    with pm.Model() as model_glm:
+        StudentT = pm.glm.families.StudentT()
+        pm.GLM(X, y, family=StudentT)
         trace = pm.sample(num_samples)
     return trace
 
