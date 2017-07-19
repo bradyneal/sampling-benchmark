@@ -7,8 +7,9 @@ import pickle
 import pandas as pd
 
 import openml
-from openml.exceptions import OpenMLServerError
+from openml.exceptions import OpenMLServerError, PyOpenMLError
 from requests.exceptions import ChunkedEncodingError
+from arff import BadNominalValue
 
 UNIX_OPENML_PATH = '/data/lisa/data/openml'
 OPENML_FOLDER = os.path.join(os.sep, *UNIX_OPENML_PATH.split('/'))
@@ -47,14 +48,15 @@ def download_datasets(dataset_ids, start_iteration=0, verbose=False):
         dataset_id = dataset_ids[i]
         if verbose:
             print('{} of {}\tdataset ID: {} ...' \
-                  .format(i, num_datasets, dataset_id), end=' ')
+                  .format(i + 1, num_datasets, dataset_id), end=' ')
         # OpenML likes to throw all kinds of errors when getting datasets
         try:
             dataset = openml.datasets.get_dataset(dataset_id)
             good_dataset_ids.append(dataset_id)
             write_dataset(dataset_id, dataset)
             if verbose: print('Success')
-        # except (OpenMLServerError, ChunkedEncodingError) as e:
+        # except (OpenMLServerError, PyOpenMLError, ChunkedEncodingError,
+        #         BadNominalValue, EOFError) as e:
         except Exception as e:
             bad_dataset_ids.append(dataset_id)
             exceptions.append(e)
@@ -112,5 +114,5 @@ def get_dataset_dict(dataset):
 
 
 if __name__ == '__main__':
-    download_datasets(get_dataset_ids(), start_iteration=17676, verbose=True)
+    download_datasets(get_dataset_ids(), verbose=True)
     
