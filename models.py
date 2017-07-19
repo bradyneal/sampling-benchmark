@@ -5,6 +5,7 @@ constant.
 """
 
 import pymc3 as pm
+from pymc3.backends.tracetab import trace_to_dataframe
 
 MODEL_NAMES = ['ls_linear', 'robust_linear']
 NUM_SAMPLES = 500
@@ -51,7 +52,7 @@ def sample_ls_linear(X, y, num_samples=NUM_SAMPLES):
     with pm.Model() as model_glm:
         pm.GLM(X, y)
         trace = pm.sample(num_samples)
-    return trace
+    return format_trace(trace)
 
 
 def sample_robust_linear(X, y, num_samples=NUM_SAMPLES):
@@ -64,10 +65,19 @@ def sample_robust_linear(X, y, num_samples=NUM_SAMPLES):
         StudentT = pm.glm.families.StudentT()
         pm.GLM(X, y, family=StudentT)
         trace = pm.sample(num_samples)
-    return trace
+    return format_trace(trace)
 
 
 def sample_gp(X, y, num_samples=NUM_SAMPLES):
     """Sample from Gaussian Process"""
     raise NotImplementedError(
         'The Gaussian Process model is not yet implemented.')
+
+
+def format_trace(trace):
+    """
+    Convert the trace into the necessary format. The current format is a
+    Pandas DataFrame.
+    """
+    return trace_to_dataframe(trace)
+    
