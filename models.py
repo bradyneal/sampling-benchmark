@@ -11,7 +11,7 @@ from itertools import combinations
 from data import numpy_to_dataframe, get_var_names
 
 MODEL_NAMES = ['ls_linear', 'ls_pairwise_linear', 'ls_quadratic_linear',
-               'robust_linear']
+               'robust_linear', 'robust_pairwise_linear', 'robust_quadratic_linear']
 NUM_SAMPLES = 500
 
 
@@ -34,12 +34,16 @@ def sample_model(model_name, X, y, num_samples=NUM_SAMPLES,
     """
     if 'ls_linear' == model_name:
         sample_ls_linear(X, y, num_samples)
-    elif 'robust_linear' == model_name:
-        sample_robust_linear(X, y, num_samples)
     elif 'ls_pairwise_linear' == model_name:
         sample_ls_pairwise(X, y, num_non_categorical, num_samples)
     elif 'ls_quadratic_linear' == model_name:
         sample_ls_quadratic(X, y, num_non_categorical, num_samples)
+    elif 'robust_linear' == model_name:
+        sample_robust_linear(X, y, num_samples)
+    elif 'robust_pairwise_linear' == model_name:
+        sample_robust_pairwise(X, y, num_non_categorical, num_samples)
+    elif 'robust_quadratic_linear' == model_name:
+        sample_robust_quadratic(X, y, num_non_categorical, num_samples)
     elif 'gp' == model_name:
         sample_gp(X, y, num_samples)
     else:
@@ -86,15 +90,15 @@ def sample_robust_linear(X, y, num_samples=NUM_SAMPLES):
 
 
 def sample_interaction_linear(X, y, num_non_categorical=None,
-                              num_samples=NUM_SAMPLES, interaction='pairwise'):
+                              num_samples=NUM_SAMPLES,
+                              robust=False, interaction='pairwise'):
     """
     Sample from Bayesian linear models with interaction and higher order terms
     (abstraction of all linear regressions that have nonlinear data terms).
     
-    Assume all non-categorial variables come first in the ordering.
-    
-    Assume all variables are non-categorical if num_non_categorical isn't
-    given.
+    Assumptions:
+    1. all non-categorial variables come first in the ordering
+    2. all variables are non-categorical if num_non_categorical isn't given
     """
     d = X.shape[1]
     if num_non_categorical is None:
@@ -109,42 +113,80 @@ def sample_interaction_linear(X, y, num_non_categorical=None,
             (interaction_formula,
              get_linear_formula(num_non_categorical + 1, d))
         )
-        pm.GLM.from_formula('y ~ ' + x_formula, data_df)
+        if robust:
+            pm.GLM.from_formula('y ~ ' + x_formula, data_df,
+                                family=pm.glm.families.StudentT())
+        else:
+            pm.GLM.from_formula('y ~ ' + x_formula, data_df)
         trace = pm.sample(num_samples)
     return format_trace(trace)
     
 
-def sample_ls_pairwise(X, y, num_non_categorical=None, num_samples=NUM_SAMPLES):
+def sample_ls_pairwise(X, y, num_non_categorical=None,
+                       num_samples=NUM_SAMPLES):
     """
     Sample from Bayesian Least Squares Linear Regression that has pairwise
     interaction terms between all non-categorial variables. Uses Normal
     likelihood, which is equivalent to minimizing the mean squared error
     in the frequentist version of Least Squares.
     
-    Assume all non-categorial variables come first in the ordering.
-    
-    Assume all variables are non-categorical if num_non_categorical isn't
-    given.
+    Assumptions:
+    1. all non-categorial variables come first in the ordering
+    2. all variables are non-categorical if num_non_categorical isn't given
     """
     return sample_interaction_linear(
         X, y, num_non_categorical=num_non_categorical,
         num_samples=num_samples, interaction='pairwise')
     
 
-def sample_ls_quadratic(X, y, num_non_categorical=None, num_samples=NUM_SAMPLES):
+def sample_ls_quadratic(X, y, num_non_categorical=None,
+                        num_samples=NUM_SAMPLES):
     """
     Sample from Bayesian Least Squares Linear Regression that has all first and
     second order non-categorical data terms. Uses Normal likelihood, which is
     equivalent to minimizing the mean squared error in the frequentist version
     of Least Squares.
     
-    Assume all non-categorial variables come first in the ordering.
-    
-    Assume all variables are non-categorical if num_non_categorical isn't
-    given.
+    Assumptions:
+    1. all non-categorial variables come first in the ordering
+    2. all variables are non-categorical if num_non_categorical isn't given
     """
     return sample_interaction_linear(
         X, y, num_non_categorical=num_non_categorical,
+        num_samples=num_samples, interaction='quadratic')
+
+
+def sample_robust_pairwise(X, y, num_non_categorical=None,
+                           num_samples=NUM_SAMPLES):
+    """
+    Sample from Bayesian Robust Linear Regression that has pairwise
+    interaction terms between all non-categorial variables. Uses Student's T
+    likelihood as it has heavier tails than the Normal likelihood, allowing it
+    to place less emphasis on outliers.
+    
+    Assumptions:
+    1. all non-categorial variables come first in the ordering
+    2. all variables are non-categorical if num_non_categorical isn't given
+    """
+    return sample_interaction_linear(
+        X, y, num_non_categorical=num_non_categorical, robust=True,
+        num_samples=num_samples, interaction='pairwise')
+    
+
+def sample_robust_quadratic(X, y, num_non_categorical=None,
+                            num_samples=NUM_SAMPLES):
+    """
+    Sample from Bayesian Robust Linear Regression that has all first and
+    second order non-categorical data terms. Uses Student's T likelihood as it
+    has heavier tails than the Normal likelihood, allowing it to place less
+    emphasis on outliers.
+    
+    Assumptions:
+    1. all non-categorial variables come first in the ordering
+    2. all variables are non-categorical if num_non_categorical isn't given
+    """
+    return sample_interaction_linear(
+        X, y, num_non_categorical=num_non_categorical, robust=True,
         num_samples=num_samples, interaction='quadratic')
 
 
