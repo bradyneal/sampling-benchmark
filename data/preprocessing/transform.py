@@ -15,6 +15,9 @@ def one_hot(X, categorical=None):
     """
     Encode categorical variables in one-hot representation. If which variables
     are categorical is not specified, assume all variables are categorical.
+    Note: this functions changes the order of the columns so that all of the
+    non-categorical features come before the newly one-hot encoded categorical
+    features.
     
     Args:
         X: data matrix
@@ -27,9 +30,11 @@ def one_hot(X, categorical=None):
         return X
     if categorical is None:
         categorical = [True] * X.shape[1]
-    sparse_one_hot = OneHotEncoder(categorical_features=categorical) \
-                        .fit_transform(X)
-    return sparse_one_hot.toarray()
+    X_categ, X_non_categ = separate_categorical(X, categorical)
+    if X_categ.shape[1] == 0:
+        return X_non_categ
+    X_categ_one_hot = OneHotEncoder().fit_transform(X_categ).toarray()
+    return np.concatenate((X_non_categ, X_categ_one_hot), axis=1)
 
 
 def standardize(X, scaler=None, return_scaler=False):
