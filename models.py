@@ -52,16 +52,28 @@ def sample_model(model_name, X, y, num_samples=NUM_SAMPLES,
 # weights:    N(0, 10^6) prior
 # likelihood: Normal
 
+def sample_linear(X, y, num_samples=NUM_SAMPLES, robust=False):
+    """
+    Sample from Bayesian linear model (abstraction of least squares and robust
+    linear models that correspond to Normal and Student's T likelihoods
+    respectively).
+    """
+    with pm.Model() as model_glm:
+        if robust:
+            pm.GLM(X, y, family=pm.glm.families.StudentT())
+        else:
+            pm.GLM(X, y)
+        trace = pm.sample(num_samples)
+    return format_trace(trace)
+
+
 def sample_ls_linear(X, y, num_samples=NUM_SAMPLES):
     """
     Sample from Bayesian Least Squares Linear Regression. Uses Normal
     likelihood, which is equivalent to minimizing the mean squared error
     in the frequentist version of Least Squares.
     """
-    with pm.Model() as model_glm:
-        pm.GLM(X, y)
-        trace = pm.sample(num_samples)
-    return format_trace(trace)
+    return sample_linear(X, y, num_samples=NUM_SAMPLES)
 
 
 def sample_robust_linear(X, y, num_samples=NUM_SAMPLES):
@@ -70,11 +82,7 @@ def sample_robust_linear(X, y, num_samples=NUM_SAMPLES):
     has heavier tails than the Normal likelihood, allowing it to place less
     emphasis on outliers.
     """
-    with pm.Model() as model_glm:
-        StudentT = pm.glm.families.StudentT()
-        pm.GLM(X, y, family=StudentT)
-        trace = pm.sample(num_samples)
-    return format_trace(trace)
+    return sample_linear(X, y, num_samples=NUM_SAMPLES, robust=True)
 
 
 def sample_ls_pairwise(X, y, num_non_categorical=None, num_samples=NUM_SAMPLES):
