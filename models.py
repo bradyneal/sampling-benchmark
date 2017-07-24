@@ -85,6 +85,35 @@ def sample_robust_linear(X, y, num_samples=NUM_SAMPLES):
     return sample_linear(X, y, num_samples=NUM_SAMPLES, robust=True)
 
 
+def sample_interaction_linear(X, y, num_non_categorical=None,
+                              num_samples=NUM_SAMPLES, interaction='pairwise'):
+    """
+    Sample from Bayesian linear models with interaction and higher order terms
+    (abstraction of all linear regressions that have nonlinear data terms).
+    
+    Assume all non-categorial variables come first in the ordering.
+    
+    Assume all variables are non-categorical if num_non_categorical isn't
+    given.
+    """
+    d = X.shape[1]
+    if num_non_categorical is None:
+        num_non_categorical = d
+    data_df = numpy_to_dataframe(X, y)
+    with pm.Model() as model_glm:
+        if 'pairwise' == interaction:
+            interaction_formula = get_pairwise_formula(num_non_categorical)
+        elif 'quadratic' == interaction:
+            interaction_formula = get_quadratic_formula(num_non_categorical)
+        x_formula = _join_nonempty(
+            (interaction_formula,
+             get_linear_formula(num_non_categorical + 1, d))
+        )
+        pm.GLM.from_formula('y ~ ' + x_formula, data_df)
+        trace = pm.sample(num_samples)
+    return format_trace(trace)
+    
+
 def sample_ls_pairwise(X, y, num_non_categorical=None, num_samples=NUM_SAMPLES):
     """
     Sample from Bayesian Least Squares Linear Regression that has pairwise
@@ -97,44 +126,26 @@ def sample_ls_pairwise(X, y, num_non_categorical=None, num_samples=NUM_SAMPLES):
     Assume all variables are non-categorical if num_non_categorical isn't
     given.
     """
-    d = X.shape[1]
-    if num_non_categorical is None:
-        num_non_categorical = d
-    data_df = numpy_to_dataframe(X, y)
-    with pm.Model() as model_glm:
-        x_formula = _join_nonempty(
-            (get_pairwise_formula(num_non_categorical),
-             get_linear_formula(num_non_categorical + 1, d))
-        )
-        pm.GLM.from_formula('y ~ ' + x_formula, data_df)
-        trace = pm.sample(num_samples)
-    return format_trace(trace)
+    return sample_interaction_linear(
+        X, y, num_non_categorical=num_non_categorical,
+        num_samples=num_samples, interaction='pairwise')
     
 
 def sample_ls_quadratic(X, y, num_non_categorical=None, num_samples=NUM_SAMPLES):
     """
     Sample from Bayesian Least Squares Linear Regression that has all first and
-    second order terms. Uses Normal likelihood, which is equivalent to
-    minimizing the mean squared error in the frequentist version of Least
-    Squares.
+    second order non-categorical data terms. Uses Normal likelihood, which is
+    equivalent to minimizing the mean squared error in the frequentist version
+    of Least Squares.
     
     Assume all non-categorial variables come first in the ordering.
     
     Assume all variables are non-categorical if num_non_categorical isn't
     given.
     """
-    d = X.shape[1]
-    if num_non_categorical is None:
-        num_non_categorical = d
-    data_df = numpy_to_dataframe(X, y)
-    with pm.Model() as model_glm:
-        x_formula = _join_nonempty(
-            (get_quadratic_formula(num_non_categorical),
-             get_linear_formula(num_non_categorical + 1, d))
-        )
-        pm.GLM.from_formula('y ~ ' + x_formula, data_df)
-        trace = pm.sample(num_samples)
-    return format_trace(trace)
+    return sample_interaction_linear(
+        X, y, num_non_categorical=num_non_categorical,
+        num_samples=num_samples, interaction='quadratic')
 
 
 def get_pairwise_formula(num_non_categorical):
