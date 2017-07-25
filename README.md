@@ -11,7 +11,7 @@ Benchmark for samplers that sample from posterior distributions over model param
 │       ├── separation.py
 │       └── transform.py
 ├── exploring-packages
-│   ├── ...
+│   └── ...
 ├── models
 │   ├── classification.py
 │   ├── regression.py
