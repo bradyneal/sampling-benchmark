@@ -9,6 +9,8 @@ from pymc3.backends.tracetab import trace_to_dataframe
 from itertools import combinations
 
 from data import numpy_to_dataframe, get_var_names
+from .utils import format_trace, get_pairwise_formula, get_quadratic_formula, \
+                   get_linear_formula, join_nonempty
 
 REGRESSION_MODEL_NAMES = [
     'ls_linear', 'ls_pairwise_linear', 'ls_quadratic_linear',
@@ -111,7 +113,7 @@ def sample_interaction_linear(X, y, num_non_categorical=None,
             interaction_formula = get_pairwise_formula(num_non_categorical)
         elif 'quadratic' == interaction:
             interaction_formula = get_quadratic_formula(num_non_categorical)
-        x_formula = _join_nonempty(
+        x_formula = join_nonempty(
             (interaction_formula,
              get_linear_formula(num_non_categorical + 1, d))
         )
@@ -192,40 +194,7 @@ def sample_robust_quadratic(X, y, num_non_categorical=None,
         num_samples=num_samples, interaction='quadratic')
 
 
-def get_pairwise_formula(num_non_categorical):
-    var_names = get_var_names(num_non_categorical)
-    singles_str = ' + '.join(var_names)
-    pairs_str = ' + '.join(':'.join(pair)
-                           for pair in combinations(var_names, 2))
-    return _join_nonempty((singles_str, pairs_str))
-
-
-def get_quadratic_formula(num_non_categorical):
-    pairwise_str = get_pairwise_formula(num_non_categorical)
-    var_names = get_var_names(num_non_categorical)
-    squares_str = ' + '.join('np.power(x{}, 2)'.format(i)
-                             for i in range(1, num_non_categorical + 1))
-    return _join_nonempty((pairwise_str, squares_str))
-
-
-def get_linear_formula(start_i, end_i):
-    return ' + '.join('x' + str(i) for i in range(start_i, end_i + 1))
-
-
-def _join_nonempty(l):
-    return ' + '.join(s for s in l if s != '')
-
-
 def sample_gp(X, y, num_samples=NUM_SAMPLES):
     """Sample from Gaussian Process"""
     raise NotImplementedError(
         'The Gaussian Process model is not yet implemented.')
-
-
-def format_trace(trace):
-    """
-    Convert the trace into the necessary format. The current format is a
-    Pandas DataFrame.
-    """
-    return trace_to_dataframe(trace)
-    
