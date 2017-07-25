@@ -9,7 +9,7 @@ UNIX_OPENML_PATH = '/data/lisa/data/openml'
 OPENML_FOLDER = os.path.join(os.sep, *UNIX_OPENML_PATH.split('/'))
 DATASETS_FOLDER = os.path.join(OPENML_FOLDER, 'datasets')
 
-
+# Folder name constants
 class Preprocess(Enum):
     RAW = 'raw'
     ONEHOT = 'one-hot'
