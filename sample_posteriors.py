@@ -5,7 +5,7 @@ conditioned on all of the specified datasts.
 
 import openml
 
-from models import MODEL_NAMES, sample_model
+from models import REGRESSION_MODEL_NAMES, sample_regression_model
 from preprocessing import separate_categorical
 
 if __name__ == '__main__':
@@ -24,6 +24,6 @@ if __name__ == '__main__':
         _, X_non_categ = separate_categorical(X, categorical)
         
         # loops over models
-        for model_name in MODEL_NAMES:
-            sample_model(model_name, X_non_categ, y)
+        for model_name in REGRESSION_MODEL_NAMES:
+            sample_regression_model(model_name, X_non_categ, y)
             

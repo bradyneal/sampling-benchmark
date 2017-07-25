@@ -1,7 +1,7 @@
 """
 This module provides functions for sampling from the posteriors of various
-different models. The supported models are specified in the MODEL_NAMES
-constant.
+regression models. The supported models are specified in the
+REGRESSION_MODEL_NAMES constant.
 """
 
 import pymc3 as pm
@@ -10,13 +10,15 @@ from itertools import combinations
 
 from data import numpy_to_dataframe, get_var_names
 
-MODEL_NAMES = ['ls_linear', 'ls_pairwise_linear', 'ls_quadratic_linear',
-               'robust_linear', 'robust_pairwise_linear', 'robust_quadratic_linear']
+REGRESSION_MODEL_NAMES = [
+    'ls_linear', 'ls_pairwise_linear', 'ls_quadratic_linear',
+    'robust_linear', 'robust_pairwise_linear', 'robust_quadratic_linear'
+]
 NUM_SAMPLES = 500
 
 
-def sample_model(model_name, X, y, num_samples=NUM_SAMPLES, 
-                 num_non_categorical=None):
+def sample_regression_model(model_name, X, y, num_samples=NUM_SAMPLES,
+                            num_non_categorical=None):
     """
     Sample from the posteriors of any of the supported models
     
