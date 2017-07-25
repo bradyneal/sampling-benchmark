@@ -6,25 +6,27 @@ Benchmark for samplers that sample from posterior distributions over model param
 .
 ├── data
 │   ├── download_datasets.py
-│   └── preprocessing
-│       ├── separation.py
-│       └── transform.py
+│   └──preprocessing
+│       ├── format.py
+│       ├── separation.py
+│       └── transform.py
 ├── exploring-packages
-│   └── ...
-├── models.py
-├── README.md
-└── sample_posteriors.py
-        
+│   ├── ...
+├── models
+│   ├── classification.py
+│   ├── regression.py
+│   ├── unsupervised.py
+│   └── utils.py
+└── sample_posteriors.py        
 ```
 
 ### [sample_posteriors.py](https://github.com/bradyneal/sampling-benchmark/blob/master/sample_posteriors.py)
 * Main file for building "grid"
 * Draws samples from the posteriors of all of the supported models, conditioned on all of the specified datasts (double for loop)
 
-### [models.py](https://github.com/bradyneal/sampling-benchmark/blob/master/models.py)
-* Provides functions for sampling from the posteriors of various
-different models
-* MODEL_NAMES constant: specifies supported models
+### [models](https://github.com/bradyneal/sampling-benchmark/tree/master/models)
+* Package for sampling from the posteriors of various models for tasks such as regression, classification, and unsupervised
+* *MODEL_NAMES constants: specify supported models for each task
 * **TODO:** implement more models
 
 ### [data](https://github.com/bradyneal/sampling-benchmark/tree/master/data)
@@ -34,6 +36,7 @@ different models
 
 ### [preprocessing](https://github.com/bradyneal/sampling-benchmark/tree/master/data/preprocessing)
 * Package for data processing modules
+* [**format.py**](https://github.com/bradyneal/sampling-benchmark/blob/master/data/preprocessing/format.py) - provides function for shifting between data formats (e.g. numpy arrays and Pandas DataFrames)
 * [**separation.py**](https://github.com/bradyneal/sampling-benchmark/blob/master/data/preprocessing/separation.py) - provides functions for separating data based on the types of variables
 * [**transform.py**](https://github.com/bradyneal/sampling-benchmark/blob/master/data/preprocessing/transform.py) - provides functions for transformations of data (e.g. one-hot encoding, standardization, robust standardization, whitening)
 
