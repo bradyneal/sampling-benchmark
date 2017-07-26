@@ -5,8 +5,11 @@ Benchmark for samplers that sample from posterior distributions over model param
 ```
 .
 ├── data
+│   ├── config.py
 │   ├── download_datasets.py
-│   └──preprocessing
+│   ├── io.py
+│   ├── preprocess_datasets.py
+│   └── preprocessing
 │       ├── format.py
 │       ├── separation.py
 │       └── transform.py
@@ -17,7 +20,7 @@ Benchmark for samplers that sample from posterior distributions over model param
 │   ├── regression.py
 │   ├── unsupervised.py
 │   └── utils.py
-└── sample_posteriors.py        
+└── sample_posteriors.py      
 ```
 
 ### [sample_posteriors.py](https://github.com/bradyneal/sampling-benchmark/blob/master/sample_posteriors.py)
@@ -32,10 +35,12 @@ Benchmark for samplers that sample from posterior distributions over model param
 ### [data](https://github.com/bradyneal/sampling-benchmark/tree/master/data)
 * Package for downloading, preprocessing, saving, and loading of data
 * [**download_datasets.py**](https://github.com/bradyneal/sampling-benchmark/blob/master/data/download_datasets.py) - download and save the raw datasets
-* **TODO: preprocess_datasets.py** - preprocess raw datasets and save according to the [**Datasets Format**](https://github.com/bradyneal/sampling-benchmark#datasets-format) below
+* [**preprocess_datasets.py**](https://github.com/bradyneal/sampling-benchmark/blob/master/data/preprocess_datasets.py) - preprocess raw datasets and save according to the [**Datasets Format**](https://github.com/bradyneal/sampling-benchmark#datasets-format) below
+* [**config.py**](https://github.com/bradyneal/sampling-benchmark/blob/master/data/config.py) - configuration information such as the various folders that the different preprocced versions of data are stored in
+* [**io.py**](https://github.com/bradyneal/sampling-benchmark/blob/master/data/io.py) - various functions for reading/writing of datasets
 
 ### [preprocessing](https://github.com/bradyneal/sampling-benchmark/tree/master/data/preprocessing)
-* Package for data processing modules
+* Sub-package for data processing modules
 * [**format.py**](https://github.com/bradyneal/sampling-benchmark/blob/master/data/preprocessing/format.py) - provides function for shifting between data formats (e.g. numpy arrays and Pandas DataFrames)
 * [**separation.py**](https://github.com/bradyneal/sampling-benchmark/blob/master/data/preprocessing/separation.py) - provides functions for separating data based on the types of variables
 * [**transform.py**](https://github.com/bradyneal/sampling-benchmark/blob/master/data/preprocessing/transform.py) - provides functions for transformations of data (e.g. one-hot encoding, standardization, robust standardization, whitening)
