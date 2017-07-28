@@ -5,25 +5,19 @@ conditioned on all of the specified datasts.
 
 import openml
 
-from models import REGRESSION_MODEL_NAMES, sample_regression_model
-from preprocessing import separate_categorical
+from models import REGRESSION_MODEL_NAMES, sample_regression_model, \
+                   CLASSIFICATION_MODEL_NAMES, sample_classification_model
+from data import get_downloaded_dataset_ids_by_task, read_dataset_Xy, Preprocess
 
-if __name__ == '__main__':
-    dataset_ids = [23]
-    
-    # loop over datasets
-    for dataset_id in dataset_ids:
-        # download dataset and separate out features to use
-        # TODO: write and change to function that loads dataset with options for
-        # which features to use
-        dataset = openml.datasets.get_dataset(dataset_id)
-        X, y, categorical, names = dataset.get_data(
-            target=dataset.default_target_attribute,
-            return_categorical_indicator=True,
-            return_attribute_names=True)
-        _, X_non_categ = separate_categorical(X, categorical)
+# For each different task (e.g. regression, classification, etc.),
+# run outer loop that loops over datasets and inner loop that loops over models.
+
+for dataset_id in get_downloaded_dataset_ids_by_task('Supervised Regression'):
+    X, y = read_dataset_Xy(dataset_id, Preprocess.ONEHOT)
+    for model_name in REGRESSION_MODEL_NAMES:
+        sample_regression_model(model_name, X, y)
         
-        # loops over models
-        for model_name in REGRESSION_MODEL_NAMES:
-            sample_regression_model(model_name, X_non_categ, y)
-            
+for dataset_id in get_downloaded_dataset_ids_by_task('Supervised Classification'):
+    X, y = read_dataset_Xy(dataset_id, Preprocess.ONEHOT)
+    for model_name in CLASSIFICATION_MODEL_NAMES:
+        sample_classification_model(model_name, X, y)

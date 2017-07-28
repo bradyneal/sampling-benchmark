@@ -7,3 +7,8 @@ CLASSIFICATION_MODEL_NAMES constant.
 import pymc3 as pm
 
 CLASSIFICATION_MODEL_NAMES = []
+
+
+def sample_classification_model(model_name, X, y, num_samples=NUM_SAMPLES,
+                                num_non_categorical=None):
+    pass
