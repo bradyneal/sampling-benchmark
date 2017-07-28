@@ -16,11 +16,17 @@ def get_downloaded_dataset_ids(preprocess=Preprocess.RAW):
     return [int(filename.rstrip(PICKLE_EXT)) for filename in dataset_filenames]
 
 
-def read_dataset(dataset_id, preprocess=Preprocess.RAW):
+def read_dataset_dict(dataset_id, preprocess=Preprocess.RAW):
     """Read the dataset with specified preprocessing from disk"""
     filename = get_dataset_filename(dataset_id, preprocess)
     with open(filename, 'rb') as f:
         return pickle.load(f)
+    
+
+def read_dataset_Xy(dataset_id, preprocess=Preprocess.RAW):
+    """Read the dataset with specified preprocessing from disk"""
+    dataset_dict = read_dataset_dict(dataset_id, preprocess)
+    return dataset_dict['X'], dataset_dict['y']
     
     
 def write_dataset(dataset_id, dataset, preprocess=Preprocess.RAW):
