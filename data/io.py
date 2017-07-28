@@ -29,16 +29,29 @@ def read_dataset_Xy(dataset_id, preprocess=Preprocess.RAW):
     return dataset_dict['X'], dataset_dict['y']
     
     
-def write_dataset(dataset_id, dataset, preprocess=Preprocess.RAW):
+def write_dataset(dataset_id, dataset, preprocess=Preprocess.RAW,
+                  overwrite=False):
     """Write the dataset with specified preprocessing to disk"""
-    write_dataset_dict(get_dataset_dict(dataset), dataset_id, preprocess)
+    write_dataset_dict(get_dataset_dict(dataset), dataset_id, preprocess,
+                       overwrite)
         
 
-def write_dataset_dict(d, dataset_id, preprocess=Preprocess.RAW):
+def write_dataset_dict(d, dataset_id, preprocess=Preprocess.RAW,
+                       overwrite=False):
     """Write the dataset dict with specified preprocessing to disk"""
     filename = get_dataset_filename(dataset_id, preprocess)
-    with open(filename, 'wb') as f:
-        pickle.dump(d, f)
+    if overwrite or not os.path.isfile(filename):
+        with open(filename, 'wb') as f:
+            pickle.dump(d, f)
+            
+
+def is_file(dataset_id, preprocess=Preprocess.RAW):
+    """
+    Return whether or not the dataset with specified preprocessing already
+    exists on disk
+    """
+    filename = get_dataset_filename(dataset_id, preprocess)
+    return os.path.isfile(filename)
 
 
 def get_folder(preprocess=Preprocess.RAW):

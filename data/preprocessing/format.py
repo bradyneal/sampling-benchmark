@@ -5,7 +5,7 @@ This module provides functions for changing between different data formats
 
 import numpy as np
 import pandas as pd
-
+import scipy.sparse as sps
 
 def numpy_to_dataframe(X, y=None):
     """Convert numpy 2d array to pandas DataFrame"""
@@ -18,6 +18,25 @@ def numpy_to_dataframe(X, y=None):
         names = get_var_names(X.shape[1])
     return pd.DataFrame(data, columns=names)
 
+
+def to_ndarray(X):
+    """
+    Convert to numpy ndarray if not already. Right now, this only converts
+    from sparse arrays.
+    """
+    if isinstance(X, np.ndarray):
+        return X, False
+    elif sps.issparse(X):
+        print('Converting from sparse type: {}'.format(type(X)))
+        return X.toarray(), True
+    else:
+        raise ValueError('Unexpected data type: {}'.format(type(X)))
+    
+    
+def to_sparse(X):
+    """Convert numpy ndarray to sparse matrix"""
+    return sps.csr_matrix(X)
+    
 
 def get_var_names(d):
     """Make column names (i.e. x1, x2, ..., xd) for data dimension d"""
