@@ -9,13 +9,13 @@ import os
 sys.path.append(os.path.abspath('.'))
 
 from data.config import Preprocess
-from data.io import get_all_dataset_ids, read_dataset, write_dataset_dict
+from data.io import get_downloaded_dataset_ids, read_dataset, write_dataset_dict
 from data.preprocessing import one_hot, standardize_and_one_hot, \
     robust_standardize_and_one_hot, whiten_and_one_hot
 
 
 def preprocess_datasets(verbose=False):
-    dataset_ids = get_all_dataset_ids(Preprocess.RAW)
+    dataset_ids = get_downloaded_dataset_ids(Preprocess.RAW)
     num_datasets = len(dataset_ids)
     for i, dataset_id in enumerate(dataset_ids):
         if verbose:

@@ -10,10 +10,10 @@ from .config import CONFIG, Preprocess
 PICKLE_EXT = '.pickle'
 
 
-def get_all_dataset_ids(preprocess=Preprocess.RAW):
+def get_downloaded_dataset_ids(preprocess=Preprocess.RAW):
     """Get all dataset ids in the corresponding preprocessed data folder"""
     dataset_filenames = os.listdir(get_folder(preprocess))
-    return [filename.rstrip(PICKLE_EXT) for filename in dataset_filenames]
+    return [int(filename.rstrip(PICKLE_EXT)) for filename in dataset_filenames]
 
 
 def read_dataset(dataset_id, preprocess=Preprocess.RAW):
