@@ -43,8 +43,8 @@ def get_downloaded_dataset_ids_by_task(task):
 
 def download_dataset(dataset_id, verbose=False):
     """
-    Download openml dataset corresponding to dataset_id
-    and return the corresponding dictionary of its content
+    Download openml dataset corresponding to dataset_id and return the
+    corresponding dictionary of its content. Log any download errors.
     """
     if verbose: print('Downloading dataset {} ...'.format(dataset_id), end=' ')
     try:

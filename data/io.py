@@ -17,7 +17,10 @@ def get_downloaded_dataset_ids(preprocess=Preprocess.RAW):
 
 
 def read_dataset_dict(dataset_id, preprocess=Preprocess.RAW, verbose=False):
-    """Read the dataset with specified preprocessing from disk"""
+    """
+    Read the dataset with specified preprocessing from disk.
+    Log any reading errors
+    """
     if verbose: print('Reading dataset {} ...'.format(dataset_id), end=' ')
     filename = get_dataset_filename(dataset_id, preprocess)
     try:
