@@ -29,7 +29,7 @@ def read_dataset_dict(dataset_id, preprocess=Preprocess.RAW, verbose=False):
             if verbose: print('Success!')
             return d
     except Exception as e:
-        write_read_error(e)
+        write_read_error(e, dataset_id)
         if verbose: print('Failure!')
     
 
@@ -55,7 +55,7 @@ def write_dataset_dict(d, dataset_id, preprocess=Preprocess.RAW,
             pickle.dump(d, f)
        
 
-def write_data_error(e, activity_type):
+def write_data_error(e, dataset_id, activity_type):
     """
     Append general dataset error information to corresponding file
     and add error type to set in corresponding pickle file. Abstaction of
@@ -81,20 +81,20 @@ def write_data_error(e, activity_type):
         pickle.dump(error_set, f)
         
                     
-def write_read_error(e):
+def write_read_error(e, dataset_id):
     """
     Write dataset read error information to corresponding file
     and add error type to set in corresponding pickle file
     """
-    write_data_error(e, 'read')
+    write_data_error(e, dataset_id, 'read')
             
 
-def write_download_error(e):
+def write_download_error(e, dataset_id):
     """
     Append dataset download error information to corresponding file
     and add error type to set in corresponding pickle file
     """
-    write_data_error(e, 'download')
+    write_data_error(e, dataset_id, 'download')
             
 
 def is_file(dataset_id, preprocess=Preprocess.RAW):

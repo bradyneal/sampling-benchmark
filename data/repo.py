@@ -55,7 +55,7 @@ def download_dataset(dataset_id, verbose=False):
     # except (OpenMLServerError, PyOpenMLError, ChunkedEncodingError,
     #         BadNominalValue, BadDataFormat, EOFError) as e:
     except Exception as e:
-        write_download_error(e)
+        write_download_error(e, dataset_id)
         if verbose: print('Failure!')
 
 
