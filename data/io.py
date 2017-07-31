@@ -16,11 +16,18 @@ def get_downloaded_dataset_ids(preprocess=Preprocess.RAW):
     return [int(filename.rstrip(PICKLE_EXT)) for filename in dataset_filenames]
 
 
-def read_dataset_dict(dataset_id, preprocess=Preprocess.RAW):
+def read_dataset_dict(dataset_id, preprocess=Preprocess.RAW, verbose=False):
     """Read the dataset with specified preprocessing from disk"""
+    if verbose: print('Reading dataset {} ...'.format(dataset_id), end=' ')
     filename = get_dataset_filename(dataset_id, preprocess)
-    with open(filename, 'rb') as f:
-        return pickle.load(f)
+    try:
+        with open(filename, 'rb') as f:
+            d = pickle.load(f)
+            if verbose: print('Success!')
+            return d
+    except Exception as e:
+        write_read_error(e)
+        if verbose: print('Failure!')
     
 
 def read_dataset_Xy(dataset_id, preprocess=Preprocess.RAW):
@@ -43,6 +50,48 @@ def write_dataset_dict(d, dataset_id, preprocess=Preprocess.RAW,
     if overwrite or not os.path.isfile(filename):
         with open(filename, 'wb') as f:
             pickle.dump(d, f)
+       
+
+def write_data_error(e, activity_type):
+    """
+    Append general dataset error information to corresponding file
+    and add error type to set in corresponding pickle file. Abstaction of
+    the 2 functions below
+    """
+    # Append to errors file
+    filename = os.path.join(CONFIG['errors_folder'],
+                            activity_type + '_errors.txt')
+    with open(filename, 'a') as f:
+        f.write('Dataset id: {}\nError type: {}\nError message: {}\n\n'
+                .format(dataset_id, type(e), str(e)))
+    
+    # Update set with error type    
+    filename = os.path.join(CONFIG['errors_folder'],
+                            activity_type + '_error_set' + PICKLE_EXT)
+    if not os.path.isfile(filename):
+        error_set = set()
+    else:
+        with open(filename, 'rb') as f:
+            error_set = pickle.load(f)
+    error_set.add(type(e))
+    with open(filename, 'wb') as f:
+        pickle.dump(error_set, f)
+        
+                    
+def write_read_error(e):
+    """
+    Write dataset read error information to corresponding file
+    and add error type to set in corresponding pickle file
+    """
+    write_data_error(e, 'read')
+            
+
+def write_download_error(e):
+    """
+    Append dataset download error information to corresponding file
+    and add error type to set in corresponding pickle file
+    """
+    write_data_error(e, 'download')
             
 
 def is_file(dataset_id, preprocess=Preprocess.RAW):
