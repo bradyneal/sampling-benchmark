@@ -12,8 +12,9 @@ from arff import BadNominalValue, BadDataFormat
 
 from .io import get_downloaded_dataset_ids, write_download_error
 
-
 SUPPORTED_TASKS = ['Supervised Regression', 'Supervised Classification']
+DOWNLOADING_ERRORS = (OpenMLServerError, PyOpenMLError, ChunkedEncodingError,
+                      BadNominalValue, BadDataFormat, EOFError) 
 
 
 def get_dataset_ids():
@@ -60,8 +61,7 @@ def download_dataset_and_log(dataset_id, verbose=False):
         d = download_dataset(dataset_id)
         if verbose: print('Success!')
         return d
-    # except (OpenMLServerError, PyOpenMLError, ChunkedEncodingError,
-    #         BadNominalValue, BadDataFormat, EOFError) as e:
+    # except DOWNLOADING_ERRORS as e:
     except Exception as e:
         write_download_error(e, dataset_id)
         if verbose: print('Failure!')

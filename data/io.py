@@ -6,8 +6,10 @@ import os
 import pickle
 
 from .config import CONFIG, Preprocess
+from .repo import download_dataset
 
 PICKLE_EXT = '.pickle'
+READING_ERRORS = EOFError
 
 
 def get_downloaded_dataset_ids(preprocess=Preprocess.RAW):
@@ -34,9 +36,26 @@ def read_dataset_and_log(dataset_id, preprocess=Preprocess.RAW, verbose=False):
     if verbose: print('Reading dataset {} ...'.format(dataset_id), end=' ')
     try:
         d = read_dataset(dataset_id, preprocess)
-    except Exception as e:
+    except READING_ERRORS as e:
         write_read_error(e, dataset_id)
         if verbose: print('Failure!')
+        
+        
+def read_dataset_and_purge(dataset_id, verbose=False):
+    """
+    Read the raw dataset from disk and return the corresponding dictionary of
+    its contents. If reading dataset errors, try to redownload the dataset. If
+    that doesn't work, delete the dataset.
+    """
+    if verbose: print('Reading dataset {} ...'.format(dataset_id), end=' ')
+    try:
+        d = read_dataset(dataset_id, Preprocess.RAW)
+    except READING_ERRORS as e:
+        try:
+            d = download_dataset(dataset_id)
+            write_dataset_dict(d, dataset_id, Preprocess.RAW)
+        except Exception as e:
+            delete_dataset(dataset_id, Preprocess.RAW)
     
 
 def read_dataset_Xy(dataset_id, preprocess=Preprocess.RAW):
@@ -107,7 +126,13 @@ def write_download_error(e, dataset_id):
     and add error type to set in corresponding pickle file
     """
     write_data_error(e, dataset_id, 'download')
-            
+       
+       
+def delete_dataset(dataset_id, preprocess=Preprocess.RAW):
+    """Remove the dataset with specified preprocessing from disk"""
+    filename = get_dataset_filename(dataset_id, preprocess)
+    os.remove(filename)
+     
 
 def is_file(dataset_id, preprocess=Preprocess.RAW):
     """
