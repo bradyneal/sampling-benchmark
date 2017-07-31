@@ -16,18 +16,24 @@ def get_downloaded_dataset_ids(preprocess=Preprocess.RAW):
     return [int(filename.rstrip(PICKLE_EXT)) for filename in dataset_filenames]
 
 
-def read_dataset_dict(dataset_id, preprocess=Preprocess.RAW, verbose=False):
+def read_dataset(dataset_id, preprocess=Preprocess.RAW):
     """
-    Read the dataset with specified preprocessing from disk.
-    Log any reading errors
+    Read the dataset with specified preprocessing from disk and return the
+    corresponding dictionary of its contents.
+    """
+    filename = get_dataset_filename(dataset_id, preprocess)
+    with open(filename, 'rb') as f:
+        return pickle.load(f)
+
+
+def read_dataset_and_log(dataset_id, preprocess=Preprocess.RAW, verbose=False):
+    """
+    Read the dataset with specified preprocessing from disk and return the
+    corresponding dictionary of its contents. Log any reading errors.
     """
     if verbose: print('Reading dataset {} ...'.format(dataset_id), end=' ')
-    filename = get_dataset_filename(dataset_id, preprocess)
     try:
-        with open(filename, 'rb') as f:
-            d = pickle.load(f)
-            if verbose: print('Success!')
-            return d
+        d = read_dataset(dataset_id, preprocess)
     except Exception as e:
         write_read_error(e, dataset_id)
         if verbose: print('Failure!')
@@ -79,7 +85,13 @@ def write_data_error(e, dataset_id, activity_type):
     error_set.add(type(e))
     with open(filename, 'wb') as f:
         pickle.dump(error_set, f)
-        
+    
+    # Write error set to txt file
+    filename = os.path.join(CONFIG['errors_folder'],
+                            activity_type + '_error_set.txt')
+    with open(filename, 'w') as f:
+        pickle.dump(str(error_set), f)
+
                     
 def write_read_error(e, dataset_id):
     """

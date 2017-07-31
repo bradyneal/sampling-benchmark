@@ -41,15 +41,23 @@ def get_downloaded_dataset_ids_by_task(task):
     return downloaded_ids.intersection(task_ids)
 
 
-def download_dataset(dataset_id, verbose=False):
+def download_dataset(dataset_id):
+    """
+    Download openml dataset corresponding to dataset_id and return the
+    corresponding dictionary of its content
+    """
+    dataset = openml.datasets.get_dataset(dataset_id)
+    return get_dataset_dict(dataset)
+
+
+def download_dataset_and_log(dataset_id, verbose=False):
     """
     Download openml dataset corresponding to dataset_id and return the
     corresponding dictionary of its content. Log any download errors.
     """
     if verbose: print('Downloading dataset {} ...'.format(dataset_id), end=' ')
-    try:
-        dataset = openml.datasets.get_dataset(dataset_id)
-        d = get_dataset_dict(dataset)
+    try:        
+        d = download_dataset(dataset_id)
         if verbose: print('Success!')
         return d
     # except (OpenMLServerError, PyOpenMLError, ChunkedEncodingError,
