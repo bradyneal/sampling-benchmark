@@ -36,6 +36,8 @@ def read_dataset_and_log(dataset_id, preprocess=Preprocess.RAW, verbose=False):
     if verbose: print('Reading dataset {} ...'.format(dataset_id), end=' ')
     try:
         d = read_dataset(dataset_id, preprocess)
+        if verbose: print('Success!')
+        return d
     except READING_ERRORS as e:
         write_read_error(e, dataset_id)
         if verbose: print('Failure!')
@@ -50,11 +52,17 @@ def read_dataset_and_purge(dataset_id, verbose=False):
     if verbose: print('Reading dataset {} ...'.format(dataset_id), end=' ')
     try:
         d = read_dataset(dataset_id, Preprocess.RAW)
+        if verbose: print('Success!')
+        return d
     except READING_ERRORS as e:
+        if verbose: print('Failure!')
+        if verbose: print('Downloading dataset {} ...'.format(dataset_id), end=' ')
         try:
             d = download_dataset(dataset_id)
             write_dataset_dict(d, dataset_id, Preprocess.RAW)
+            if verbose: print('Success!')
         except Exception as e:
+            if verbose: print('Failure! Deleting dataset {}'.format(dataset_id))
             delete_dataset(dataset_id, Preprocess.RAW)
     
 
