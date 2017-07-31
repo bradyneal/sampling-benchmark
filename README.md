@@ -6,14 +6,16 @@ Benchmark for samplers that sample from posterior distributions over model param
 .
 ├── data
 │   ├── config.py
-│   ├── download_datasets.py
 │   ├── io.py
-│   ├── metadata.py
+│   ├── preprocessing
+│   │   ├── format.py
+│   │   ├── separation.py
+│   │   └── transform.py
+│   └── repo.py
+├── data_scripts
+│   ├── download_datasets.py
 │   ├── preprocess_datasets.py
-│   └── preprocessing
-│       ├── format.py
-│       ├── separation.py
-│       └── transform.py
+│   └── read_downloaded_data.py
 ├── exploring-packages
 │   └── ...
 ├── models
@@ -21,7 +23,7 @@ Benchmark for samplers that sample from posterior distributions over model param
 │   ├── regression.py
 │   ├── unsupervised.py
 │   └── utils.py
-└── sample_posteriors.py      
+└── sample_posteriors.py     
 ```
 
 ### [sample_posteriors.py](https://github.com/bradyneal/sampling-benchmark/blob/master/sample_posteriors.py)
@@ -33,13 +35,18 @@ Benchmark for samplers that sample from posterior distributions over model param
 * *MODEL_NAMES constants: specify supported models for each task
 * **TODO:** implement more models
 
+###[data_scripts](https://github.com/bradyneal/sampling-benchmark/tree/master/data_scripts)
+* Folder for data downloading, preprocessing, and validating scripts
+* [**download_datasets.py**](https://github.com/bradyneal/sampling-benchmark/blob/master/data_scripts/download_datasets.py) - downloads and saves the raw datasets
+* [**preprocess_datasets.py**](https://github.com/bradyneal/sampling-benchmark/blob/master/data_scripts/preprocess_datasets.py) - preprocesses raw datasets and saves according to the [**Datasets Format**](https://github.com/bradyneal/sampling-benchmark#datasets-format) below
+* [**read\_downloaded\_data.py**](https://github.com/bradyneal/sampling-benchmark/blob/master/data_scripts/read_downloaded_data.py) - reads all downloaded datasets, logging any errors
+
+
 ### [data](https://github.com/bradyneal/sampling-benchmark/tree/master/data)
 * Package for downloading, preprocessing, saving, and loading of data
-* [**download_datasets.py**](https://github.com/bradyneal/sampling-benchmark/blob/master/data/download_datasets.py) - downloads and saves the raw datasets
-* [**preprocess_datasets.py**](https://github.com/bradyneal/sampling-benchmark/blob/master/data/preprocess_datasets.py) - preprocesses raw datasets and saves according to the [**Datasets Format**](https://github.com/bradyneal/sampling-benchmark#datasets-format) below
-* [**config.py**](https://github.com/bradyneal/sampling-benchmark/blob/master/data/config.py) - contains configuration information such as the various folders that the different preprocced versions of data are stored in
+* [**config.py**](https://github.com/bradyneal/sampling-benchmark/blob/master/data/config.py) - contains configuration information such as the various folders that the different preprocessed versions of data are stored in
 * [**io.py**](https://github.com/bradyneal/sampling-benchmark/blob/master/data/io.py) - provides functions for reading/writing of datasets
-* [**metadata.py**](https://github.com/bradyneal/sampling-benchmark/blob/master/data/metadata.py) - provides functions for interacting with OpenML metadata (e.g. get all datasets by task)
+* [**repo.py**](https://github.com/bradyneal/sampling-benchmark/blob/master/data/repo.py) - provides functions for interacting with OpenML metadata (e.g. get all datasets by task)
 
 ### [preprocessing](https://github.com/bradyneal/sampling-benchmark/tree/master/data/preprocessing)
 * Sub-package for data processing modules
@@ -51,6 +58,7 @@ Benchmark for samplers that sample from posterior distributions over model param
 ```
 ... (e.g. /data/lisa/data/openml)
 └── datasets
+    ├── errors - logging of any errors encountered with datasets
     ├── raw
     │   └── {dataset_id}.pickle (same format for all folders below)
     ├── one-hot - one-hot encoded categorical features (same for all preprocessing below)
