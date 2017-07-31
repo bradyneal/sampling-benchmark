@@ -35,7 +35,7 @@ Benchmark for samplers that sample from posterior distributions over model param
 * *MODEL_NAMES constants: specify supported models for each task
 * **TODO:** implement more models
 
-###[data_scripts](https://github.com/bradyneal/sampling-benchmark/tree/master/data_scripts)
+### [data_scripts](https://github.com/bradyneal/sampling-benchmark/tree/master/data_scripts)
 * Folder for data downloading, preprocessing, and validating scripts
 * [**download_datasets.py**](https://github.com/bradyneal/sampling-benchmark/blob/master/data_scripts/download_datasets.py) - downloads and saves the raw datasets
 * [**preprocess_datasets.py**](https://github.com/bradyneal/sampling-benchmark/blob/master/data_scripts/preprocess_datasets.py) - preprocesses raw datasets and saves according to the [**Datasets Format**](https://github.com/bradyneal/sampling-benchmark#datasets-format) below
