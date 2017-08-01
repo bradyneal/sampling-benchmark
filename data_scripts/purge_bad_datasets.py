@@ -1,6 +1,6 @@
 """
 Read all downloaded datasets, attempt to redownload any that fail to load,
-and purge any that fail to redownload..
+and purge any that fail to redownload.
 """
 
 import sys
@@ -15,10 +15,9 @@ from data.repo import download_dataset
 from data.config import Preprocess
 
 
-def purge_bad_datasets():
+def purge_bad_datasets(start_i=0):
     dataset_ids = get_downloaded_dataset_ids()
     num_datasets = len(dataset_ids)
-    start_i = 0
     for i in range(start_i, num_datasets):
         print('{} of {}'.format(i + 1, num_datasets), end='\t')
         dataset_id = dataset_ids [i]
