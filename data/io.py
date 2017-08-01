@@ -61,7 +61,7 @@ def write_dataset_dict(d, dataset_id, preprocess=Preprocess.RAW,
     filename = get_dataset_filename(dataset_id, preprocess)
     if overwrite or not os.path.isfile(filename):
         with open(filename, 'wb') as f:
-            pickle.dump(d, f)
+            pickle.dump(d, f, protocol=pickle.HIGHEST_PROTOCOL)
        
 
 def write_data_error(e, dataset_id, activity_type):
