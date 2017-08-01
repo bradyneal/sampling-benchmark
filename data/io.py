@@ -44,7 +44,7 @@ def read_dataset_and_log(dataset_id, preprocess=Preprocess.RAW, verbose=False):
     
 def read_dataset_Xy(dataset_id, preprocess=Preprocess.RAW):
     """Read the dataset with specified preprocessing from disk"""
-    dataset_dict = read_dataset_dict(dataset_id, preprocess)
+    dataset_dict = read_dataset(dataset_id, preprocess)
     return dataset_dict['X'], dataset_dict['y']
     
     
@@ -93,7 +93,7 @@ def write_data_error(e, dataset_id, activity_type):
     filename = os.path.join(CONFIG['errors_folder'],
                             activity_type + '_error_set.txt')
     with open(filename, 'w') as f:
-        pickle.dump(str(error_set), f)
+        f.write(str(error_set) + '\n')
 
                     
 def write_read_error(e, dataset_id):
