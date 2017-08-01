@@ -15,16 +15,17 @@ from data.repo import download_dataset
 from data.config import Preprocess
 
 
-def purge_bad_datasets(start_i=0):
+def purge_bad_datasets(start_i=0, redownload=True, verbose=True):
     dataset_ids = get_downloaded_dataset_ids()
     num_datasets = len(dataset_ids)
     for i in range(start_i, num_datasets):
         print('{} of {}'.format(i + 1, num_datasets), end='\t')
         dataset_id = dataset_ids [i]
-        read_dataset_and_purge(dataset_id, verbose=True) 
+        read_dataset_and_purge(dataset_id, redownload=redownload,
+                               verbose=verbose)
 
 
-def read_dataset_and_purge(dataset_id, redownload=True, verbose=False):
+def read_dataset_and_purge(dataset_id, redownload=True, verbose=True):
     """
     Read the raw dataset from disk and return the corresponding dictionary of
     its contents. If reading dataset errors, try to redownload the dataset. If
