@@ -15,7 +15,8 @@ Benchmark for samplers that sample from posterior distributions over model param
 ├── data_scripts
 │   ├── download_datasets.py
 │   ├── preprocess_datasets.py
-│   └── read_downloaded_data.py
+│   ├── purge_bad_datasets.py
+│   └── read_datasets.py
 ├── exploring-packages
 │   └── ...
 ├── models
@@ -36,16 +37,17 @@ Benchmark for samplers that sample from posterior distributions over model param
 * **TODO:** implement more models
 
 ### [data_scripts](https://github.com/bradyneal/sampling-benchmark/tree/master/data_scripts)
-* Folder for data downloading, preprocessing, and validating scripts
+* Folder for data downloading, preprocessing, validating, etc. scripts
 * [**download_datasets.py**](https://github.com/bradyneal/sampling-benchmark/blob/master/data_scripts/download_datasets.py) - downloads and saves the raw datasets
+* [**purge\_bad\_datasets.py**](https://github.com/bradyneal/sampling-benchmark/blob/master/data_scripts/purge_bad_datasets.py) - deletes any datasets that were pickled but don't work (e.g. empty dataset files)
 * [**preprocess_datasets.py**](https://github.com/bradyneal/sampling-benchmark/blob/master/data_scripts/preprocess_datasets.py) - preprocesses raw datasets and saves according to the [**Datasets Format**](https://github.com/bradyneal/sampling-benchmark#datasets-format) below
-* [**read\_downloaded\_data.py**](https://github.com/bradyneal/sampling-benchmark/blob/master/data_scripts/read_downloaded_data.py) - reads all downloaded datasets, logging any errors
+* [**read_datasets.py**](https://github.com/bradyneal/sampling-benchmark/blob/master/data_scripts/read_datasets.py) - reads all datasets, logging any errors
 
 
 ### [data](https://github.com/bradyneal/sampling-benchmark/tree/master/data)
-* Package for downloading, preprocessing, saving, and loading of data
+* Package for downloading, preprocessing, saving, loading, and deleting of data
 * [**config.py**](https://github.com/bradyneal/sampling-benchmark/blob/master/data/config.py) - contains configuration information such as the various folders that the different preprocessed versions of data are stored in
-* [**io.py**](https://github.com/bradyneal/sampling-benchmark/blob/master/data/io.py) - provides functions for reading/writing of datasets
+* [**io.py**](https://github.com/bradyneal/sampling-benchmark/blob/master/data/io.py) - provides functions for reading, writing, and deleting of datasets and any necessary error logging
 * [**repo.py**](https://github.com/bradyneal/sampling-benchmark/blob/master/data/repo.py) - provides functions for interacting with OpenML metadata (e.g. get all datasets by task)
 
 ### [preprocessing](https://github.com/bradyneal/sampling-benchmark/tree/master/data/preprocessing)
