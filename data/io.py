@@ -6,7 +6,6 @@ import os
 import pickle
 
 from .config import CONFIG, Preprocess
-from .repo import download_dataset
 
 PICKLE_EXT = '.pickle'
 READING_ERRORS = EOFError
@@ -42,30 +41,7 @@ def read_dataset_and_log(dataset_id, preprocess=Preprocess.RAW, verbose=False):
         write_read_error(e, dataset_id)
         if verbose: print('Failure!')
         
-        
-def read_dataset_and_purge(dataset_id, verbose=False):
-    """
-    Read the raw dataset from disk and return the corresponding dictionary of
-    its contents. If reading dataset errors, try to redownload the dataset. If
-    that doesn't work, delete the dataset.
-    """
-    if verbose: print('Reading dataset {} ...'.format(dataset_id), end=' ')
-    try:
-        d = read_dataset(dataset_id, Preprocess.RAW)
-        if verbose: print('Success!')
-        return d
-    except READING_ERRORS as e:
-        if verbose: print('Failure!')
-        if verbose: print('Downloading dataset {} ...'.format(dataset_id), end=' ')
-        try:
-            d = download_dataset(dataset_id)
-            write_dataset_dict(d, dataset_id, Preprocess.RAW)
-            if verbose: print('Success!')
-        except Exception as e:
-            if verbose: print('Failure! Deleting dataset {}'.format(dataset_id))
-            delete_dataset(dataset_id, Preprocess.RAW)
     
-
 def read_dataset_Xy(dataset_id, preprocess=Preprocess.RAW):
     """Read the dataset with specified preprocessing from disk"""
     dataset_dict = read_dataset_dict(dataset_id, preprocess)
