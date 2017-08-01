@@ -10,17 +10,18 @@ import scipy.sparse as sps
 sys.path.append(os.path.abspath('.'))
 
 from data.config import Preprocess
-from data.io import get_downloaded_dataset_ids, read_dataset_dict, \
+from data.io import get_downloaded_dataset_ids, read_dataset_and_log, \
                     write_dataset_dict, is_file
 from data.preprocessing import one_hot, standardize_and_one_hot, \
     robust_standardize_and_one_hot, whiten_and_one_hot, \
     to_ndarray, to_sparse
 
 
-def preprocess_datasets(overwrite=False, verbose=False):
+def preprocess_datasets(start_i=0, overwrite=False, verbose=True):
     dataset_ids = get_downloaded_dataset_ids(Preprocess.RAW)
     num_datasets = len(dataset_ids)
-    for i, dataset_id in enumerate(dataset_ids):
+    for i in range(start_i, num_datasets):
+        dataset_id = dataset_ids [i]
         if verbose:
             print('Preprocessing {} of {} (dataset_id: {})'
                   .format(i + 1, num_datasets, dataset_id))
@@ -28,22 +29,21 @@ def preprocess_datasets(overwrite=False, verbose=False):
         if is_file(dataset_id, Preprocess.WHITENED) and not overwrite:
             if verbose: print('Already preprocessed, so skipping')
             continue
-        d = read_dataset_dict(dataset_id, Preprocess.RAW)
+        d = read_dataset_and_log(dataset_id, Preprocess.RAW)
         X, y, categorical = d['X'], d['y'], d['categorical']
         # convert to ndarray if not already
-        X, wasSparse = to_ndarray(X)
+        X, _ = to_ndarray(X)
         write_preprocessed_dataset_dict(X, y, categorical, dataset_id,
-                                        Preprocess.ONEHOT, wasSparse)
+                                        Preprocess.ONEHOT)
         write_preprocessed_dataset_dict(X, y, categorical, dataset_id,
-                                        Preprocess.STANDARDIZED, wasSparse)
+                                        Preprocess.STANDARDIZED)
         write_preprocessed_dataset_dict(X, y, categorical, dataset_id,
-                                        Preprocess.ROBUST, wasSparse)
+                                        Preprocess.ROBUST)
         write_preprocessed_dataset_dict(X, y, categorical, dataset_id,
-                                        Preprocess.WHITENED, wasSparse)
+                                        Preprocess.WHITENED)
 
 
-def write_preprocessed_dataset_dict(X, y, categorical, dataset_id, preprocess,
-                                    wasSparse):
+def write_preprocessed_dataset_dict(X, y, categorical, dataset_id, preprocess):
     if Preprocess.RAW is preprocess:
         preprocessed = X
     elif Preprocess.ONEHOT is preprocess:
@@ -57,10 +57,10 @@ def write_preprocessed_dataset_dict(X, y, categorical, dataset_id, preprocess,
     else:
         raise ValueError('Unsupported preprocessing type: {}'.format(preprocess))
     
-    if wasSparse: preprocessed = to_sparse(preprocessed)
+    preprocessed = to_sparse(preprocessed)
     write_dataset_dict({'X': preprocessed, 'y': y}, dataset_id, preprocess,
                        overwrite=False)
     
 
 if __name__ == '__main__':
-    preprocess_datasets(overwrite=False, verbose=True)
+    preprocess_datasets(start_i=0, overwrite=True)
