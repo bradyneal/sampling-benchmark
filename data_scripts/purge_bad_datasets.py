@@ -24,7 +24,7 @@ def purge_bad_datasets(start_i=0):
         read_dataset_and_purge(dataset_id, verbose=True) 
 
 
-def read_dataset_and_purge(dataset_id, verbose=False):
+def read_dataset_and_purge(dataset_id, redownload=True, verbose=False):
     """
     Read the raw dataset from disk and return the corresponding dictionary of
     its contents. If reading dataset errors, try to redownload the dataset. If
@@ -36,14 +36,18 @@ def read_dataset_and_purge(dataset_id, verbose=False):
         if verbose: print('Success!')
         return d
     except READING_ERRORS as e:
-        if verbose: print('Failure!')
-        if verbose: print('Downloading dataset {} ...'.format(dataset_id), end=' ')
-        try:
-            d = download_dataset(dataset_id)
-            write_dataset_dict(d, dataset_id, Preprocess.RAW)
-            if verbose: print('Success!')
-        except Exception as e:
-            if verbose: print('Failure! Deleting dataset {}'.format(dataset_id))
+        if verbose: print('Failure!', end=' ')
+        if redownload:
+            if verbose: print('Downloading dataset {} ...'.format(dataset_id), end=' ')
+            try:
+                d = download_dataset(dataset_id)
+                write_dataset_dict(d, dataset_id, Preprocess.RAW)
+                if verbose: print('Success!')
+            except Exception as e:
+                if verbose: print('Failure! Deleting dataset {}'.format(dataset_id))
+                delete_dataset(dataset_id, Preprocess.RAW)
+        else:
+            if verbose: print('Deleting dataset {}'.format(dataset_id))
             delete_dataset(dataset_id, Preprocess.RAW)
 
 
