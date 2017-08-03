@@ -49,14 +49,14 @@ def read_dataset_Xy(dataset_id, preprocess=Preprocess.RAW):
     
     
 def write_dataset(dataset_id, dataset, preprocess=Preprocess.RAW,
-                  overwrite=False):
+                  overwrite=True):
     """Write the dataset with specified preprocessing to disk"""
     write_dataset_dict(get_dataset_dict(dataset), dataset_id, preprocess,
                        overwrite)
         
 
 def write_dataset_dict(d, dataset_id, preprocess=Preprocess.RAW,
-                       overwrite=False):
+                       overwrite=True):
     """Write the dataset dict with specified preprocessing to disk"""
     filename = get_dataset_filename(dataset_id, preprocess)
     if overwrite or not os.path.isfile(filename):

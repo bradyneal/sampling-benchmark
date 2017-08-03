@@ -59,7 +59,7 @@ def write_preprocessed_dataset_dict(X, y, categorical, dataset_id, preprocess):
     
     preprocessed = to_sparse(preprocessed)
     write_dataset_dict({'X': preprocessed, 'y': y}, dataset_id, preprocess,
-                       overwrite=False)
+                       overwrite=True)
     
 
 if __name__ == '__main__':
