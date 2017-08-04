@@ -13,8 +13,10 @@ READING_ERRORS = EOFError
 
 def get_downloaded_dataset_ids(preprocess=Preprocess.RAW):
     """Get all dataset ids in the corresponding preprocessed data folder"""
+    # TODO always sort of listdir for reprod
     dataset_filenames = os.listdir(get_folder(preprocess))
-    return [int(filename.rstrip(PICKLE_EXT)) for filename in dataset_filenames]
+    L = [int(filename.rstrip(PICKLE_EXT)) for filename in dataset_filenames]
+    return L
 
 
 def read_dataset(dataset_id, preprocess=Preprocess.RAW):
@@ -40,29 +42,29 @@ def read_dataset_and_log(dataset_id, preprocess=Preprocess.RAW, verbose=False):
     except READING_ERRORS as e:
         write_read_error(e, dataset_id)
         if verbose: print('Failure!')
-        
-    
+
+
 def read_dataset_Xy(dataset_id, preprocess=Preprocess.RAW):
     """Read the dataset with specified preprocessing from disk"""
     dataset_dict = read_dataset(dataset_id, preprocess)
     return dataset_dict['X'], dataset_dict['y']
-    
-    
+
+
 def write_dataset(dataset_id, dataset, preprocess=Preprocess.RAW,
-                  overwrite=True):
+                  overwrite=False):
     """Write the dataset with specified preprocessing to disk"""
     write_dataset_dict(get_dataset_dict(dataset), dataset_id, preprocess,
                        overwrite)
-        
+
 
 def write_dataset_dict(d, dataset_id, preprocess=Preprocess.RAW,
-                       overwrite=True):
+                       overwrite=False):
     """Write the dataset dict with specified preprocessing to disk"""
     filename = get_dataset_filename(dataset_id, preprocess)
     if overwrite or not os.path.isfile(filename):
         with open(filename, 'wb') as f:
             pickle.dump(d, f, protocol=pickle.HIGHEST_PROTOCOL)
-       
+
 
 def write_data_error(e, dataset_id, activity_type):
     """
@@ -70,14 +72,17 @@ def write_data_error(e, dataset_id, activity_type):
     and add error type to set in corresponding pickle file. Abstaction of
     the 2 functions below
     """
+    # TODO make clear this is log file
+    # writeln instead of \n??
+
     # Append to errors file
     filename = os.path.join(CONFIG['errors_folder'],
                             activity_type + '_errors.txt')
     with open(filename, 'a') as f:
         f.write('Dataset id: {}\nError type: {}\nError message: {}\n\n'
                 .format(dataset_id, type(e), str(e)))
-    
-    # Update set with error type    
+
+    # Update set with error type
     filename = os.path.join(CONFIG['errors_folder'],
                             activity_type + '_error_set' + PICKLE_EXT)
     if not os.path.isfile(filename):
@@ -88,21 +93,21 @@ def write_data_error(e, dataset_id, activity_type):
     error_set.add(type(e))
     with open(filename, 'wb') as f:
         pickle.dump(error_set, f)
-    
+
     # Write error set to txt file
     filename = os.path.join(CONFIG['errors_folder'],
                             activity_type + '_error_set.txt')
     with open(filename, 'w') as f:
         f.write(str(error_set) + '\n')
 
-                    
+
 def write_read_error(e, dataset_id):
     """
     Write dataset read error information to corresponding file
     and add error type to set in corresponding pickle file
     """
     write_data_error(e, dataset_id, 'read')
-            
+
 
 def write_download_error(e, dataset_id):
     """
@@ -110,13 +115,13 @@ def write_download_error(e, dataset_id):
     and add error type to set in corresponding pickle file
     """
     write_data_error(e, dataset_id, 'download')
-       
-       
+
+
 def delete_dataset(dataset_id, preprocess=Preprocess.RAW):
     """Remove the dataset with specified preprocessing from disk"""
     filename = get_dataset_filename(dataset_id, preprocess)
     os.remove(filename)
-     
+
 
 def is_file(dataset_id, preprocess=Preprocess.RAW):
     """
@@ -130,22 +135,19 @@ def is_file(dataset_id, preprocess=Preprocess.RAW):
 def get_folder(preprocess=Preprocess.RAW):
     """Get folder of specified preprocessed data"""
     return CONFIG[preprocess.value + '_folder']
-    
-    
+
+
 def get_dataset_filename(dataset_id, preprocess=Preprocess.RAW):
     """Get location of dataset"""
+    # add EXT using join ??
     return os.path.join(get_folder(preprocess), str(dataset_id) + PICKLE_EXT)
-   
-        
+
+
 def get_dataset_dict(dataset):
     """Unpack the openml dataset object into a dictionary"""
     X, y, categorical, columns = dataset.get_data(
         target=dataset.default_target_attribute,
         return_categorical_indicator=True,
         return_attribute_names=True)
-    return {
-        'X': X,
-        'y': y,
-        'categorical': categorical,
-        'columns': columns
-    }
+    D = {'X': X, 'y': y, 'categorical': categorical, 'columns': columns}
+    return D

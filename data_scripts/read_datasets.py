@@ -31,7 +31,7 @@ def read_all_datasets():
         for i in range(start_i, num_datasets):
             print('{} of {}'.format(i + 1, num_datasets), end='\t')
             dataset_id = dataset_ids [i]
-            read_dataset_and_log(dataset_id, preprocess=preprocess, verbose=True) 
+            read_dataset_and_log(dataset_id, preproces=Preprocess, verbose=True) 
 
 if __name__ == '__main__':
     read_all_datasets()

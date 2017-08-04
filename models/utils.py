@@ -24,6 +24,7 @@ def get_pairwise_formula(num_non_categorical):
     >>> get_pairwise_formula(3)
     'x1 + x2 + x3 + x1:x2 + x1:x3 + x2:x3'
     """
+    # Does patsy offer faster way to do this?? *??
     var_names = get_var_names(num_non_categorical)
     singles_str = ' + '.join(var_names)
     pairs_str = ' + '.join(':'.join(pair)

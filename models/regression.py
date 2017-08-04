@@ -36,6 +36,7 @@ def sample_regression_model(model_name, X, y, num_samples=NUM_SAMPLES,
     Raises:
         ValueError: if the specified model name is not supported
     """
+    # TODO use dict
     if 'ls_linear' == model_name:
         sample_ls_linear(X, y, num_samples)
     elif 'ls_pairwise_linear' == model_name:

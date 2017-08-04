@@ -44,6 +44,9 @@ def preprocess_datasets(start_i=0, overwrite=False, verbose=True):
 
 
 def write_preprocessed_dataset_dict(X, y, categorical, dataset_id, preprocess):
+    # TODO serperate preprocess and write
+    # could make dict
+    # at least flip direction on is
     if Preprocess.RAW is preprocess:
         preprocessed = X
     elif Preprocess.ONEHOT is preprocess:
@@ -56,11 +59,10 @@ def write_preprocessed_dataset_dict(X, y, categorical, dataset_id, preprocess):
         preprocessed = whiten_and_one_hot(X, categorical)
     else:
         raise ValueError('Unsupported preprocessing type: {}'.format(preprocess))
-    
-    preprocessed = to_sparse(preprocessed)
+
+    preprocessed = to_sparse(preprocessed)  # Why need to make sparse??
     write_dataset_dict({'X': preprocessed, 'y': y}, dataset_id, preprocess,
-                       overwrite=True)
-    
+                       overwrite=False)
 
 if __name__ == '__main__':
     preprocess_datasets(start_i=0, overwrite=True)

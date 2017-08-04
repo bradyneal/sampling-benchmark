@@ -22,14 +22,17 @@ def get_dataset_ids():
     dataset_metadata = openml.datasets.list_datasets()
     metadata_df = pd.DataFrame.from_dict(dataset_metadata, orient='index')
     filtered_df = metadata_df[metadata_df.NumberOfInstancesWithMissingValues == 0]
+    # did??
     return filtered_df.did.values
 
 
 def get_dataset_ids_by_task(task):
     """Get the ids of all openml datasets that have the specified task type"""
     if task not in SUPPORTED_TASKS:
+        # TODO weird line break
         raise ValueError('Unsupported task: {}\nSupported tasks: {}'
                          .format(task, SUPPORTED_TASKS))
+    # TODO explain tasks var
     tasks = openml.tasks.list_tasks()
     tasks_df = pd.DataFrame.from_dict(tasks, orient='index')
     return tasks_df[tasks_df.task_type == task].did.values
@@ -37,6 +40,7 @@ def get_dataset_ids_by_task(task):
 
 def get_downloaded_dataset_ids_by_task(task):
     """Get the ids of all downloaded datasets that have the specified task type"""
+    # Is the set really needed here??
     downloaded_ids = set(get_downloaded_dataset_ids())
     task_ids = get_dataset_ids_by_task(task)
     return downloaded_ids.intersection(task_ids)
@@ -59,6 +63,7 @@ def download_dataset_and_log(dataset_id, verbose=False):
     if verbose: print('Downloading dataset {} ...'.format(dataset_id), end=' ')
     try:        
         d = download_dataset(dataset_id)
+        # TODO move down line
         if verbose: print('Success!')
         return d
     # except DOWNLOADING_ERRORS as e:
@@ -69,6 +74,7 @@ def download_dataset_and_log(dataset_id, verbose=False):
 
 def get_dataset_dict(dataset):
     """Unpack the openml dataset object into a dictionary"""
+    # TODO elim repeat with io file
     X, y, categorical, columns = dataset.get_data(
         target=dataset.default_target_attribute,
         return_categorical_indicator=True,

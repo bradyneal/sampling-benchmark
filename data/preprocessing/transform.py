@@ -12,6 +12,7 @@ from .separation import separate_categorical
 
 
 def one_hot(X, categorical=None):
+    # TODO leverage my one hot implementation from bt and test against skl
     """
     Encode categorical variables in one-hot representation. If which variables
     are categorical is not specified, assume all variables are categorical.
@@ -53,6 +54,8 @@ def standardize(X, scaler=None, return_scaler=False):
         standardized X and, optionally, the scaler object that contains the
         standardization information of X (training set)
     """
+    # TODO i dont like how output struct changes
+    # not sure why this needs to be a subroutine like this
     if X.shape[1] == 0:
         return (X, scaler) if return_scaler else X
     if scaler is None:
@@ -88,7 +91,9 @@ def standardize_and_one_hot(X, categorical, scaler=None, return_scaler=False):
         X_scaled = standardize(X_non_categ, scaler, return_scaler)
         
     X_one_hot = one_hot(X_categ)
-    
+ 
+    # Do we need to keep track of namers??
+    # we can standardize categorical too!
     X_new = np.concatenate((X_scaled, X_one_hot), axis=1)
     return (X_new, scaler) if return_scaler else X_new
 
@@ -167,6 +172,7 @@ def whiten(X, transform=None, return_transform=False):
         whitened X and, optionally, the transform object that contains the
         whitening information of X (training set)
     """
+    # TODO write routine to double check output of this, sklearn PCA has bugs
     if X.shape[1] == 0:
         return (X, transform) if return_transform else X
     if transform is None:
@@ -195,7 +201,8 @@ def whiten_and_one_hot(X, categorical, transform=None, return_transform=False):
         that contains the whitening information of X (training set)
     """
     X_categ, X_non_categ = separate_categorical(X, categorical)
-    
+
+    # Just throw one hot into whiten too??
     if return_transform:
         X_whitened, transform = whiten(X_non_categ, transform, return_transform)
     else:

@@ -51,6 +51,5 @@ def read_dataset_and_purge(dataset_id, redownload=True, verbose=True):
             if verbose: print('Deleting dataset {}'.format(dataset_id))
             delete_dataset(dataset_id, Preprocess.RAW)
 
-
 if __name__ == '__main__':
     purge_bad_datasets()

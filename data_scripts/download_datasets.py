@@ -11,6 +11,7 @@ from openml.exceptions import OpenMLServerError, PyOpenMLError
 from requests.exceptions import ChunkedEncodingError
 from arff import BadNominalValue
 
+# TODO elim repeat, move to config
 UNIX_OPENML_PATH = '/data/lisa/data/openml'
 OPENML_FOLDER = os.path.join(os.sep, *UNIX_OPENML_PATH.split('/'))
 DATASETS_FOLDER = os.path.join(OPENML_FOLDER, 'datasets', 'raw')
@@ -18,22 +19,25 @@ CHECKPOINT_ITERS = 25
 
 
 def get_dataset_ids():
-    """Get the ids of the dotasets to download"""
+    # TODO seems like repeat
+    """Get the ids of the datasets to download"""
     dataset_metadata = openml.datasets.list_datasets()
     metadata_df = pd.DataFrame.from_dict(dataset_metadata, orient='index')
     filtered_df = metadata_df[metadata_df.NumberOfInstancesWithMissingValues == 0]
+    # TODO explain type/dims being returned
     return filtered_df.did.values
-    
-    
+
+
 def download_datasets(dataset_ids, start_iteration=0, verbose=False):
+    # TODO explain start_iteration
     """Download the datasets that correspond to all of the give IDs"""
     num_datasets = len(dataset_ids)
     good_dataset_ids = []
     bad_dataset_ids = []
     exceptions = []
-    
+
     # load previous saved values of above variables
-    info_filename = get_info_filename()
+    info_filename = get_info_filename()  # What is this??
     if os.path.isfile(info_filename):
         if verbose: print('Loading download info from file')
         with open(info_filename, 'rb') as f:
@@ -74,16 +78,17 @@ def download_datasets(dataset_ids, start_iteration=0, verbose=False):
                 'exceptions': exceptions
             })
 
-    
+
 def write_download_info(info):
     """Write the information about the success/failure of downloading datasets"""
     filename = get_info_filename()
     with open(filename, 'wb') as f:
-        pickle.dump(info, f) 
+        pickle.dump(info, f)
 
 
 def get_info_filename():
     """Get location of where to write the download information"""
+    # Maybe this should be global const??
     return os.path.join(OPENML_FOLDER, 'info.pickle')
 
 
@@ -97,8 +102,8 @@ def write_dataset(dataset_id, dataset):
     filename = get_dataset_filename(dataset_id)
     with open(filename, 'wb') as f:
         pickle.dump(get_dataset_dict(dataset), f)
-   
-        
+
+
 def get_dataset_dict(dataset):
     """Unpack the openml dataset object into a dictionary"""
     X, y, categorical, columns = dataset.get_data(
@@ -115,4 +120,3 @@ def get_dataset_dict(dataset):
 
 if __name__ == '__main__':
     download_datasets(get_dataset_ids(), verbose=True)
-    
