@@ -72,10 +72,10 @@ def write_data_error(e, dataset_id, activity_type):
     """
     # Append to errors file
     filename = os.path.join(CONFIG['errors_folder'],
-                            activity_type + '_errors.txt')
+                            activity_type + '_errors.log')
     with open(filename, 'a') as f:
-        f.write('Dataset id: {}\nError type: {}\nError message: {}\n\n'
-                .format(dataset_id, type(e), str(e)))
+        print('Dataset id: {}\nError type: {}\nError message: {}'
+                .format(dataset_id, type(e), str(e)), end='\n\n', file=f)
     
     # Update set with error type    
     filename = os.path.join(CONFIG['errors_folder'],
@@ -89,11 +89,11 @@ def write_data_error(e, dataset_id, activity_type):
     with open(filename, 'wb') as f:
         pickle.dump(error_set, f)
     
-    # Write error set to txt file
+    # Write error set to text file
     filename = os.path.join(CONFIG['errors_folder'],
-                            activity_type + '_error_set.txt')
+                            activity_type + '_error_set.log')
     with open(filename, 'w') as f:
-        f.write(str(error_set) + '\n')
+        print(str(error_set), file=f)
 
                     
 def write_read_error(e, dataset_id):
