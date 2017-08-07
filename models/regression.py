@@ -52,7 +52,7 @@ def sample_regression_model(model_name, X, y, num_samples=NUM_SAMPLES,
         sample_gp(X, y, num_samples)
     else:
         raise ValueError('Unsupported model: {}\nSupported models: {}'
-                         .format(model_name, MODEL_NAMES))
+                         .format(model_name, REGRESSION_MODEL_NAMES))
 
     
 # GLM Defaults
