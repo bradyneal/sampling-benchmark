@@ -32,7 +32,7 @@ def preprocess_datasets(start_i=0, overwrite=False, verbose=True):
         d = read_dataset_and_log(dataset_id, Preprocess.RAW)
         X, y, categorical = d['X'], d['y'], d['categorical']
         # convert to ndarray if not already
-        X, _ = to_ndarray(X)
+        X = to_ndarray(X)
         write_preprocessed_dataset_dict(X, y, categorical, dataset_id,
                                         Preprocess.ONEHOT)
         write_preprocessed_dataset_dict(X, y, categorical, dataset_id,

@@ -6,7 +6,8 @@ in this package.
 from pymc3.backends.tracetab import trace_to_dataframe
 from itertools import combinations
 
-from data import get_var_names
+from data import make_col_names
+
 
 def format_trace(trace):
     """
@@ -24,7 +25,7 @@ def get_pairwise_formula(num_non_categorical):
     >>> get_pairwise_formula(3)
     'x1 + x2 + x3 + x1:x2 + x1:x3 + x2:x3'
     """
-    var_names = get_var_names(num_non_categorical)
+    var_names = make_col_names(num_non_categorical)
     singles_str = ' + '.join(var_names)
     pairs_str = ' + '.join(':'.join(pair)
                            for pair in combinations(var_names, 2))
@@ -39,7 +40,7 @@ def get_quadratic_formula(num_non_categorical):
     'x1 + x2 + x1:x2 + np.power(x1, 2) + np.power(x2, 2)'
     """
     pairwise_str = get_pairwise_formula(num_non_categorical)
-    var_names = get_var_names(num_non_categorical)
+    var_names = make_col_names(num_non_categorical)
     squares_str = ' + '.join('np.power(x{}, 2)'.format(i)
                              for i in range(1, num_non_categorical + 1))
     return join_nonempty((pairwise_str, squares_str))

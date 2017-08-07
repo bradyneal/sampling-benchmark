@@ -25,10 +25,10 @@ def to_ndarray(X):
     from sparse arrays.
     """
     if isinstance(X, np.ndarray):
-        return X, False
+        return X
     elif sps.issparse(X):
         print('Converting from sparse type: {}'.format(type(X)))
-        return X.toarray(), True
+        return X.toarray()
     else:
         raise ValueError('Unexpected data type: {}'.format(type(X)))
     
@@ -38,6 +38,6 @@ def to_sparse(X):
     return sps.csr_matrix(X)
     
 
-def get_var_names(d):
+def make_col_names(d):
     """Make column names (i.e. x1, x2, ..., xd) for data dimension d"""
     return ['x' + str(i) for i in range(1, d + 1)]
