@@ -39,7 +39,9 @@ def get_downloaded_dataset_ids_by_task(task):
     """Get the ids of all downloaded datasets that have the specified task type"""
     downloaded_ids = set(get_downloaded_dataset_ids())
     task_ids = get_dataset_ids_by_task(task)
-    return downloaded_ids.intersection(task_ids)
+    downloaded_task_ids = list(downloaded_ids.intersection(task_ids))
+    downloaded_task_ids.sort()
+    return downloaded_task_ids
 
 
 def download_dataset(dataset_id):
