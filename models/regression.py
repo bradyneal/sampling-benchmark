@@ -11,10 +11,12 @@ from itertools import combinations
 from data import numpy_to_dataframe
 from .utils import format_trace, get_pairwise_formula, get_quadratic_formula, \
                    get_linear_formula, join_nonempty
+from .nn import sample_shallow_nn
 
 REGRESSION_MODEL_NAMES = [
     'ls_linear', 'ls_pairwise_linear', 'ls_quadratic_linear',
-    'robust_linear', 'robust_pairwise_linear', 'robust_quadratic_linear'
+    'robust_linear', 'robust_pairwise_linear', 'robust_quadratic_linear',
+    'shallow_nn'
 ]
 NUM_SAMPLES = 500
 
@@ -48,6 +50,8 @@ def sample_regression_model(model_name, X, y, num_samples=NUM_SAMPLES,
         sample_robust_pairwise(X, y, num_non_categorical, num_samples)
     elif 'robust_quadratic_linear' == model_name:
         sample_robust_quadratic(X, y, num_non_categorical, num_samples)
+    elif 'shallow_nn' == model_name:
+        sample_shallow_nn_regres(X, y, num_samples)   
     elif 'gp' == model_name:
         sample_gp(X, y, num_samples)
     else:
@@ -192,6 +196,14 @@ def sample_robust_quadratic(X, y, num_non_categorical=None,
     return sample_interaction_linear(
         X, y, num_non_categorical=num_non_categorical, robust=True,
         num_samples=num_samples, interaction='quadratic')
+
+
+def sample_shallow_nn_regres(X, y, num_samples=NUM_SAMPLES):
+    """
+    Sample from shallow Bayesian neural network, using variational inference.
+    Uses Normal likelihood.
+    """
+    return sample_shallow_nn(X, y, 'regression')
 
 
 def sample_gp(X, y, num_samples=NUM_SAMPLES):
