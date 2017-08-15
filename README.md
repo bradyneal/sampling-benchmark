@@ -21,6 +21,7 @@ Benchmark for samplers that sample from posterior distributions over model param
 │   └── ...
 ├── models
 │   ├── classification.py
+│   ├── nn.py
 │   ├── regression.py
 │   ├── unsupervised.py
 │   └── utils.py
