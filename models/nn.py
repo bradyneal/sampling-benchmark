@@ -10,9 +10,9 @@ import theano
 import theano.tensor as tt
 
 from .utils import format_trace
+from . import NUM_SAMPLES
 
 SUPPORTED_OUTPUTS = ['regression', 'classification']
-NUM_SAMPLES = 500
 NUM_HIDDEN = 100
 NUM_SCALE1_ITERS = 20000
 NUM_SCALE0_ITERS = 30000

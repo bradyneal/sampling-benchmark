@@ -12,13 +12,13 @@ from data import numpy_to_dataframe
 from .utils import format_trace, get_pairwise_formula, get_quadratic_formula, \
                    get_linear_formula, join_nonempty
 from .nn import sample_shallow_nn
+from . import NUM_SAMPLES
 
 REGRESSION_MODEL_NAMES = [
     'ls_linear', 'ls_pairwise_linear', 'ls_quadratic_linear',
     'robust_linear', 'robust_pairwise_linear', 'robust_quadratic_linear',
     'shallow_nn'
 ]
-NUM_SAMPLES = 500
 
 
 def sample_regression_model(model_name, X, y, num_samples=NUM_SAMPLES,

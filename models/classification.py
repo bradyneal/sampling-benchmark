@@ -10,9 +10,9 @@ import theano.tensor as tt
 
 from .utils import format_trace
 from .nn import sample_shallow_nn
+from . import NUM_SAMPLES
 
 CLASSIFICATION_MODEL_NAMES = ['softmax_linear', 'shallow_nn']
-NUM_SAMPLES = 500
 
 
 def sample_classification_model(model_name, X, y, num_samples=NUM_SAMPLES,
