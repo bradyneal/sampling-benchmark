@@ -14,6 +14,7 @@ READING_ERRORS = EOFError
 def get_downloaded_dataset_ids(preprocess=Preprocess.RAW):
     """Get all dataset ids in the corresponding preprocessed data folder"""
     dataset_filenames = os.listdir(get_folder(preprocess))
+    dataset_filenames.sort()
     return [int(filename.rstrip(PICKLE_EXT)) for filename in dataset_filenames]
 
 

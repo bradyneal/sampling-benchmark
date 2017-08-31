@@ -3,7 +3,6 @@ File for interacting with openml repository. Provides functions for filtering
 metadata and downloading datasets.
 """
 
-import os
 import openml
 import pandas as pd
 
