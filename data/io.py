@@ -166,7 +166,9 @@ def get_task_filename(task):
     """Get location of dataset ids corresponding to specified task"""
     return os.path.join(CONFIG['tasks_folder'], task + PICKLE_EXT)
    
-        
+
+# This is duplicated from the repo module because cyclic imports can be tricky,
+# and I couldn't get it to work after much effort.
 def get_dataset_dict(dataset):
     """Unpack the openml dataset object into a dictionary"""
     X, y, categorical, columns = dataset.get_data(
