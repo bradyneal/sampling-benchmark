@@ -46,6 +46,13 @@ def read_dataset_Xy(dataset_id, preprocess=Preprocess.RAW):
     """Read the dataset with specified preprocessing from disk"""
     dataset_dict = read_dataset(dataset_id, preprocess)
     return dataset_dict['X'], dataset_dict['y']
+
+
+def read_task_dataset_ids(task):
+    """Read dataset ids corresponding to specified task from disk"""
+    filename = get_task_filename(task)
+    with open(filename, 'rb') as f:
+        return pickle.load(f)
     
     
 def write_dataset(dataset_id, dataset, preprocess=Preprocess.RAW,
@@ -62,7 +69,15 @@ def write_dataset_dict(d, dataset_id, preprocess=Preprocess.RAW,
     if overwrite or not os.path.isfile(filename):
         with open(filename, 'wb') as f:
             pickle.dump(d, f, protocol=pickle.HIGHEST_PROTOCOL)
-       
+            
+            
+def write_task_dataset_ids(task, dids, overwrite=True):
+    """Write dataset ids corresponding to specified task to disk"""
+    filename = get_task_filename(task)
+    if overwrite or not os.path.isfile(filename):
+        with open(filename, 'wb') as f:
+            pickle.dump(dids, f, protocol=pickle.HIGHEST_PROTOCOL)
+        
 
 def write_data_error(e, dataset_id, activity_type):
     """
@@ -127,6 +142,15 @@ def is_file(dataset_id, preprocess=Preprocess.RAW):
     return os.path.isfile(filename)
 
 
+def is_task_file(task):
+    """
+    Return whether or not the dataset ids corresponding to the specified task
+    have already be downloaded
+    """
+    filename = get_task_filename(task)
+    return os.path.isfile(filename)
+
+
 def get_folder(preprocess=Preprocess.RAW):
     """Get folder of specified preprocessed data"""
     return CONFIG[preprocess.value + '_folder']
@@ -135,6 +159,11 @@ def get_folder(preprocess=Preprocess.RAW):
 def get_dataset_filename(dataset_id, preprocess=Preprocess.RAW):
     """Get location of dataset"""
     return os.path.join(get_folder(preprocess), str(dataset_id) + PICKLE_EXT)
+
+
+def get_task_filename(task):
+    """Get location of dataset ids corresponding to specified task"""
+    return os.path.join(CONFIG['tasks_folder'], task + PICKLE_EXT)
    
         
 def get_dataset_dict(dataset):

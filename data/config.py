@@ -9,6 +9,7 @@ UNIX_OPENML_PATH = '/data/lisa/data/openml'
 OPENML_FOLDER = os.path.join(os.sep, *UNIX_OPENML_PATH.split('/'))
 DATASETS_FOLDER = os.path.join(OPENML_FOLDER, 'datasets')
 ERRORS_FOLDER = os.path.join(DATASETS_FOLDER, 'errors')
+TASKS_FOLDER = os.path.join(OPENML_FOLDER, 'tasks')
 
 # Folder name constants
 class Preprocess(Enum):
@@ -24,3 +25,4 @@ CONFIG = {
     for preprocess in Preprocess
 }
 CONFIG['errors_folder'] = ERRORS_FOLDER
+CONFIG['tasks_folder'] = TASKS_FOLDER
