@@ -60,14 +60,15 @@ Benchmark for samplers that sample from posterior distributions over model param
 ### Datasets Format
 ```
 ... (e.g. /data/lisa/data/openml)
-└── datasets
-    ├── errors - logging of any errors encountered with datasets
-    ├── raw
-    │   └── {dataset_id}.pickle (same format for all folders below)
-    ├── one-hot - one-hot encoded categorical features (same for all preprocessing below)
-    ├── standardized - standardized non-categorical features
-    ├── robust_standardized - robust standardized non-categorical features
-    └── whitened - whitened non-categorical features
+├── datasets
+│   ├── errors - logging of any errors encountered with datasets
+│   ├── raw
+│   │   └── {dataset_id}.pickle (same format for all folders below)
+│   ├── one-hot - one-hot encoded categorical features (same for all preprocessing below)
+│   ├── standardized - standardized non-categorical features
+│   ├── robust_standardized - robust standardized non-categorical features
+│   └── whitened - whitened non-categorical features
+└── tasks - files that hold the dataset ids corresponding to specific tasks
 ```
 
 ### [exploring-packages](https://github.com/bradyneal/sampling-benchmark/tree/master/exploring-packages)
