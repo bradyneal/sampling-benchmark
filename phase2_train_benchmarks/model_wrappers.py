@@ -203,9 +203,9 @@ class RNADE:
     def get_params(self):
         assert(self.nade_obj is not None)
         D = self.nade_obj.get_parameters()
+        # This could be a deep copy or cast to np array if we wanted to be safe
+        D['orderings'] = self.nade_obj.orderings
         return D
-
-# TODO consider a default args dict as well
 
 # Dict with sklearn like interfaces for each of the models we will use to train
 # samples.

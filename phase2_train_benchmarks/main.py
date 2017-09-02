@@ -7,7 +7,7 @@ from model_wrappers import PARAM_EXTRACTORS, STD_BENCH_MODELS
 
 # Currently first requires:
 # export PYTHONPATH=./bench_models/nade/:$PYTHONPATH
-# TODO fix, i don't like that
+# TODO fix, i don't like that, need to fix some garbage in __init__.py files
 
 
 def main():
@@ -19,6 +19,11 @@ def main():
     input_path = '.'  # TODO Get path for files from config file
     output_path = '.'  # TODO Get path for files from config file
     pkl_ext = '.pkl'  # TODO PKL_EXT goes in the config file too
+
+    # TODO These can come from some other config file, maybe json or something
+    # as long as the loader code is small and simple
+    settings_args = {'MoG': {'n_components': 10},
+                     'IGN': {'n_layers': 3, 'n_epochs': 250}}
 
     assert(len(sys.argv) == 2)  # Print usage error instead to be user friendly
     mc_chain_file = sys.argv[1]
@@ -39,12 +44,15 @@ def main():
     best_case = None
     model_dump = {}
     for model_name, bench_model in STD_BENCH_MODELS.iteritems():
-        print 'running %s' % model_name
+        print 'running %s with arguments' % model_name
+        args = settings_args.get(model_name, {})
+        # TODO use pretty print or whatever it is called to print dict nicely
+        print args
 
         # leave at default params for now, can use fancy skopt stuff later.
         # All models are setup in sklearn pattern to make later use with skopt
         # easier, and can use sklearn estimators with no wrappers.
-        model = bench_model()
+        model = bench_model(**args)
         model.fit(MC_chain[:N_train, :])
         # Get score for each sample, can then use benchmark tools for table
         # with error bars and all that at a later point.
@@ -73,7 +81,7 @@ def main():
     with open(dump_file, 'wb') as f:
         cPickle.dump((model_name, params_obj), f, cPickle.HIGHEST_PROTOCOL)
 
-    # Now dump to finish the job
+    # Also dump everything in another pkl file for debug purposes
     dump_file = os.path.join(output_path, 'all_model_dump') + pkl_ext
     print 'saving %s' % dump_file
     with open(dump_file, 'wb') as f:
