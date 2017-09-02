@@ -5,6 +5,10 @@ import sys
 import numpy as np
 from model_wrappers import PARAM_EXTRACTORS, STD_BENCH_MODELS
 
+# Currently first requires:
+# export PYTHONPATH=./bench_models/nade/:$PYTHONPATH
+# TODO fix, i don't like that
+
 
 def main():
     '''This program can be run in parallel across different MC_chain files

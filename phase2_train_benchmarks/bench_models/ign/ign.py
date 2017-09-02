@@ -336,8 +336,8 @@ def get_layer_reg_T(layers, reg_dict):
         WL, bL = layers[(nn, WL_PARAM)], layers[(nn, bL_PARAM)]
         sq_logdet = t_util.log_abs_det_T(WL) ** 2
         # Note: no penalty on aL right now!
-        reg_cost = reg_cost + (reg_dict[WL_PARAM] * sq_logdet +
-                               reg_dict[bL_PARAM] * t_util.L2_T(bL))
+        reg_cost = reg_cost + (reg_dict.get(WL_PARAM, 0.0) * sq_logdet +
+                               reg_dict.get(bL_PARAM, 0.0) * t_util.L2_T(bL))
     return reg_cost
 
 # ============================================================================

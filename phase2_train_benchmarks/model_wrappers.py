@@ -46,25 +46,24 @@ class IGN:
         self.gauss_basepdf = gauss_basepdf
         self.fit_layers = None
 
+        self.base_logpdf = t_util.norm_logpdf_T if self.gauss_basepdf \
+            else t_util.t_logpdf_T
+
     def fit(self, x_train):
         N, D = x_train.shape
         n_train = int(np.ceil((1.0 - self.valid_frac) * N))
 
         # Could also have setting in there for trying LU vs full training
-        layers = ign.init_ign_LU(self.n_layers, D, WL_val=self.WL_init)
+        layers = ign.init_ign(self.n_layers, D)
         # Chunk some in validation
-        base_logpdf = t_util.norm_logpdf_T if self.gauss_basepdf \
-            else t_util.t_logpdf_T
         R = ign.train_ign(x_train[:n_train, :], x_train[n_train:, :],
-                          layers, self.reg_dict, base_logpdf=base_logpdf,
+                          layers, self.reg_dict, base_logpdf=self.base_logpdf,
                           n_epochs=self.n_epochs, batch_size=self.batch_size)
-        _, _, _, fit_layers = R
-        # Need to convert to non-LU rep here
-        self.fit_layers = ign.LU_to_W_np(layers)
+        _, _, _, self.fit_layers = R
 
     def score_samples(self, x_test):
         assert(self.fit_layers is not None)
-        logpdf = ign.ign_log_pdf(x_test, self.fit_layers, self.base_logpdf)
+        logpdf, _ = ign.ign_log_pdf(x_test, self.fit_layers, self.base_logpdf)
         return logpdf
 
     def get_params(self):
