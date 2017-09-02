@@ -202,7 +202,8 @@ class RNADE:
 
     def get_params(self):
         assert(self.nade_obj is not None)
-        self.nade_obj.get_parameters()
+        D = self.nade_obj.get_parameters()
+        return D
 
 # TODO consider a default args dict as well
 
