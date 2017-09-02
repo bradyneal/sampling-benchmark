@@ -75,7 +75,7 @@ class IGN:
 
 
 class RNADE:
-    def __init__(self, n_hidden=100, h_layers=2, n_components=10,
+    def __init__(self, n_hidden=100, h_layers=2, n_components=10, epochs=20,
                  pretraining_epochs=5, validation_loops=20, valid_frac=0.2,
                  lr=0.02, epoch_size=100, batch_size=100, momentum=0.9,
                  dataset_name='RNADE_test_run', scratch_dir='.'):
@@ -88,6 +88,7 @@ class RNADE:
         self.n_components = n_components
         self.nonlinearity = 'RLU'  # Might just want to hard code this one
 
+        self.epochs = epochs
         self.pretraining_epochs = pretraining_epochs
         self.validation_loops = validation_loops
 
@@ -195,7 +196,7 @@ class RNADE:
 
     def score_samples(self, x_test):
         assert(self.nade_obj is not None)
-        logpdf = self.nade_obj.logdensity(x_test)
+        logpdf = self.nade_obj.logdensity(x_test.T)
         assert(logpdf.shape == (x_test.shape[0],))
         return logpdf
 
