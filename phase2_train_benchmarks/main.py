@@ -37,6 +37,7 @@ def main():
 
     best_loglik = -np.inf
     best_case = None
+    model_dump = {}
     for model_name, bench_model in STD_BENCH_MODELS.iteritems():
         print 'running %s' % model_name
 
@@ -54,6 +55,8 @@ def main():
         if test_loglik > best_loglik:
             best_loglik = test_loglik
             best_case = (model_name, model)
+
+        model_dump[model_name] = PARAM_EXTRACTORS[model_name](model)
     assert(best_case is not None)
 
     model_name, model = best_case
@@ -69,6 +72,12 @@ def main():
     print 'saving %s' % dump_file
     with open(dump_file, 'wb') as f:
         cPickle.dump((model_name, params_obj), f, cPickle.HIGHEST_PROTOCOL)
+
+    # Now dump to finish the job
+    dump_file = os.path.join(output_path, 'all_model_dump') + pkl_ext
+    print 'saving %s' % dump_file
+    with open(dump_file, 'wb') as f:
+        cPickle.dump(model_dump, f, cPickle.HIGHEST_PROTOCOL)
     print 'done'
 
 if __name__ == '__main__':
