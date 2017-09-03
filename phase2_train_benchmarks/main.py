@@ -3,7 +3,7 @@ import cPickle
 import os
 import sys
 import numpy as np
-from model_wrappers import PARAM_EXTRACTORS, STD_BENCH_MODELS
+from model_wrappers import STD_BENCH_MODELS
 
 # Currently first requires:
 # export PYTHONPATH=./bench_models/nade/:$PYTHONPATH
@@ -24,6 +24,8 @@ def main():
     # as long as the loader code is small and simple
     settings_args = {'MoG': {'n_components': 10},
                      'IGN': {'n_layers': 3, 'n_epochs': 250}}
+    # TODO give random str to rnade obj for its scratch dir and run name, that
+    # way multiple runs can go in parallel without same name
 
     assert(len(sys.argv) == 2)  # Print usage error instead to be user friendly
     mc_chain_file = sys.argv[1]
@@ -64,7 +66,7 @@ def main():
             best_loglik = test_loglik
             best_case = (model_name, model)
 
-        model_dump[model_name] = PARAM_EXTRACTORS[model_name](model)
+        model_dump[model_name] = model.get_params()
     assert(best_case is not None)
 
     model_name, model = best_case
@@ -73,7 +75,7 @@ def main():
     # There exist methods to pickle sklearn learns object, but these systems
     # seem brittle.  We also need to re-implement these objects anyway for
     # reuse with pymc3, so we might as well just save the parameters clean.
-    params_obj = PARAM_EXTRACTORS[model_name](model)
+    params_obj = model.get_params()
 
     # Now dump to finish the job
     dump_file = os.path.join(output_path, mc_chain_file) + pkl_ext

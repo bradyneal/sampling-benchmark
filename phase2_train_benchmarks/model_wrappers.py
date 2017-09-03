@@ -24,12 +24,15 @@ from bench_models.nade.Utils.theano_helpers import floatX
 # factor analysis/PCA also possible as ref points
 
 
-def mog_get_params(mog_obj):
-    '''We could do some sort of inherited objected on
-    sklearn.mixture.GaussianMixture but this seems easier.'''
-    D = {'weights': mog_obj.weights_, 'means': mog_obj.means_,
-         'covariances': mog_obj.covariances_, 'type': mog_obj.covariance_type}
-    return D
+class GaussianMixture_(GaussianMixture):
+    '''We could use multiple inheritence to enforce that all these classes have
+    a get_params() method, but that might be more trouble than it is worth.'''
+
+    def get_params(self):
+        '''Add get_params object to GaussianMixture.'''
+        D = {'weights': self.weights_, 'means': self.means_,
+             'covariances': self.covariances_, 'type': self.covariance_type}
+        return D
 
 
 class IGN:
@@ -209,10 +212,4 @@ class RNADE:
 
 # Dict with sklearn like interfaces for each of the models we will use to train
 # samples.
-STD_BENCH_MODELS = {'MoG': GaussianMixture, 'IGN': IGN, 'RNADE': RNADE}
-
-# Dict with functions to extract out the parameters from each of these models
-# In future, might just want to have each model contain get_params() function
-# and use inheritence for MoG.
-PARAM_EXTRACTORS = {'MoG': mog_get_params, 'IGN': IGN.get_params,
-                    'RNADE': RNADE.get_params}
+STD_BENCH_MODELS = {'MoG': GaussianMixture_, 'IGN': IGN, 'RNADE': RNADE}
