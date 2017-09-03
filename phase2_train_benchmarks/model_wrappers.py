@@ -1,6 +1,8 @@
 # Ryan Turner (turnerry@iro.umontreal.ca)
 import os
 import numpy as np
+import scipy.stats as ss
+from scipy.misc import logsumexp
 from sklearn.mixture import GaussianMixture
 
 # IGN stuff
@@ -33,6 +35,26 @@ class GaussianMixture_(GaussianMixture):
         D = {'weights': self.weights_, 'means': self.means_,
              'covariances': self.covariances_, 'type': self.covariance_type}
         return D
+
+    def loglik_chk(self, X, params):
+        '''Indep check of loglik instead of just using self reported in
+        original class. This could be made into some sort of static method
+        since we never use self.'''
+        # other types not yet supported
+        assert(params['type'] == 'full')
+
+        N = X.shape[0]
+
+        w = params['weights']
+        w = w / np.sum(w)  # Just to be sure normalized
+
+        loglik = np.zeros((N, len(w)))
+        for ii in xrange(len(w)):
+            mu, S = params['means'][ii, :], params['covariances'][ii, :, :]
+            gauss_part = ss.multivariate_normal.logpdf(X, mu, S)
+            loglik[:, ii] = np.log(w[ii]) + gauss_part
+        loglik = logsumexp(loglik, axis=1)
+        return loglik
 
 
 class IGN:
@@ -75,6 +97,16 @@ class IGN:
         D = dict(self.fit_layers)
         D['gauss_basepdf'] = self.gauss_basepdf
         return D
+
+    def loglik_chk(self, X, params):
+        base_logpdf = t_util.norm_logpdf_T if params['gauss_basepdf'] \
+            else t_util.t_logpdf_T
+
+        layers = dict(params)
+        # ign_log_pdf() checks if there are any extra elements in param dict
+        del layers['gauss_basepdf']
+        logpdf, _ = ign.ign_log_pdf(X, layers, base_logpdf)
+        return logpdf
 
 
 class RNADE:
@@ -209,6 +241,68 @@ class RNADE:
         # This could be a deep copy or cast to np array if we wanted to be safe
         D['orderings'] = self.nade_obj.orderings
         return D
+
+    def loglik_chk(self, X, params):
+        N, n_visible = X.shape
+
+        # TODO remove
+        for k, v in params.iteritems():
+            print k, type(v), np.shape(v)
+            if np.ndim(v) == 0:
+                print '    =', v
+
+        # TODO infer these from parameters
+        n_hidden, n_layers = params['n_hidden'], params['n_layers']
+
+        Wflags, W1, b1 = params['Wflags'], params['W1'], params['b1']
+        Ws, bs = params['Ws'], params['bs']
+        V_alpha, b_alpha = params['V_alpha'], params['b_alpha']
+        V_mu, b_mu = params['V_mu'], params['b_mu']
+        V_sigma, b_sigma = params['V_sigma'], params['b_sigma']
+        orderings = params['orderings']
+
+        assert(params['nonlinearity'] == 'RLU')  # Only one supported yet
+        act_fun = lambda x_: x_ * (x_ > 0.0)
+
+        def softmax(X):
+            '''Calculates softmax row-wise'''
+            # TODO implement logsoftmax
+            # TODO move to util
+            X = X - np.max(X, axis=1, keepdims=True)
+            e = np.exp(X)    
+            R = e / np.sum(e, axis=1, keepdims=True)
+            return R
+
+        lp = np.zeros((N, len(orderings)))
+        for o_index, o in enumerate(orderings):
+            a = np.zeros((N, n_hidden)) + b1[None, :]  # N x H
+            for j in xrange(n_visible):
+                i = o[j]  # TODO why not enumerate??
+
+                h = act_fun(a)  # N x H
+                for l in xrange(n_layers - 1):
+                    # Do we need a None on bs??
+                    h = act_fun(np.dot(h, Ws[l, :, :]) + bs[[l], :])  # N x H
+
+                # All N x C
+                z_alpha = np.dot(h, V_alpha[i, :, :]) + b_alpha[[i], :]
+                z_mu = np.dot(h, V_mu[i, :, :]) + b_mu[[i], :]
+                z_sigma = np.dot(h, V_sigma[i, :, :]) + b_sigma[[i], :]
+
+                # Any final warping. All N x C.
+                Alpha = softmax(z_alpha)
+                Mu = z_mu
+                Sigma = np.exp(z_sigma)  # TODO be explicit this is std
+
+                lp_components = np.zeros(Alpha.shape)
+                for cc in xrange(lp_components.shape[1]):
+                    lp_components[:, cc] = ss.norm.logpdf(X[:, i], Mu[:, cc], Sigma[:, cc])
+                lp[:, o_index] += logsumexp(lp_components + np.log(Alpha), axis=1)
+
+                # TODO look into outer product here
+                a += np.dot(X[:, [i]], W1[[i], :]) + Wflags[[i], :]  # N x H
+        logpdf = logsumexp(lp + np.log(1.0 / len(orderings)), axis=1)
+        return logpdf
 
 # Dict with sklearn like interfaces for each of the models we will use to train
 # samples.

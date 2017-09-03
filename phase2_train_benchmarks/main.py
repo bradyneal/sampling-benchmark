@@ -22,8 +22,9 @@ def main():
 
     # TODO These can come from some other config file, maybe json or something
     # as long as the loader code is small and simple
-    settings_args = {'MoG': {'n_components': 10},
-                     'IGN': {'n_layers': 3, 'n_epochs': 250}}
+    settings_args = {'MoG': {'n_components': 5},
+                     'IGN': {'n_layers': 3, 'n_epochs': 250},
+                     'RNADE': {'n_components': 5}}
     # TODO give random str to rnade obj for its scratch dir and run name, that
     # way multiple runs can go in parallel without same name
 
@@ -60,13 +61,18 @@ def main():
         # with error bars and all that at a later point.
         loglik_vec = model.score_samples(MC_chain[N_train:, :])
 
+        params = model.get_params()
+        loglik_vec_chk = model.loglik_chk(MC_chain[N_train:, :], params)
+        err = np.max(np.abs(loglik_vec - loglik_vec_chk))
+        print 'loglik chk log10 err %f' % np.log10(err)
+
         test_loglik = np.mean(loglik_vec)
         print '%s: %f' % (model_name, test_loglik)
         if test_loglik > best_loglik:
             best_loglik = test_loglik
             best_case = (model_name, model)
 
-        model_dump[model_name] = model.get_params()
+        model_dump[model_name] = params
     assert(best_case is not None)
 
     model_name, model = best_case
