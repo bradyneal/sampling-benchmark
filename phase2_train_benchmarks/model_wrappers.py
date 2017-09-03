@@ -269,7 +269,7 @@ class RNADE:
             # TODO implement logsoftmax
             # TODO move to util
             X = X - np.max(X, axis=1, keepdims=True)
-            e = np.exp(X)    
+            e = np.exp(X)
             R = e / np.sum(e, axis=1, keepdims=True)
             return R
 
@@ -299,8 +299,7 @@ class RNADE:
                     lp_components[:, cc] = ss.norm.logpdf(X[:, i], Mu[:, cc], Sigma[:, cc])
                 lp[:, o_index] += logsumexp(lp_components + np.log(Alpha), axis=1)
 
-                # TODO look into outer product here
-                a += np.dot(X[:, [i]], W1[[i], :]) + Wflags[[i], :]  # N x H
+                a += np.outer(X[:, i], W1[i, :]) + Wflags[[i], :]  # N x H
         logpdf = logsumexp(lp + np.log(1.0 / len(orderings)), axis=1)
         return logpdf
 
