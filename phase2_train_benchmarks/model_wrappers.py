@@ -237,6 +237,8 @@ class RNADE:
 
     def get_params(self):
         assert(self.nade_obj is not None)
+        # This could later be truncated down to the params we actually need in
+        # loglik_chk()
         D = self.nade_obj.get_parameters()
         # This could be a deep copy or cast to np array if we wanted to be safe
         D['orderings'] = self.nade_obj.orderings
@@ -244,12 +246,6 @@ class RNADE:
 
     def loglik_chk(self, X, params):
         N, n_visible = X.shape
-
-        # TODO remove
-        for k, v in params.iteritems():
-            print k, type(v), np.shape(v)
-            if np.ndim(v) == 0:
-                print '    =', v
 
         # TODO infer these from parameters
         n_hidden, n_layers = params['n_hidden'], params['n_layers']
@@ -274,20 +270,17 @@ class RNADE:
             return R
 
         lp = np.zeros((N, len(orderings)))
-        for o_index, o in enumerate(orderings):
+        for o_index, curr_order in enumerate(orderings):
             a = np.zeros((N, n_hidden)) + b1[None, :]  # N x H
-            for j in xrange(n_visible):
-                i = o[j]  # TODO why not enumerate??
-
+            for i in curr_order:
                 h = act_fun(a)  # N x H
                 for l in xrange(n_layers - 1):
-                    # Do we need a None on bs??
-                    h = act_fun(np.dot(h, Ws[l, :, :]) + bs[[l], :])  # N x H
+                    h = act_fun(np.dot(h, Ws[l, :, :]) + bs[l, None])  # N x H
 
                 # All N x C
-                z_alpha = np.dot(h, V_alpha[i, :, :]) + b_alpha[[i], :]
-                z_mu = np.dot(h, V_mu[i, :, :]) + b_mu[[i], :]
-                z_sigma = np.dot(h, V_sigma[i, :, :]) + b_sigma[[i], :]
+                z_alpha = np.dot(h, V_alpha[i, :, :]) + b_alpha[i, None]
+                z_mu = np.dot(h, V_mu[i, :, :]) + b_mu[i, None]
+                z_sigma = np.dot(h, V_sigma[i, :, :]) + b_sigma[i, None]
 
                 # Any final warping. All N x C.
                 Alpha = softmax(z_alpha)
@@ -297,9 +290,10 @@ class RNADE:
                 lp_components = np.zeros(Alpha.shape)
                 for cc in xrange(lp_components.shape[1]):
                     lp_components[:, cc] = ss.norm.logpdf(X[:, i], Mu[:, cc], Sigma[:, cc])
+                # Need += to aggregate over the different visible vars
                 lp[:, o_index] += logsumexp(lp_components + np.log(Alpha), axis=1)
 
-                a += np.outer(X[:, i], W1[i, :]) + Wflags[[i], :]  # N x H
+                a += np.outer(X[:, i], W1[i, :]) + Wflags[i, None]  # N x H
         logpdf = logsumexp(lp + np.log(1.0 / len(orderings)), axis=1)
         return logpdf
 
