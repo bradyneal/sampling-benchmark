@@ -23,7 +23,16 @@ def read_dataset(dataset_id, preprocess=Preprocess.RAW):
     Read the dataset with specified preprocessing from disk and return the
     corresponding dictionary of its contents.
     """
-    filename = get_dataset_filename(dataset_id, preprocess)
+    return read_file(get_dataset_filename(dataset_id, preprocess))
+    
+    
+def read_task_dataset_ids(task):
+    """Read dataset ids corresponding to specified task from disk"""
+    return read_file(get_task_filename(task))
+    
+
+def read_file(filename):
+    """Read and return contents of file"""
     with open(filename, 'rb') as f:
         return pickle.load(f)
 
@@ -49,11 +58,15 @@ def read_dataset_Xy(dataset_id, preprocess=Preprocess.RAW):
     return dataset_dict['X'], dataset_dict['y']
 
 
-def read_task_dataset_ids(task):
-    """Read dataset ids corresponding to specified task from disk"""
-    filename = get_task_filename(task)
-    with open(filename, 'rb') as f:
-        return pickle.load(f)
+# NOTE: This is used for the sampling methods that require the the number of
+# categorical features. It is inefficient as this method also loads the raw
+# dataset. The more proper thing to do if the preprocessing script were rerun
+# would be to store the number of categorical features with each of the
+# preprocessed datasetes.
+def read_dataset_categorical(dataset_id):
+    """Read the boolean list of which features are categorical from disk"""
+    d = read_dataset(dataset_id, preprocess=Preprocess.RAW)
+    return d['categorical']
     
     
 def write_dataset(dataset_id, dataset, preprocess=Preprocess.RAW,
@@ -66,18 +79,19 @@ def write_dataset(dataset_id, dataset, preprocess=Preprocess.RAW,
 def write_dataset_dict(d, dataset_id, preprocess=Preprocess.RAW,
                        overwrite=True):
     """Write the dataset dict with specified preprocessing to disk"""
-    filename = get_dataset_filename(dataset_id, preprocess)
-    if overwrite or not os.path.isfile(filename):
-        with open(filename, 'wb') as f:
-            pickle.dump(d, f, protocol=pickle.HIGHEST_PROTOCOL)
+    write_file(get_dataset_filename(dataset_id, preprocess), d, overwrite)
             
             
 def write_task_dataset_ids(task, dids, overwrite=True):
     """Write dataset ids corresponding to specified task to disk"""
-    filename = get_task_filename(task)
+    write_file(get_task_filename(task), dids, overwrite)
+
+            
+def write_file(filename, contents, overwrite=True):
+    """Write file to disk if doesn't exist or overwrite is True"""
     if overwrite or not os.path.isfile(filename):
         with open(filename, 'wb') as f:
-            pickle.dump(dids, f, protocol=pickle.HIGHEST_PROTOCOL)
+            pickle.dump(contents, f, protocol=pickle.HIGHEST_PROTOCOL)
         
 
 def write_data_error(e, dataset_id, activity_type):
