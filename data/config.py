@@ -6,10 +6,12 @@ import os
 from enum import Enum
 
 UNIX_OPENML_PATH = '/data/lisa/data/openml'
-OPENML_FOLDER = os.path.join(os.sep, *UNIX_OPENML_PATH.split('/'))
+UNIX_SAMPLES_PATH = '' # TBD
+OPENML_FOLDER = path_from_unix_path(UNIX_OPENML_PATH)
 DATASETS_FOLDER = os.path.join(OPENML_FOLDER, 'datasets')
 ERRORS_FOLDER = os.path.join(DATASETS_FOLDER, 'errors')
 TASKS_FOLDER = os.path.join(OPENML_FOLDER, 'tasks')
+SAMPLES_FOLDER = path_from_unix_path(UNIX_SAMPLES_PATH)
 
 # Folder name constants
 class Preprocess(Enum):
@@ -26,3 +28,7 @@ CONFIG = {
 }
 CONFIG['errors_folder'] = ERRORS_FOLDER
 CONFIG['tasks_folder'] = TASKS_FOLDER
+CONFIG['samples_folder'] = SAMPLES_FOLDER
+
+def path_from_unix_path(unix_path):
+    return os.path.join(os.sep, *unix_path.split('/'))
