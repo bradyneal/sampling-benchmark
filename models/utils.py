@@ -5,16 +5,19 @@ in this package.
 
 from pymc3.backends.tracetab import trace_to_dataframe
 from itertools import combinations
+import pandas
 
 from data import make_col_names
 
 
+# NOTE: Current converts to a DataFrame and then to a numpy array.
+# Consider doing it all in one go.
 def format_trace(trace):
     """
     Convert the trace into the necessary format. The current format is a
-    Pandas DataFrame.
+    numpy array.
     """
-    return trace_to_dataframe(trace)
+    return pandas.DataFrame.as_matrix(trace_to_dataframe(trace))
 
 
 def get_pairwise_formula(num_non_categorical):
