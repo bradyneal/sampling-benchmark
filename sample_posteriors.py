@@ -2,9 +2,6 @@
 File that draws samples from the posteriors of all of the supported models,
 conditioned on all of the specified datasts.
 """
-
-import openml
-
 from models import REGRESSION_MODEL_NAMES, sample_regression_model, \
                    CLASSIFICATION_MODEL_NAMES, sample_classification_model
 from data import get_downloaded_dataset_ids_by_task, read_dataset_Xy, Preprocess
