@@ -3,17 +3,15 @@ File that draws samples from the posteriors of all of the supported models,
 conditioned on all of the specified datasts.
 """
 import random
-from models import REGRESSION_MODEL_NAMES, sample_regression_model, \
-                   CLASSIFICATION_MODEL_NAMES, sample_classification_model
+from models.regression import REGRESSION_MODEL_NAMES, sample_regression_model
+from models.classification import CLASSIFICATION_MODEL_NAMES, sample_classification_model
 from data.repo import get_downloaded_dataset_ids_by_task
 from data.io import read_dataset_Xy, read_dataset_categorical, write_samples
 from data.config import Preprocess
+from data.preprocessing.format import to_ndarray
 
 # For each different task (e.g. regression, classification, etc.),
 # run outer loop that loops over datasets and inner loop that loops over models.
-
-# choose different preprocessing for each fourth
-# load num_categorical from raw data file
 
 def sample_and_save_posteriors(dids, task):
     if task == 'regression':
@@ -44,10 +42,13 @@ def sample_and_save_posteriors(dids, task):
         # into the same file to make things slightly faster
         num_non_categorical = read_dataset_categorical(dataset_id).count(False)
         X, y = read_dataset_Xy(dataset_id, preprocess)
+        X = to_ndarray(X)
         
         for model_name in model_names:
+            print('Starting sampling {}-{}'.format(model_name, dataset_id))
             samples = sample_model(model_name, X, y,
                                    num_non_categorical=num_non_categorical)
+            print('Finished sampling {}-{}'.format(model_name, dataset_id))
             write_samples(samples, model_name, dataset_id)
 
 
