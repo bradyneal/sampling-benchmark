@@ -41,7 +41,7 @@ class GaussianMixture_(GaussianMixture):
         original class. This could be made into some sort of static method
         since we never use self.'''
         # other types not yet supported
-        assert(params['type'] == 'full')
+        assert(params['type'] in ('full', 'diag'))
 
         N = X.shape[0]
 
@@ -50,7 +50,10 @@ class GaussianMixture_(GaussianMixture):
 
         loglik = np.zeros((N, len(w)))
         for ii in xrange(len(w)):
-            mu, S = params['means'][ii, :], params['covariances'][ii, :, :]
+            mu = params['means'][ii, :]
+            S = params['covariances'][ii, :, :] if params['type'] == 'full' \
+                else np.diag(params['covariances'][ii, :])
+            # Not efficient for diag case, but this is only a check function
             gauss_part = ss.multivariate_normal.logpdf(X, mu, S)
             loglik[:, ii] = np.log(w[ii]) + gauss_part
         loglik = logsumexp(loglik, axis=1)
@@ -59,13 +62,14 @@ class GaussianMixture_(GaussianMixture):
 
 class IGN:
     def __init__(self, n_layers=1, WL_init=1e-2, reg_dict={}, valid_frac=0.2,
-                 gauss_basepdf=True, n_epochs=100, batch_size=32):
+                 gauss_basepdf=True, n_epochs=100, batch_size=32, lr=1e-3):
         self.n_layers = n_layers
         self.WL_init = WL_init
         self.reg_dict = reg_dict
         self.n_epochs = n_epochs
         self.batch_size = batch_size
         self.valid_frac = valid_frac
+        self.lr = lr
 
         # Only parts that need to be saved in param extraction
         self.gauss_basepdf = gauss_basepdf
@@ -84,8 +88,9 @@ class IGN:
         # Chunk some in validation
         R = ign.train_ign(X[:n_train, :], X[n_train:, :], layers,
                           self.reg_dict, base_logpdf=self.base_logpdf,
-                          n_epochs=self.n_epochs, batch_size=self.batch_size)
-        cost_list, loglik, loglik_valid, self.fit_layers = R
+                          lr=self.lr, n_epochs=self.n_epochs,
+                          batch_size=self.batch_size)
+        _, _, _, self.fit_layers = R
 
     def score_samples(self, X):
         assert(self.fit_layers is not None)

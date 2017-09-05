@@ -345,7 +345,7 @@ def get_layer_reg_T(layers, reg_dict):
 # ============================================================================
 
 
-def create_ign_updates(x_train, layers, reg_dict, batch_size,
+def create_ign_updates(x_train, layers, reg_dict, batch_size, lr,
                        base_logpdf=t_util.norm_logpdf_T):
     # Setup preliminary constants
     N, D = x_train.shape
@@ -374,6 +374,7 @@ def create_ign_updates(x_train, layers, reg_dict, batch_size,
 
     # Build the update
     updates = t_util.get_adam_min_updates(grad_list, gradients, epoch,
+                                          base_learning_rate=lr,
                                           lr_decay=lr_decay)
     # This assumes that batch goes from 0 to int(N / batch_size)-1 inclusive.
     # Under this scheme the remaining partial batch is never used, if the batch
@@ -395,13 +396,13 @@ def create_ign_updates(x_train, layers, reg_dict, batch_size,
 
 
 def train_ign(x_train, x_valid, layers, reg_dict, n_epochs, batch_size,
-              burn_in=50, base_logpdf=t_util.norm_logpdf_T):
+              burn_in=50, lr=1e-3, base_logpdf=t_util.norm_logpdf_T):
     N, D = x_train.shape
     assert(x_valid.ndim == 2 and x_valid.shape[1] == D)
     batch_order = np.arange(int(N / batch_size))
 
-    R = create_ign_updates(x_train, layers, reg_dict,
-                           batch_size=batch_size, base_logpdf=base_logpdf)
+    R = create_ign_updates(x_train, layers, reg_dict, batch_size=batch_size,
+                           lr=lr, base_logpdf=base_logpdf)
     update, state_funcs, layers_shared = R
     _, loglik_f, _, _ = state_funcs
 

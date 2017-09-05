@@ -22,9 +22,11 @@ def main():
 
     # TODO These can come from some other config file, maybe json or something
     # as long as the loader code is small and simple
-    settings_args = {'MoG': {'n_components': 5},
-                     'IGN': {'n_layers': 3, 'n_epochs': 250},
-                     'RNADE': {'n_components': 5}}
+    run_config = {'norm_diag': ('MoG', {'n_components': 1, 'covariance_type': 'diag'}),
+                  'norm_full': ('MoG', {'n_components': 1, 'covariance_type': 'full'}),
+                  'MoG': ('MoG', {'n_components': 5}),
+                  'IGN': ('IGN', {'n_layers': 3, 'n_epochs': 2500, 'lr': 1e-4}),
+                  'RNADE': ('RNADE', {'n_components': 5})}
     # TODO give random str to rnade obj for its scratch dir and run name, that
     # way multiple runs can go in parallel without same name
 
@@ -46,33 +48,32 @@ def main():
     best_loglik = -np.inf
     best_case = None
     model_dump = {}
-    for model_name, bench_model in STD_BENCH_MODELS.iteritems():
+    for run_name, (model_name, args) in run_config.iteritems():
         print 'running %s with arguments' % model_name
-        args = settings_args.get(model_name, {})
         # TODO use pretty print or whatever it is called to print dict nicely
         print args
 
         # leave at default params for now, can use fancy skopt stuff later.
         # All models are setup in sklearn pattern to make later use with skopt
         # easier, and can use sklearn estimators with no wrappers.
-        model = bench_model(**args)
+        model = STD_BENCH_MODELS[model_name](**args)
         model.fit(MC_chain[:N_train, :])
         # Get score for each sample, can then use benchmark tools for table
         # with error bars and all that at a later point.
         loglik_vec = model.score_samples(MC_chain[N_train:, :])
 
-        params = model.get_params()
-        loglik_vec_chk = model.loglik_chk(MC_chain[N_train:, :], params)
+        params_obj = model.get_params()
+        loglik_vec_chk = model.loglik_chk(MC_chain[N_train:, :], params_obj)
         err = np.max(np.abs(loglik_vec - loglik_vec_chk))
         print 'loglik chk log10 err %f' % np.log10(err)
 
         test_loglik = np.mean(loglik_vec)
-        print '%s: %f' % (model_name, test_loglik)
+        print '%s: %f' % (run_name, test_loglik)
         if test_loglik > best_loglik:
             best_loglik = test_loglik
             best_case = (model_name, model)
 
-        model_dump[model_name] = params
+        model_dump[run_name] = (model_name, params_obj)
     assert(best_case is not None)
 
     model_name, model = best_case
