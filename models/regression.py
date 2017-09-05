@@ -8,7 +8,7 @@ import pymc3 as pm
 from pymc3.backends.tracetab import trace_to_dataframe
 from itertools import combinations
 
-from data import numpy_to_dataframe
+from data.preprocessing.format import numpy_to_dataframe
 from .utils import format_trace, get_pairwise_formula, get_quadratic_formula, \
                    get_linear_formula, join_nonempty
 from .nn import sample_shallow_nn
