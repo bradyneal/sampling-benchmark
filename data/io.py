@@ -32,8 +32,8 @@ def read_task_dataset_ids(task):
 
 
 def read_samples(model_name, dataset_id):
-    # TODO: easy
-    pass
+    """Read model samples for specified dataset from disk"""
+    return read_file(get_samples_filename(model_name, dataset_id))
     
 
 def read_file(filename):
@@ -93,8 +93,8 @@ def write_task_dataset_ids(task, dids, overwrite=True):
 
 
 def write_samples(samples, model_name, dataset_id):
-    # TODO: easy
-    pass
+    """Write model samples for specified dataset to disk"""
+    write_file(get_samples_filename(model_name, dataset_id), samples)
 
             
 def write_file(filename, contents, overwrite=True):
@@ -192,8 +192,9 @@ def get_task_filename(task):
 
 
 def get_samples_filename(model_name, dataset_id):
-    # TODO: easy
-    pass
+    """Get location of samples from specified model with specified dataset"""
+    filename = '{}-{}'.format(model_name, dataset_id) + PICKLE_EXT
+    return os.path.join(CONFIG['samples_folder'], filename)
    
 
 # This is duplicated from the repo module because cyclic imports can be tricky,

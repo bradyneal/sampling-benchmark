@@ -3,15 +3,21 @@ File for data config
 """
 
 import os
+import getpass
 from enum import Enum
 
 UNIX_OPENML_PATH = '/data/lisa/data/openml'
-UNIX_SAMPLES_PATH = '' # TBD
+LISATMP_NUM = 3
+USERNAME = getpass.getuser()
+PROJECT_NAME = 'sampling_benchmark'
+UNIX_EXP_PATH = '/data/lisatmp{}/{}/{}'.format(LISATMP_NUM, USERNAME,
+                                               PROJECT_NAME)
 OPENML_FOLDER = path_from_unix_path(UNIX_OPENML_PATH)
 DATASETS_FOLDER = os.path.join(OPENML_FOLDER, 'datasets')
 ERRORS_FOLDER = os.path.join(DATASETS_FOLDER, 'errors')
 TASKS_FOLDER = os.path.join(OPENML_FOLDER, 'tasks')
-SAMPLES_FOLDER = path_from_unix_path(UNIX_SAMPLES_PATH)
+EXP_FOLDER = path_from_unix_path(UNIX_EXP_PATH)
+SAMPLES_FOLDER = os.path.join(EXP_FOLDER, 'samples')
 
 # Folder name constants
 class Preprocess(Enum):
