@@ -70,7 +70,7 @@ def sample_shallow_nn_class(X, y, num_samples=NUM_SAMPLES):
     return sample_shallow_nn(X, y, 'classification')
 
 
-def sample_gp(X, y, cov_f='ExpQuad', num_samples=NUM_SAMPLES):
+def sample_gpc(X, y, cov_f='ExpQuad', num_samples=NUM_SAMPLES):
     """Sample from Gaussian Process"""
     # TODO also implement version that uses Elliptical slice sampling
     N, D = X.shape
@@ -84,9 +84,7 @@ def sample_gp(X, y, cov_f='ExpQuad', num_samples=NUM_SAMPLES):
         cov_func = s2_f * build_pm_gp_cov(D, cov_f)
 
         # Specify the GP.  The default mean function is `Zero`.
-        gp = pm.gp.Latent(cov_func=cov_func)
-        # Place a GP prior over the function f.
-        f = gp.prior('f', X=X)
+        f = pm.gp.GP('f', cov_func=cov_func, X=X, sigma=1e-6)
         # Smash to a probability
         f_transform = pm.invlogit(f)
 
