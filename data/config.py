@@ -6,6 +6,11 @@ import os
 import getpass
 from enum import Enum
 
+
+def path_from_unix_path(unix_path):
+    return os.path.join(os.sep, *unix_path.split('/'))
+
+
 UNIX_OPENML_PATH = '/data/lisa/data/openml'
 LISATMP_NUM = 3
 USERNAME = getpass.getuser()
@@ -35,6 +40,3 @@ CONFIG = {
 CONFIG['errors_folder'] = ERRORS_FOLDER
 CONFIG['tasks_folder'] = TASKS_FOLDER
 CONFIG['samples_folder'] = SAMPLES_FOLDER
-
-def path_from_unix_path(unix_path):
-    return os.path.join(os.sep, *unix_path.split('/'))

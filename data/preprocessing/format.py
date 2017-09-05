@@ -36,8 +36,3 @@ def to_ndarray(X):
 def to_sparse(X):
     """Convert numpy ndarray to sparse matrix"""
     return sps.csr_matrix(X)
-    
-
-def make_col_names(d):
-    """Make column names (i.e. x1, x2, ..., xd) for data dimension d"""
-    return ['x' + str(i) for i in range(1, d + 1)]
