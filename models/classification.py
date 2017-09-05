@@ -12,6 +12,10 @@ from .utils import format_trace
 from .nn import sample_shallow_nn
 from . import NUM_SAMPLES
 
+# Arguably, build_pm_gp_cov should go in some 3rd file like util
+from .regression import build_pm_gp_cov
+
+# TODO add GP in here
 CLASSIFICATION_MODEL_NAMES = ['softmax_linear', 'shallow_nn']
 
 
@@ -19,16 +23,16 @@ def sample_classification_model(model_name, X, y, num_samples=NUM_SAMPLES,
                                 num_non_categorical=None):
     """
     Sample from the posteriors of any of the supported models
-    
+
     Args:
         model_name: to specify which model to sample from
         X: data matrix
         y: targets
         num_samples: number points to sample from the model posterior
-    
+
     Returns:
         samples (in currently undecided format)
-        
+
     Raises:
         ValueError: if the specified model name is not supported
     """
@@ -40,7 +44,7 @@ def sample_classification_model(model_name, X, y, num_samples=NUM_SAMPLES,
         raise ValueError('Unsupported model: {}\nSupported models: {}'
                          .format(model_name, CLASSIFICATION_MODEL_NAMES))
 
-        
+
 def sample_softmax_linear(X, y, num_samples=NUM_SAMPLES):
     """
     Sample from Bayesian Softmax Linear Regression
@@ -64,3 +68,30 @@ def sample_shallow_nn_class(X, y, num_samples=NUM_SAMPLES):
     Uses Categorical likelihood.
     """
     return sample_shallow_nn(X, y, 'classification')
+
+
+def sample_gp(X, y, cov_f='ExpQuad', num_samples=NUM_SAMPLES):
+    """Sample from Gaussian Process"""
+    # TODO also implement version that uses Elliptical slice sampling
+    N, D = X.shape
+
+    with pm.Model():
+        # uninformative prior on the function variance
+        log_s2_f = pm.Uniform('log_s2_f', lower=-10.0, upper=5.0)
+        s2_f = pm.Deterministic('s2_f', tt.exp(log_s2_f))
+
+        # covariance functions for the function f and the noise
+        cov_func = s2_f * build_pm_gp_cov(D, cov_f)
+
+        # Specify the GP.  The default mean function is `Zero`.
+        gp = pm.gp.Latent(cov_func=cov_func)
+        # Place a GP prior over the function f.
+        f = gp.prior('f', X=X)
+        # Smash to a probability
+        f_transform = pm.invlogit(f)
+
+        # Add the observations
+        pm.Binomial('y', observed=y, n=np.ones(N), p=f_transform, shape=N)
+
+        trace = pm.sample(num_samples)
+    return format_trace(trace)
