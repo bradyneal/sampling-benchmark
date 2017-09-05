@@ -42,11 +42,12 @@ def sample_and_save_posteriors(dids, task):
             
         # Suboptimal: this information could be moved
         # into the same file to make things slightly faster
-        num_categorical = sum(read_dataset_categorical(dataset_id))
+        num_non_categorical = read_dataset_categorical(dataset_id).count(False)
         X, y = read_dataset_Xy(dataset_id, preprocess)
         
         for model_name in model_names:
-            samples = sample_model(model_name, X, y, num_categorical=num_categorical)
+            samples = sample_model(model_name, X, y,
+                                   num_non_categorical=num_non_categorical)
             write_samples(samples, model_name, dataset_id)
 
 
