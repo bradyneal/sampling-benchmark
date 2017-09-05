@@ -176,8 +176,8 @@ def fit_base_layer(x, inf_layers, M=None, eps=0.0, truncate=False):
         if truncate:
             log_epsilon_std = np.log(np.max(np.diag(L)[M:]))
             L = L - np.exp(log_epsilon_std) * np.eye(D)
-            L = (np.concatenate((L[:, :M], np.zeros((D, D - M))), axis=1)
-                 + (np.exp(log_epsilon_std) + eps) * np.eye(D))
+            L = (np.concatenate((L[:, :M], np.zeros((D, D - M))), axis=1) +
+                 (np.exp(log_epsilon_std) + eps) * np.eye(D))
 
     WL_new = np.linalg.inv(L.T)
     inf_layers[(n_layers - 1, WL_PARAM)] = WL_new
@@ -437,7 +437,7 @@ def train_ign(x_train, x_valid, layers, reg_dict, n_epochs, batch_size,
             best_valid = loglik_valid[epoch]
 
         print 'iter-%d %f %f %f (%f)' % (epoch, cost, loglik[epoch],
-                                      loglik_valid[epoch], best_valid)
+                                         loglik_valid[epoch], best_valid)
     assert(epoch == n_epochs)
     print 'best valid %f' % best_valid
     return cost_list, loglik, loglik_valid, layers
@@ -503,11 +503,7 @@ def create_ign_mix_updates(x_train, layers, log_weights, reg_dict, batch_size,
     cost_f = theano.function([x], cost_unscaled)
     gradients_f = theano.function([x], gradients)
 
-    #mix_comp_f = theano.function([x], loglik_mix_T)
-    #gradients_mix_comp = T.grad(loglik_mix_T.sum(), grad_list)
-    #gradients_dbg_f = theano.function([x], gradients_mix_comp)
-    #dbg = (mix_comp_f, gradients_dbg_f)
-    dbg = None
+    dbg = None  # debug info
 
     # Pack it all up
     state_funcs = (xp_f, loglik_f, cost_f, gradients_f)
@@ -595,18 +591,13 @@ def train_ign_mix(x_train, x_valid, n_layers, n_mixtures, reg_dict, n_epochs,
         np.random.shuffle(batch_order)
 
         cost = 0.0
-        lr_decay = 100.0 if epoch <= 10 else np.sqrt(np.maximum(1.0, epoch - burn_in))
+        lr_decay = 100.0 if epoch <= 10 else \
+            np.sqrt(np.maximum(1.0, epoch - burn_in))
         for batch in batch_order:
-            # TODO For debug remove!
-            #xx = x_train[batch * batch_size:(batch + 1) * batch_size, :]
-            #g_list = gradient_f(xx)
-            #all_f = all(np.all(np.isfinite(gg)) for gg in g_list)
-
             batch_cost = update(batch, epoch, lr_decay)
             cost += batch_cost
         cost /= len(batch_order)
         cost_list[epoch] = cost
-        #full_cost = cost_f(x_train)
         loglik_vec = loglik_f(x_train)
         print ss.describe(loglik_vec)
         loglik[epoch] = loglik_vec.mean()
@@ -692,7 +683,8 @@ def run_tests_mix(runs=100, max_cond_number=1e4):
             inf_layers[mm] = {}
             for nn in xrange(n_layers):
                 inf_layers[mm][(nn, bL_PARAM)] = np.random.randn(D)
-                inf_layers[mm][(nn, WL_PARAM)] = sample_stable_mat(D, max_cond_number)
+                inf_layers[mm][(nn, WL_PARAM)] = \
+                    sample_stable_mat(D, max_cond_number)
                 if nn < n_layers - 1:
                     inf_layers[mm][(nn, aL_PARAM)] = np.random.randn(D)
         log_weights = np.random.randn(M)

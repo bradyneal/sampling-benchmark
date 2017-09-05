@@ -74,21 +74,22 @@ class IGN:
         self.base_logpdf = t_util.norm_logpdf_T if self.gauss_basepdf \
             else t_util.t_logpdf_T
 
-    def fit(self, x_train):
-        N, D = x_train.shape
+    def fit(self, X):
+        N, D = X.shape
         n_train = int(np.ceil((1.0 - self.valid_frac) * N))
 
         # Could also have setting in there for trying LU vs full training
-        layers = ign.init_ign(self.n_layers, D)
+        layers = ign.init_ign(self.n_layers, D, aL_val=0.95, rnd_W=True)
+        layers = ign.fit_base_layer(X, layers)
         # Chunk some in validation
-        R = ign.train_ign(x_train[:n_train, :], x_train[n_train:, :],
-                          layers, self.reg_dict, base_logpdf=self.base_logpdf,
+        R = ign.train_ign(X[:n_train, :], X[n_train:, :], layers,
+                          self.reg_dict, base_logpdf=self.base_logpdf,
                           n_epochs=self.n_epochs, batch_size=self.batch_size)
-        _, _, _, self.fit_layers = R
+        cost_list, loglik, loglik_valid, self.fit_layers = R
 
-    def score_samples(self, x_test):
+    def score_samples(self, X):
         assert(self.fit_layers is not None)
-        logpdf, _ = ign.ign_log_pdf(x_test, self.fit_layers, self.base_logpdf)
+        logpdf, _ = ign.ign_log_pdf(X, self.fit_layers, self.base_logpdf)
         return logpdf
 
     def get_params(self):
@@ -136,16 +137,16 @@ class RNADE:
         self.nade_class = NADE.OrderlessMoGNADE
         self.nade_obj = None
 
-    def fit(self, x_train):
+    def fit(self, X):
         # TODO create short aliases on import for some of the long names here
         # to avoid these super long lines
         # TODO change " to ' to keep style consistent
 
-        N, n_visible = x_train.shape
+        N, n_visible = X.shape
         n_train = int(np.ceil((1.0 - self.valid_frac) * N))
 
-        training_dataset = Dataset(x_train[:n_train, :])
-        validation_dataset = Dataset(x_train[n_train:, :])
+        training_dataset = Dataset(X[:n_train, :])
+        validation_dataset = Dataset(X[n_train:, :])
 
         # Rest of stuff in here copied/adapted from orderlessNADE.py, seems
         # more complicated than it needs to be.  Can it be made simpler??
@@ -229,10 +230,10 @@ class RNADE:
             # TODO convert to real warning
             print 'Training error in RNADE!'
 
-    def score_samples(self, x_test):
+    def score_samples(self, X):
         assert(self.nade_obj is not None)
-        logpdf = self.nade_obj.logdensity(x_test.T)
-        assert(logpdf.shape == (x_test.shape[0],))
+        logpdf = self.nade_obj.logdensity(X.T)
+        assert(logpdf.shape == (X.shape[0],))
         return logpdf
 
     def get_params(self):
