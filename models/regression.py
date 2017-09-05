@@ -208,7 +208,7 @@ def sample_shallow_nn_regres(X, y, num_samples=NUM_SAMPLES):
 def build_pm_gp_cov(D, cov_f='ExpQuad'):
     cov_dict = {'ExpQuad': pm.gp.cov.ExpQuad,
                 'Exponential': pm.gp.cov.Exponential,
-                'Exponential': pm.gp.cov.Matern32,
+                'Matern32': pm.gp.cov.Matern32,
                 'Matern52': pm.gp.cov.Matern52}
 
     log_ls = pm.Uniform('log_ls', lower=-2.0, upper=3.0)
