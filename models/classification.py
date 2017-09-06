@@ -15,8 +15,7 @@ from . import NUM_SAMPLES
 # Arguably, build_pm_gp_cov should go in some 3rd file like util
 from .regression import build_pm_gp_cov
 
-# TODO add GP in here
-CLASSIFICATION_MODEL_NAMES = ['softmax_linear', 'shallow_nn']
+CLASSIFICATION_MODEL_NAMES = ['softmax_linear', 'shallow_nn', 'gp']
 
 
 def sample_classification_model(model_name, X, y, num_samples=NUM_SAMPLES,
@@ -40,6 +39,8 @@ def sample_classification_model(model_name, X, y, num_samples=NUM_SAMPLES,
         sample_softmax_linear(X, y, num_samples)
     elif 'shallow_nn' == model_name:
         sample_shallow_nn_class(X, y, num_samples)
+    elif 'gp' == model_name:
+        sample_gpc(X, y, num_samples=num_samples)
     else:
         raise ValueError('Unsupported model: {}\nSupported models: {}'
                          .format(model_name, CLASSIFICATION_MODEL_NAMES))
