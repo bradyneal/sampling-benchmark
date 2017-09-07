@@ -35,6 +35,7 @@ def sample_classification_model(model_name, X, y, num_samples=NUM_SAMPLES,
     Raises:
         ValueError: if the specified model name is not supported
     """
+    X = reduce_data_dimension(X, model_name)
     if 'softmax_linear' == model_name:
         sample_softmax_linear(X, y, num_samples)
     elif 'shallow_nn' == model_name:

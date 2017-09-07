@@ -13,6 +13,7 @@ from .utils import format_trace, get_pairwise_formula, get_quadratic_formula, \
                    get_linear_formula, join_nonempty
 from .nn import sample_shallow_nn
 from . import NUM_SAMPLES
+from .utils import reduce_data_dimension
 
 REGRESSION_MODEL_NAMES = [
     'ls_linear', 'ls_pairwise_linear', 'ls_quadratic_linear',
@@ -37,6 +38,7 @@ def sample_regression_model(model_name, X, y, num_samples=NUM_SAMPLES,
     Raises:
         ValueError: if the specified model name is not supported
     """
+    X = reduce_data_dimension(X, model_name)
     if 'ls_linear' == model_name:
         sample_ls_linear(X, y, num_samples)
     elif 'ls_pairwise_linear' == model_name:

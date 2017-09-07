@@ -6,6 +6,9 @@ in this package.
 from pymc3.backends.tracetab import trace_to_dataframe
 from itertools import combinations
 import pandas as pd
+from sklearn.decomposition import PCA
+
+from . import MAX_DATA_DIMENSION
 
 
 # NOTE: Current converts to a DataFrame and then to a numpy array.
@@ -17,6 +20,54 @@ def format_trace(trace):
     """
     return pd.DataFrame.as_matrix(trace_to_dataframe(trace))
 
+
+def reduce_data_dimension(X, model_name, transform=None,
+                          return_transform=False):
+    """
+    Linearly project the data down to a small enough dimension for the model
+    to run in a reasonable amount of time. If the data is already small enough
+    in dimension, just return the unaltered data.
+    
+    Args:
+        X: data matrix
+        model_type: type of Bayesian model
+        transform: if provided, use for dim reduction (e.g. for test set)
+        return_transform: if true, return transform (to later be used on test set)
+        
+    Returns:
+        dimensionality reduced X and, optionally, the transform object that
+        contains the PCA information of X (training set)
+    """
+    if model_type not in MAX_DATA_DIMENSION.keys():
+        raise ValueError('Invalid model type: ' + model_type)
+    max_dimension = get_max_dimension(model_name)
+    if X.shape[1] > max_dimension:
+        if transform is None:
+            transform = PCA(n_components=max_dimension)
+            X_reduced = transform.fit_transform(X)
+        else:
+            X_reduced = transform.transform(X)
+        return (X_reduced, transform) if return_transform else X_reduced
+    else:
+        return (X, None) if return_transform else X
+    
+    
+def get_max_dimension(model_name):
+    """Get the max dimension for the specified model type"""
+    is_quadratic = 'quadratic' in model_name
+    is_pairwise = 'pairwise' in model_name
+    is_linear = 'linear' in model_name
+    if is_quadratic:
+        max_dimension = MAX_DATA_DIMENSION['quadratic']
+    elif is_pairwise:
+        max_dimension = MAX_DATA_DIMENSION['pairwise']
+    elif is_linear:
+        max_dimension = MAX_DATA_DIMENSION['linear']
+    else:
+        max_dimension = float('inf')
+    # what about the neural networks and gps?
+    return max_dimension
+    
 
 def get_pairwise_formula(num_non_categorical):
     """
