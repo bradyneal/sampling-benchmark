@@ -6,7 +6,8 @@ import random
 from models.regression import REGRESSION_MODEL_NAMES, sample_regression_model
 from models.classification import CLASSIFICATION_MODEL_NAMES, sample_classification_model
 from data.repo import get_downloaded_dataset_ids_by_task
-from data.io import read_dataset_Xy, read_dataset_categorical, write_samples
+from data.io import read_dataset_Xy, read_dataset_categorical, write_samples, \
+                    is_samples_file
 from data.config import Preprocess
 from data.preprocessing.format import to_ndarray
 
@@ -45,11 +46,15 @@ def sample_and_save_posteriors(dids, task):
         X = to_ndarray(X)
         
         for model_name in model_names:
-            print('Starting sampling {}-{}'.format(model_name, dataset_id))
+            name = '{}-{}'.format(model_name, dataset_id)
+            if is_samples_file(model_name, dataset_id):
+                print(name + ' samples file already exists... skipping')
+                continue
+            print('Starting sampling ' + name)
             samples = sample_model(model_name, X, y,
                                    num_non_categorical=num_non_categorical)
-            print('Finished sampling {}-{}'.format(model_name, dataset_id))
-            write_samples(samples, model_name, dataset_id)
+            print('Finished sampling ' + name)
+            write_samples(samples, model_name, dataset_id, overwrite=False)
 
 
 if __name__ == '__main__':
