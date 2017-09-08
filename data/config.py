@@ -14,7 +14,7 @@ def path_from_unix_path(unix_path):
 UNIX_OPENML_PATH = '/data/lisa/data/openml'
 LISATMP_NUM = 3
 USERNAME = getpass.getuser()
-PROJECT_NAME = 'sampling_benchmark'
+PROJECT_NAME = 'sampling-benchmark'
 UNIX_EXP_PATH = '/data/lisatmp{}/{}/{}'.format(LISATMP_NUM, USERNAME,
                                                PROJECT_NAME)
 OPENML_FOLDER = path_from_unix_path(UNIX_OPENML_PATH)
@@ -40,3 +40,7 @@ CONFIG = {
 CONFIG['errors_folder'] = ERRORS_FOLDER
 CONFIG['tasks_folder'] = TASKS_FOLDER
 CONFIG['samples_folder'] = SAMPLES_FOLDER
+
+# Prepare directories:
+if not os.path.exists(SAMPLES_FOLDER):
+    os.makedirs(SAMPLES_FOLDER)
