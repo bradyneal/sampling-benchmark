@@ -11,7 +11,7 @@ sys.path.append(os.path.abspath('.'))
 
 from data.config import Preprocess
 from data.io import get_downloaded_dataset_ids, read_dataset_and_log, \
-                    write_dataset_dict, is_file
+                    write_dataset_dict, is_dataset_file
 from data.preprocessing import one_hot, standardize_and_one_hot, \
     robust_standardize_and_one_hot, whiten_and_one_hot, \
     to_ndarray, to_sparse
@@ -26,7 +26,7 @@ def preprocess_datasets(start_i=0, overwrite=False, verbose=True):
             print('Preprocessing {} of {} (dataset_id: {})'
                   .format(i + 1, num_datasets, dataset_id))
         # Don't waste time reading dataset if it's already been preprocessed
-        if is_file(dataset_id, Preprocess.WHITENED) and not overwrite:
+        if is_dataset_file(dataset_id, Preprocess.WHITENED) and not overwrite:
             if verbose: print('Already preprocessed, so skipping')
             continue
         d = read_dataset_and_log(dataset_id, Preprocess.RAW)

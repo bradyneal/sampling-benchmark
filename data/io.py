@@ -92,9 +92,9 @@ def write_task_dataset_ids(task, dids, overwrite=True):
     write_file(get_task_filename(task), dids, overwrite)
 
 
-def write_samples(samples, model_name, dataset_id):
+def write_samples(samples, model_name, dataset_id, overwrite=False):
     """Write model samples for specified dataset to disk"""
-    write_file(get_samples_filename(model_name, dataset_id), samples)
+    write_file(get_samples_filename(model_name, dataset_id), samples, overwrite)
 
             
 def write_file(filename, contents, overwrite=True):
@@ -158,13 +158,12 @@ def delete_dataset(dataset_id, preprocess=Preprocess.RAW):
     os.remove(filename)
      
 
-def is_file(dataset_id, preprocess=Preprocess.RAW):
+def is_dataset_file(dataset_id, preprocess=Preprocess.RAW):
     """
     Return whether or not the dataset with specified preprocessing already
     exists on disk
     """
-    filename = get_dataset_filename(dataset_id, preprocess)
-    return os.path.isfile(filename)
+    return os.path.isfile(get_dataset_filename(dataset_id, preprocess))
 
 
 def is_task_file(task):
@@ -172,8 +171,15 @@ def is_task_file(task):
     Return whether or not the dataset ids corresponding to the specified task
     have already be downloaded
     """
-    filename = get_task_filename(task)
-    return os.path.isfile(filename)
+    return os.path.isfile(get_task_filename(task))
+
+
+def is_samples_file(model_name, dataset_id):
+    """
+    Return whether or not the samples file corresponding to the specified task
+    model and dataset id is already on disk
+    """
+    return os.path.isfile(get_samples_filename(model_name, dataset_id))
 
 
 def get_folder(preprocess=Preprocess.RAW):
