@@ -17,7 +17,7 @@ from .utils import reduce_data_dimension
 
 REGRESSION_MODEL_NAMES = [
     'ls_linear', 'ls_pairwise_linear', 'ls_quadratic_linear',
-    'robust_linear', 'robust_pairwise_linear', 'robust_quadratic_linear',
+    # 'robust_linear', 'robust_pairwise_linear', 'robust_quadratic_linear',
     'shallow_nn', 'gp']
 
 
@@ -38,7 +38,12 @@ def sample_regression_model(model_name, X, y, num_samples=NUM_SAMPLES,
     Raises:
         ValueError: if the specified model name is not supported
     """
+    d = X.shape[1]
     X = reduce_data_dimension(X, model_name)
+    reduced_d = X.shape[1]
+    if reduced_d < d:
+        num_non_categorical = reduced_d
+        
     if 'ls_linear' == model_name:
         sample_ls_linear(X, y, num_samples)
     elif 'ls_pairwise_linear' == model_name:

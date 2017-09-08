@@ -10,11 +10,10 @@ from data.io import read_dataset_Xy, read_dataset_categorical, write_samples, \
                     is_samples_file
 from data.config import Preprocess
 from data.preprocessing.format import to_ndarray
-from model.utils import reduce_data_dimension
+
 
 # For each different task (e.g. regression, classification, etc.),
 # run outer loop that loops over datasets and inner loop that loops over models.
-
 def sample_and_save_posteriors(dids, task):
     if task == 'regression':
         model_names = REGRESSION_MODEL_NAMES
@@ -45,7 +44,6 @@ def sample_and_save_posteriors(dids, task):
         num_non_categorical = read_dataset_categorical(dataset_id).count(False)
         X, y = read_dataset_Xy(dataset_id, preprocess)
         X = to_ndarray(X)
-        X = reduce_data_dimension(X, model_name)
         
         for model_name in model_names:
             name = '{}-{}'.format(model_name, dataset_id)
