@@ -12,10 +12,10 @@ def numpy_to_dataframe(X, y=None):
     if y is not None:
         y = np.reshape(y, (len(y), 1))
         data = np.concatenate((X, y), axis=1)
-        names = get_var_names(X.shape[1]) + ['y']
+        names = make_col_names(X.shape[1]) + ['y']
     else:
         data = X
-        names = get_var_names(X.shape[1])
+        names = make_col_names(X.shape[1])
     return pd.DataFrame(data, columns=names)
 
 
@@ -36,3 +36,7 @@ def to_ndarray(X):
 def to_sparse(X):
     """Convert numpy ndarray to sparse matrix"""
     return sps.csr_matrix(X)
+
+def make_col_names(d):
+    """Make column names (i.e. x1, x2, ..., xd) for data dimension d"""
+    return ['x' + str(i) for i in range(1, d + 1)]

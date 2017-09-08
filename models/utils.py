@@ -9,6 +9,7 @@ import pandas as pd
 from sklearn.decomposition import PCA
 
 from . import MAX_DATA_DIMENSION
+from data.preprocessing.format import make_col_names
 
 
 # NOTE: Current converts to a DataFrame and then to a numpy array.
@@ -38,8 +39,6 @@ def reduce_data_dimension(X, model_name, transform=None,
         dimensionality reduced X and, optionally, the transform object that
         contains the PCA information of X (training set)
     """
-    if model_type not in MAX_DATA_DIMENSION.keys():
-        raise ValueError('Invalid model type: ' + model_type)
     max_dimension = get_max_dimension(model_name)
     if X.shape[1] > max_dimension:
         if transform is None:
@@ -57,15 +56,19 @@ def get_max_dimension(model_name):
     is_quadratic = 'quadratic' in model_name
     is_pairwise = 'pairwise' in model_name
     is_linear = 'linear' in model_name
+    is_nn = 'nn' in model_name
+    is_gp = 'gp' in model_name
     if is_quadratic:
         max_dimension = MAX_DATA_DIMENSION['quadratic']
     elif is_pairwise:
         max_dimension = MAX_DATA_DIMENSION['pairwise']
     elif is_linear:
         max_dimension = MAX_DATA_DIMENSION['linear']
-    else:
+    elif is_nn or is_gp:
+        # Should this be changed?
         max_dimension = float('inf')
-    # what about the neural networks and gps?
+    else:
+        raise ValueError('Invalid model: ' + model_name)
     return max_dimension
     
 
@@ -119,8 +122,3 @@ def join_nonempty(l):
     'abc + 123'
     """
     return ' + '.join(s for s in l if s != '')
-
-
-def make_col_names(d):
-    """Make column names (i.e. x1, x2, ..., xd) for data dimension d"""
-    return ['x' + str(i) for i in range(1, d + 1)]
