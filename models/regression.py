@@ -15,10 +15,11 @@ from .nn import sample_shallow_nn
 from . import NUM_SAMPLES
 from .utils import reduce_data_dimension
 
-REGRESSION_MODEL_NAMES = [
-    'ls_linear', 'ls_pairwise_linear', 'ls_quadratic_linear',
-    # 'robust_linear', 'robust_pairwise_linear', 'robust_quadratic_linear',
-    'shallow_nn', 'gp']
+# TODO also include:
+# 'robust_linear', 'robust_pairwise_linear', 'robust_quadratic_linear'
+REGRESSION_MODEL_NAMES = \
+    ['ls_linear', 'ls_pairwise_linear', 'ls_quadratic_linear',
+     'shallow_nn', 'gp']
 
 
 def sample_regression_model(model_name, X, y, num_samples=NUM_SAMPLES,
@@ -43,7 +44,7 @@ def sample_regression_model(model_name, X, y, num_samples=NUM_SAMPLES,
     reduced_d = X.shape[1]
     if reduced_d < d:
         num_non_categorical = reduced_d
-        
+
     if 'ls_linear' == model_name:
         sample_ls_linear(X, y, num_samples)
     elif 'ls_pairwise_linear' == model_name:
@@ -59,16 +60,17 @@ def sample_regression_model(model_name, X, y, num_samples=NUM_SAMPLES,
     elif 'shallow_nn' == model_name:
         sample_shallow_nn_regres(X, y, num_samples)
     elif 'gp' == model_name:
-        sample_gp(X, y, num_samples)
+        # TODO have other options that same from other covariance funcs
+        sample_gp(X, y, 'ExpQuad', num_samples)
     else:
         raise ValueError('Unsupported model: {}\nSupported models: {}'
                          .format(model_name, REGRESSION_MODEL_NAMES))
-
 
 # GLM Defaults
 # intercept:  flat prior
 # weights:    N(0, 10^6) prior
 # likelihood: Normal
+
 
 def sample_linear(X, y, num_samples=NUM_SAMPLES, robust=False):
     """
