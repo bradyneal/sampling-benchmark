@@ -12,8 +12,8 @@ from arff import BadNominalValue, BadDataFormat
 
 from .io import get_downloaded_dataset_ids, write_download_error, \
                 is_task_file, read_task_dataset_ids, write_task_dataset_ids
+from .repo_local import SUPPORTED_TASKS
 
-SUPPORTED_TASKS = ['Supervised Regression', 'Supervised Classification']
 DOWNLOADING_ERRORS = (OpenMLServerError, PyOpenMLError, ChunkedEncodingError,
                       BadNominalValue, BadDataFormat, EOFError) 
 
@@ -27,22 +27,13 @@ def get_dataset_ids():
 
 
 def get_dataset_ids_by_task(task):
-    """
-    Get the ids of all openml datasets that have the specified task type,
-    reading them from a file if they've already be downloaded or downloading
-    them otherwise
-    """
+    """Get the ids of all openml datasets that have the specified task type"""
     if task not in SUPPORTED_TASKS:
         raise ValueError('Unsupported task: {}\nSupported tasks: {}'
                          .format(task, SUPPORTED_TASKS))
-    if is_task_file(task):
-        dataset_ids_by_task = read_task_dataset_ids(task)
-    else:
-        # download and write dids to file
-        tasks = openml.tasks.list_tasks()
-        tasks_df = pd.DataFrame.from_dict(tasks, orient='index')
-        dataset_ids_by_task = tasks_df[tasks_df.task_type == task].did.values
-        write_task_dataset_ids(task, dataset_ids_by_task, overwrite=False)
+    tasks = openml.tasks.list_tasks()
+    tasks_df = pd.DataFrame.from_dict(tasks, orient='index')
+    dataset_ids_by_task = tasks_df[tasks_df.task_type == task].did.values
     return dataset_ids_by_task
 
 

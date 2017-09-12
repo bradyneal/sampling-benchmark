@@ -5,7 +5,7 @@ conditioned on all of the specified datasts.
 import random
 from models.regression import REGRESSION_MODEL_NAMES, sample_regression_model
 from models.classification import CLASSIFICATION_MODEL_NAMES, sample_classification_model
-from data.repo import get_downloaded_dataset_ids_by_task
+from data.repo_local import get_downloaded_dataset_ids_by_task
 from data.io import read_dataset_Xy, read_dataset_categorical, write_samples, \
                     is_samples_file
 from data.config import Preprocess
