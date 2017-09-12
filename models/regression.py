@@ -15,10 +15,10 @@ from .nn import sample_shallow_nn
 from . import NUM_SAMPLES
 from .utils import reduce_data_dimension
 
-# TODO also include:
-# 'robust_linear', 'robust_pairwise_linear', 'robust_quadratic_linear'
+
 REGRESSION_MODEL_NAMES = \
     ['ls_linear', 'ls_pairwise_linear', 'ls_quadratic_linear',
+     'robust_linear', 'robust_pairwise_linear', 'robust_quadratic_linear',
      'shallow_nn', 'gp']
 
 
@@ -80,9 +80,9 @@ def sample_linear(X, y, num_samples=NUM_SAMPLES, robust=False):
     """
     with pm.Model():
         if robust:
-            pm.GLM(X, y, family=pm.glm.families.StudentT())
+            pm.glm.GLM(X, y, family=pm.glm.families.StudentT())
         else:
-            pm.GLM(X, y)
+            pm.glm.GLM(X, y)
         trace = pm.sample(num_samples)
     return format_trace(trace)
 
@@ -130,10 +130,10 @@ def sample_interaction_linear(X, y, num_non_categorical=None,
              get_linear_formula(num_non_categorical + 1, d))
         )
         if robust:
-            pm.GLM.from_formula('y ~ ' + x_formula, data_df,
+            pm.glm.GLM.from_formula('y ~ ' + x_formula, data_df,
                                 family=pm.glm.families.StudentT())
         else:
-            pm.GLM.from_formula('y ~ ' + x_formula, data_df)
+            pm.glm.GLM.from_formula('y ~ ' + x_formula, data_df)
         trace = pm.sample(num_samples)
     return format_trace(trace)
 
