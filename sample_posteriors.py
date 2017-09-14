@@ -16,9 +16,11 @@ from data.preprocessing.format import to_ndarray
 # run outer loop that loops over datasets and inner loop that loops over models.
 def sample_and_save_posteriors(dids, task):
     if task == 'regression':
+        task_tag = 'regres'
         model_names = REGRESSION_MODEL_NAMES
         sample_model = sample_regression_model
     elif task == 'classification':
+        task_tag = 'class'
         model_names = REGRESSION_MODEL_NAMES
         sample_model = sample_classification_model
     else:
@@ -54,7 +56,8 @@ def sample_and_save_posteriors(dids, task):
             samples = sample_model(model_name, X, y,
                                    num_non_categorical=num_non_categorical)
             print('Finished sampling ' + name)
-            write_samples(samples, model_name, dataset_id, overwrite=False)
+            write_samples(samples, '{}_{}'.format(model_name, task_tag),
+                          dataset_id, overwrite=False)
 
 
 if __name__ == '__main__':
