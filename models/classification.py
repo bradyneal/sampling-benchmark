@@ -15,7 +15,9 @@ from . import NUM_SAMPLES
 # Arguably, build_pm_gp_cov should go in some 3rd file like util
 from .regression import build_pm_gp_cov
 
-CLASSIFICATION_MODEL_NAMES = ['softmax_linear', 'shallow_nn', 'gp']
+CLASSIFICATION_MODEL_NAMES = \
+    ['softmax_linear', 'shallow_nn',
+     'gp_ExpQuad', 'gp_Exponential', 'gp_Matern32', 'gp_Matern52', 'gp_RatQuad']
 
 
 def sample_classification_model(model_name, X, y, num_samples=NUM_SAMPLES,
