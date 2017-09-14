@@ -1,0 +1,13 @@
+# Contains dependencies with specific versions
+# run: conda env create -f environment_versioned.yml
+name: samp-phase01
+dependencies:
+- numpy=1.13.1=py36_0
+- pandas=0.20.3=py36_0
+- python=3.6.2=0
+- scikit-learn=0.19.0=np113py36_0
+- scipy=0.19.1=np113py36_0
+- theano=0.9.0=py36_0
+- pip:
+  - git+git://github.com/openml/openml-python.git@a2b602b
+  - pymc3==3.1

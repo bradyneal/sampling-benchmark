@@ -1,4 +1,6 @@
-name: test4
+# Contains dependencies without specific verions
+# run: conda env create -f environment.yml
+name: samp-phase01
 dependencies:
 - numpy
 - pandas
