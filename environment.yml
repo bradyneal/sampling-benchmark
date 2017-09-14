@@ -1,0 +1,11 @@
+name: test4
+dependencies:
+- numpy
+- pandas
+- python=3
+- scikit-learn
+- scipy
+- theano
+- pip:
+  - git+git://github.com/openml/openml-python.git
+  - pymc3==3.1
