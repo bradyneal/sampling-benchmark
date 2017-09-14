@@ -45,8 +45,16 @@ def sample_classification_model(model_name, X, y, num_samples=NUM_SAMPLES,
         sample_softmax_linear(X, y, num_samples)
     elif 'shallow_nn' == model_name:
         sample_shallow_nn_class(X, y, num_samples)
-    elif 'gp' == model_name:
-        sample_gpc(X, y, num_samples=num_samples)
+    elif 'gp_ExpQuad' == model_name:
+        sample_gp(X, y, 'ExpQuad', num_samples)
+    elif 'gp_Exponential' == model_name:
+        sample_gp(X, y, 'Exponential', num_samples)
+    elif 'gp_Matern32' == model_name:
+        sample_gp(X, y, 'Matern32', num_samples)
+    elif 'gp_Matern52' == model_name:
+        sample_gp(X, y, 'Matern52', num_samples)
+    elif 'gp_RatQuad' == model_name:
+        sample_gp(X, y, 'RatQuad', num_samples)
     else:
         raise ValueError('Unsupported model: {}\nSupported models: {}'
                          .format(model_name, CLASSIFICATION_MODEL_NAMES))

@@ -19,7 +19,8 @@ from .utils import reduce_data_dimension
 REGRESSION_MODEL_NAMES = \
     ['ls_linear', 'ls_pairwise_linear', 'ls_quadratic_linear',
      'robust_linear', 'robust_pairwise_linear', 'robust_quadratic_linear',
-     'shallow_nn', 'gp']
+     'shallow_nn',
+     'gp_ExpQuad', 'gp_Exponential', 'gp_Matern32', 'gp_Matern52', 'gp_RatQuad']
 
 
 def sample_regression_model(model_name, X, y, num_samples=NUM_SAMPLES,
@@ -59,9 +60,16 @@ def sample_regression_model(model_name, X, y, num_samples=NUM_SAMPLES,
         sample_robust_quadratic(X, y, num_non_categorical, num_samples)
     elif 'shallow_nn' == model_name:
         sample_shallow_nn_regres(X, y, num_samples)
-    elif 'gp' == model_name:
-        # TODO have other options that same from other covariance funcs
+    elif 'gp_ExpQuad' == model_name:
         sample_gp(X, y, 'ExpQuad', num_samples)
+    elif 'gp_Exponential' == model_name:
+        sample_gp(X, y, 'Exponential', num_samples)
+    elif 'gp_Matern32' == model_name:
+        sample_gp(X, y, 'Matern32', num_samples)
+    elif 'gp_Matern52' == model_name:
+        sample_gp(X, y, 'Matern52', num_samples)
+    elif 'gp_RatQuad' == model_name:
+        sample_gp(X, y, 'RatQuad', num_samples)
     else:
         raise ValueError('Unsupported model: {}\nSupported models: {}'
                          .format(model_name, REGRESSION_MODEL_NAMES))
