@@ -16,8 +16,8 @@ from . import NUM_SAMPLES
 from .regression import build_pm_gp_cov
 
 CLASSIFICATION_MODEL_NAMES = \
-    ['softmax_linear', 'shallow_nn',
-     'gp_ExpQuad', 'gp_Exponential', 'gp_Matern32', 'gp_Matern52', 'gp_RatQuad']
+    ['softmax_linear_class', 'shallow_nn_class',
+     'gp_ExpQuad_class', 'gp_Exponential_class', 'gp_Matern32_class', 'gp_Matern52_class', 'gp_RatQuad_class']
 
 
 def sample_classification_model(model_name, X, y, num_samples=NUM_SAMPLES,
@@ -42,7 +42,8 @@ def sample_classification_model(model_name, X, y, num_samples=NUM_SAMPLES,
     reduced_d = X.shape[1]
     if reduced_d < d:
         num_non_categorical = reduced_d
-        
+    
+    model_name = model_name.rstrip('_class')    
     if 'softmax_linear' == model_name:
         sample_softmax_linear(X, y, num_samples)
     elif 'shallow_nn' == model_name:

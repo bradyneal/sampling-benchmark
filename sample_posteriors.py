@@ -48,7 +48,6 @@ def sample_and_save_posteriors(dids, task):
         X = to_ndarray(X)
         
         for model_name in model_names:
-            model_name = '{}_{}'.format(model_name, task_tag)
             name = '{}-{}'.format(model_name, dataset_id)
             if is_samples_file(model_name, dataset_id):
                 print(name + ' samples file already exists... skipping')

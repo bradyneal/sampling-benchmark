@@ -17,10 +17,10 @@ from .utils import reduce_data_dimension
 
 
 REGRESSION_MODEL_NAMES = \
-    ['ls_linear', 'ls_pairwise_linear', 'ls_quadratic_linear',
-     'robust_linear', 'robust_pairwise_linear', 'robust_quadratic_linear',
-     'shallow_nn',
-     'gp_ExpQuad', 'gp_Exponential', 'gp_Matern32', 'gp_Matern52', 'gp_RatQuad']
+    ['ls_linear_regres', 'ls_pairwise_linear_regres', 'ls_quadratic_linear_regres',
+     'robust_linear_regres', 'robust_pairwise_linear_regres', 'robust_quadratic_linear_regres',
+     'shallow_nn_regres',
+     'gp_ExpQuad_regres', 'gp_Exponential_regres', 'gp_Matern32_regres','gp_Matern52_regres', 'gp_RatQuad_regres']
 
 
 def sample_regression_model(model_name, X, y, num_samples=NUM_SAMPLES,
@@ -45,7 +45,8 @@ def sample_regression_model(model_name, X, y, num_samples=NUM_SAMPLES,
     reduced_d = X.shape[1]
     if reduced_d < d:
         num_non_categorical = reduced_d
-
+    
+    model_name = model_name.rstrip('_regres')
     if 'ls_linear' == model_name:
         sample_ls_linear(X, y, num_samples)
     elif 'ls_pairwise_linear' == model_name:
