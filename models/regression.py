@@ -46,7 +46,7 @@ def sample_regression_model(model_name, X, y, num_samples=NUM_SAMPLES,
     if reduced_d < d:
         num_non_categorical = reduced_d
     
-    model_name = model_name.rstrip('_regres')
+    model_name = model_name.replace('_regres', '')
     if 'ls_linear' == model_name:
         sample_ls_linear(X, y, num_samples)
     elif 'ls_pairwise_linear' == model_name:

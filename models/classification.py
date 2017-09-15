@@ -43,7 +43,7 @@ def sample_classification_model(model_name, X, y, num_samples=NUM_SAMPLES,
     if reduced_d < d:
         num_non_categorical = reduced_d
     
-    model_name = model_name.rstrip('_class')    
+    model_name = model_name.replace('_class', '')   
     if 'softmax_linear' == model_name:
         sample_softmax_linear(X, y, num_samples)
     elif 'shallow_nn' == model_name:
