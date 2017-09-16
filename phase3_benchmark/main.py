@@ -6,10 +6,11 @@ from time import time
 import numpy as np
 import pymc3 as pm
 from pymc3.backends.tracetab import trace_to_dataframe
-from models import BUILD_MODEL
+from models import BUILD_MODEL, SAMPLE_MODEL
 from samplers import BUILD_STEP
 
 DATA_EXT = '.csv'  # TODO go into config
+EXACT_SAMPLER = 'exact'
 
 CHUNK_SIZE = 1000  # Could make this command arg if we like
 FILE_FMT = '%s_%s' + DATA_EXT
@@ -32,7 +33,7 @@ def format_trace(trace):
     return df.values
 
 
-def run_experiment(model_name, params_dict, sampler, outfile_f, max_N=np.inf):
+def run_experiment(model_name, params_dict, sampler, outfile_f, max_N):
     print 'starting experiment'
 
     # TODO save D in pkl file itself
@@ -43,6 +44,11 @@ def run_experiment(model_name, params_dict, sampler, outfile_f, max_N=np.inf):
     else:
         assert(False)
     print 'D=%d' % D
+
+    if sampler == EXACT_SAMPLER:
+        X = SAMPLE_MODEL[model_name](params_dict, N=max_N)
+        np.savetxt(outfile_f, X, delimiter=',')
+        return
 
     # Use default arg trick to get params to bind to model now
     logpdf = lambda x, p=params_dict: BUILD_MODEL[model_name](x, p)

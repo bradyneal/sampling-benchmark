@@ -98,6 +98,26 @@ def MoG(x, params):
     return logpdf
 
 
+def _MoG_sample(w, mus, covs, N=1):
+    D = mus.shape[1]
+    n_mixtures = len(w)
+
+    k = np.random.choice(n_mixtures, N=N, replace=True, p=w)
+
+    X = np.zeros((N, D))
+    for nn, mm in enumerate(k):
+        # Note: This is not an efficient way to do it
+        mu, S = mus[mm, :], covs[mm, :, :]
+        X[nn, :] = np.random.multivariate_normal(mu, S)
+    return X
+
+def MoG_sample(params, N=1):
+    assert(params['type'] == 'full')
+    X = _MoG_sample(params['weights'], params['means'], params['covariances'],
+                    N=N)
+    return X
+
+
 # TODO resolve dir struct to re-use IGN code
 '''
 def IGN(x, params):
@@ -174,4 +194,62 @@ def RNADE(x, params):
     logpdf = logsumexp_tt(lp, axis=1)
     return logpdf
 
+
+def _RNADE_sample(params):
+    N = 1  # TODO generalize
+
+    n_hidden, n_layers = params['n_hidden'], params['n_layers']
+
+    Wflags, W1, b1 = params['Wflags'], params['W1'], params['b1']
+    Ws, bs = params['Ws'], params['bs']
+    V_alpha, b_alpha = params['V_alpha'], params['b_alpha']
+    V_mu, b_mu = params['V_mu'], params['b_mu']
+    V_sigma, b_sigma = params['V_sigma'], params['b_sigma']
+    orderings = params['orderings']
+
+    assert(params['nonlinearity'] == 'RLU')  # Only one supported yet
+    act_fun = lambda x_: x_ * (x_ > 0.0)
+
+    def softmax(X):
+        '''Calculates softmax row-wise'''
+        # TODO implement logsoftmax
+        # TODO move to util
+        X = X - np.max(X, axis=1, keepdims=True)
+        e = np.exp(X)
+        R = e / np.sum(e, axis=1, keepdims=True)
+        return R
+
+    o_index = np.random.choice(len(orderings))
+    order_used = orderings[o_index]
+
+    X = np.zeros((N, len(order_used)))
+    a = np.zeros((N, n_hidden)) + b1[None, :]  # N x H
+    for i in order_used:
+        h = act_fun(a)  # N x H
+        for l in xrange(n_layers - 1):
+            h = act_fun(np.dot(h, Ws[l, :, :]) + bs[l, None])  # N x H
+
+            # All N x C
+            z_alpha = np.dot(h, V_alpha[i, :, :]) + b_alpha[i, None]
+            z_mu = np.dot(h, V_mu[i, :, :]) + b_mu[i, None]
+            z_sigma = np.dot(h, V_sigma[i, :, :]) + b_sigma[i, None]
+
+            # Any final warping. All N x C.
+            Alpha = softmax(z_alpha)
+            Mu = z_mu
+            Sigma = np.exp(z_sigma)  # TODO be explicit this is std
+
+            # TODO generalize to N > 1, move to subroutine
+            k = np.random.choice(Alpha.shape[1], p=Alpha[0, :])
+            X[0, i] = Mu[0, k] + Sigma[0, k] * np.random.randn()
+
+            a += np.outer(X[:, i], W1[i, :]) + Wflags[i, None]  # N x H
+    return X
+
+
+def RNADE_sample(params, N=1):
+    X = np.concatenate([_RNADE_sample(params) for _ in xrange(N)], axis=0)
+    return X
+
 BUILD_MODEL = {'MoG': MoG, 'RNADE': RNADE}
+SAMPLE_MODEL = {'MoG': MoG_sample, 'RNADE': RNADE_sample}
