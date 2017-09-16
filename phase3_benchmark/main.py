@@ -61,6 +61,7 @@ def run_experiment(model_name, params_dict, sampler, outfile_f, max_N):
         print 'starting to sample'
         # TODO somehow log timing information in a file
         for ii in xrange(max_N):
+            # TODO consider clock vs time
             t = time()
             trace = next(sample_generator)
             t = time() - t
@@ -75,10 +76,11 @@ def run_experiment(model_name, params_dict, sampler, outfile_f, max_N):
 
 def main():
     # Could use a getopt package if this got fancy, but this is simple enough
-    assert(len(sys.argv) in (3, 4))
+    assert(len(sys.argv) == 4)
     mc_chain_file = sys.argv[1]
     sampler = sys.argv[2]
-    max_N = np.inf if len(sys.argv) <= 3 else int(sys.argv[3])
+    max_N = int(sys.argv[3])
+    # TODO add option to control random seed
 
     # TODO all of these should go in config file
     input_path = '.'

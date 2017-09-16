@@ -99,6 +99,7 @@ def MoG(x, params):
 
 
 def _MoG_sample(w, mus, covs, N=1):
+    # TODO test against sklearn version
     D = mus.shape[1]
     n_mixtures = len(w)
 
@@ -135,6 +136,7 @@ def IGN(x, params):
 
 
 def RNADE(x, params):
+    # TODO test against phase 2 loglik_chk numpy version
     print 'x'
     print x.ndim
     print x
