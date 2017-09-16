@@ -32,26 +32,40 @@ def format_trace(trace):
 
 
 def run_experiment(model_name, params_dict, sampler, outfile_f, max_N=np.inf):
+    print 'starting experiment'
+
+    # TODO save D in pkl file itself
+    if model_name == 'RNADE':
+        D = len(params_dict['orderings'][0])
+    elif model_name == 'MoG':
+        D = params_dict['means'].shape[1]
+    else:
+        assert(False)
+    print 'D=%d' % D
+
     # Use default arg trick to get params to bind to model now
-    logpdf, D = lambda x, p=params_dict: BUILD_MODEL[model_name](x, p)
+    logpdf = lambda x, p=params_dict: BUILD_MODEL[model_name](x, p)
 
     with pm.Model():
-        pm.DensityDist('x', logpdf, testval=np.zeros(D))
+        pm.DensityDist('x', logpdf, shape=D, testval=np.zeros(D))
         steps = BUILD_STEP[sampler]()
         sample_generator = pm.sampling.iter_sample(CHUNK_SIZE, steps)
 
-    N = 0
-    for trace in sample_generator:
-        # TODO control some sort of thinning here
-        X = format_trace(trace)
-        assert(X.ndim == 2 and X.shape[0] == CHUNK_SIZE)
-        np.savetxt(outfile_f, X, delimiter=',')
+        print 'starting to sample'
+        # TODO somehow log timing information in here
+        N = 0
+        for trace in sample_generator:
+            # TODO control some sort of thinning here
+            X = format_trace(trace[-1:])
+            np.savetxt(outfile_f, X, delimiter=',')
+            print X.shape
+            # assert(X.ndim == 2 and X.shape[0] == CHUNK_SIZE)
 
-        # Could multiply enumerate counter by chunk size, but both are simple
-        N += CHUNK_SIZE
-        if N >= max_N:
-            break
-    return
+            # Could multiply enumerate counter by chunk size, but both are simple
+            N += CHUNK_SIZE
+            if N >= max_N:
+                break
+    return N
 
 
 def main():

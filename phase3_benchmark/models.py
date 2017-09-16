@@ -72,11 +72,14 @@ def logsumexp_tt(X, axis=None):
     return Y
 
 
+def outer_tt(x, y):
+    '''T.outer() does not work when y is np array.'''
+    return T.dot(T.shape_padright(x), T.shape_padleft(y))
+
+
 def MoG(x, params):
     # TODO x is theano vector?? check.
     assert(params['type'] == 'full')
-
-    D = params['means'].shape[1]
 
     w = params['weights']
     w = w / np.sum(w)  # Just to be sure normalized
@@ -92,7 +95,7 @@ def MoG(x, params):
     loglik_mix_T = T.log(w) + T.stack(loglik_mix, axis=0)
     # Way to force theano to use logsumexp??
     logpdf = logsumexp_tt(loglik_mix_T, axis=0)
-    return logpdf, D
+    return logpdf
 
 
 # TODO resolve dir struct to re-use IGN code
@@ -112,6 +115,9 @@ def IGN(x, params):
 
 
 def RNADE(x, params):
+    print 'x'
+    print x.ndim
+    print x
     assert(x.ndim == 1)  # Assuming x is theano vector here
     x = T.shape_padleft(x)  # 1 x V
 
@@ -159,9 +165,13 @@ def RNADE(x, params):
             lp_components = -0.5 * ((Mu - pr(x[:, i])) / Sigma) ** 2 \
                 - T.log(Sigma) - 0.5 * T.log(2 * np.pi) + T.log(Alpha)  # N x C
             lp_curr.append(logsumexp_tt(lp_components, axis=1))
-            a = a + T.outer(x[:, i], W1[i, :]) + pl(Wflags[i, :])  # N x H
+
+            bias = pl(Wflags[i, :])
+            prod = outer_tt(x[:, i], W1[i, :])
+            update = prod + bias
+            a = a + update  # N x H
         lp.append(T.sum(lp_curr, axis=1) + T.log(1.0 / len(orderings)))
     logpdf = logsumexp_tt(lp, axis=1)
-    return logpdf, D
+    return logpdf
 
 BUILD_MODEL = {'MoG': MoG, 'RNADE': RNADE}
