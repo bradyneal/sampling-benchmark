@@ -32,15 +32,16 @@ def format_trace(trace):
 
 
 def run_experiment(model_name, params_dict, sampler, outfile_f, max_N=np.inf):
-    steps = BUILD_STEP[sampler]()
-    model = BUILD_MODEL[model_name](params_dict)
+    # Use default arg trick to get params to bind to model now
+    logpdf, D = lambda x, p=params_dict: BUILD_MODEL[model_name](x, p)
 
-    with model:
+    with pm.Model():
+        pm.DensityDist('x', logpdf, testval=np.zeros(D))
+        steps = BUILD_STEP[sampler]()
         sample_generator = pm.sampling.iter_sample(CHUNK_SIZE, steps)
 
     N = 0
     for trace in sample_generator:
-        # TODO implement function to get np array out
         # TODO control some sort of thinning here
         X = format_trace(trace)
         assert(X.ndim == 2 and X.shape[0] == CHUNK_SIZE)
