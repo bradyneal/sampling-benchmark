@@ -2,6 +2,7 @@
 import cPickle as pkl
 import os
 import sys
+from time import time
 import numpy as np
 import pymc3 as pm
 from pymc3.backends.tracetab import trace_to_dataframe
@@ -49,23 +50,21 @@ def run_experiment(model_name, params_dict, sampler, outfile_f, max_N=np.inf):
     with pm.Model():
         pm.DensityDist('x', logpdf, shape=D, testval=np.zeros(D))
         steps = BUILD_STEP[sampler]()
-        sample_generator = pm.sampling.iter_sample(CHUNK_SIZE, steps)
+        sample_generator = pm.sampling.iter_sample(max_N, steps)
 
         print 'starting to sample'
-        # TODO somehow log timing information in here
-        N = 0
-        for trace in sample_generator:
+        # TODO somehow log timing information in a file
+        for ii in xrange(max_N):
+            t = time()
+            trace = next(sample_generator)
+            t = time() - t
+
             # TODO control some sort of thinning here
             X = format_trace(trace[-1:])
             np.savetxt(outfile_f, X, delimiter=',')
-            print X.shape
+            print t
             # assert(X.ndim == 2 and X.shape[0] == CHUNK_SIZE)
-
-            # Could multiply enumerate counter by chunk size, but both are simple
-            N += CHUNK_SIZE
-            if N >= max_N:
-                break
-    return N
+    return
 
 
 def main():
