@@ -60,8 +60,7 @@ def sample_and_save_posteriors(dids, task):
 
 
 if __name__ == '__main__':
-    # Get and shuffle dataset ids
     regression_dids = get_downloaded_dataset_ids_by_task('Supervised Regression')
-    classification_dids = get_downloaded_dataset_ids_by_task('Supervised Classification')
     sample_and_save_posteriors(regression_dids, 'regression')
-    sample_and_save_posteriors(classification_dids, 'classification')
+    # classification_dids = get_downloaded_dataset_ids_by_task('Supervised Classification')
+    # sample_and_save_posteriors(classification_dids, 'classification')
