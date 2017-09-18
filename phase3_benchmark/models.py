@@ -136,10 +136,6 @@ def IGN(x, params):
 
 
 def RNADE(x, params):
-    # TODO test against phase 2 loglik_chk numpy version
-    print 'x'
-    print x.ndim
-    print x
     assert(x.ndim == 1)  # Assuming x is theano vector here
     x = T.shape_padleft(x)  # 1 x V
 
@@ -157,14 +153,13 @@ def RNADE(x, params):
 
     assert(params['nonlinearity'] == 'RLU')  # Only one supported yet
     act_fun = T.nnet.relu
-    # softmax = T.nnet.softmax
+    softmax = T.nnet.softmax
     pl = T.shape_padleft
     pr = T.shape_padright
 
     N = x.shape[0]  # Should be 1 for now.
 
     lp = []
-    dbg = []
     for o_index, curr_order in enumerate(orderings):
         assert(len(curr_order) == D)
 
@@ -181,7 +176,8 @@ def RNADE(x, params):
             z_sigma = T.dot(h, V_sigma[i, :, :]) + pl(b_sigma[i, :])
 
             # Any final warping. All N x C.
-            Alpha = T.exp(z_alpha) / T.sum(T.exp(z_alpha), axis=1, keepdims=True)  # softmax(z_alpha)  # TODO verify in right axis
+            # Alpha = T.exp(z_alpha) / T.sum(T.exp(z_alpha), axis=1, keepdims=True)
+            Alpha = softmax(z_alpha)
             Mu = z_mu
             Sigma = T.exp(z_sigma)  # TODO be explicit this is std
 
@@ -189,7 +185,6 @@ def RNADE(x, params):
                 - T.log(Sigma) - 0.5 * T.log(2 * np.pi) + T.log(Alpha)  # N x C
             lpc = logsumexp_tt(lp_components, axis=1)
             lp_curr.append(lpc)
-            dbg.append(lpc)
 
             bias = pl(Wflags[i, :])
             prod = outer_tt(x[:, i], W1[i, :])  # pl(x[0, i] * W1[i, 0])
@@ -199,8 +194,7 @@ def RNADE(x, params):
         # lp.append(T.sum(lp_curr, axis=1) + T.log(1.0 / len(orderings)))
         lp.append(T.sum(lp_curr) + T.log(1.0 / len(orderings)))
     logpdf = logsumexp_tt(lp, axis=0)
-    dbg = T.concatenate(dbg)
-    return logpdf, dbg
+    return logpdf
 
 
 def _RNADE_sample(params):

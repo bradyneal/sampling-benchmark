@@ -34,22 +34,14 @@ X = p3.SAMPLE_MODEL[model_name](params_dict, N=N)
 assert(X.shape == (N, D))
 
 p2_model_class = p2.STD_BENCH_MODELS[model_name]
-v0, _ = p2_model_class.loglik_chk(X, params_dict)
-v1 = np.array([p2_model_class.loglik_chk(X[ii, None], params_dict)[0][0]
+v0 = p2_model_class.loglik_chk(X, params_dict)
+v1 = np.array([p2_model_class.loglik_chk(X[ii, None], params_dict)[0]
                for ii in xrange(N)])
 print 'err1 %f' % np.log10(np.max(np.abs(v0 - v1)))
 
 x_tt = T.vector()
-logpdf_tt, dbg = p3.BUILD_MODEL[model_name](x_tt, params_dict)
+logpdf_tt = p3.BUILD_MODEL[model_name](x_tt, params_dict)
 logpdf_f = theano.function([x_tt], logpdf_tt)
-dbg_f = theano.function([x_tt], dbg)
 
 v2 = np.array([logpdf_f(X[ii, :]) for ii in xrange(N)])
 print 'err2 %f' % np.log10(np.max(np.abs(v0 - v2)))
-
-v0, dbgp2 = p2_model_class.loglik_chk(X[0, None], params_dict)
-print dbgp2
-
-dbgp3 = dbg_f(X[0, :])
-print dbgp3
-

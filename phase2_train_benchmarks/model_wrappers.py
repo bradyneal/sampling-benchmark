@@ -279,7 +279,6 @@ class RNADE:
             return R
 
         lp = np.zeros((N, len(orderings)))
-        dbg = []
         for o_index, curr_order in enumerate(orderings):
             a = np.zeros((N, n_hidden)) + b1[None, :]  # N x H
             for i in curr_order:
@@ -303,11 +302,10 @@ class RNADE:
                 # Need += to aggregate over the different visible vars
                 comp = logsumexp(lp_components + np.log(Alpha), axis=1)
                 lp[:, o_index] += comp
-                dbg.append(comp)
 
                 a += np.outer(X[:, i], W1[i, :]) + Wflags[i, None]  # N x H
         logpdf = logsumexp(lp + np.log(1.0 / len(orderings)), axis=1)
-        return logpdf, dbg
+        return logpdf
 
 # Dict with sklearn like interfaces for each of the models we will use to train
 # samples.
