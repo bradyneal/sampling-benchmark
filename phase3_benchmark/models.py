@@ -164,6 +164,7 @@ def RNADE(x, params):
     N = x.shape[0]  # Should be 1 for now.
 
     lp = []
+    dbg = []
     for o_index, curr_order in enumerate(orderings):
         assert(len(curr_order) == D)
 
@@ -180,21 +181,24 @@ def RNADE(x, params):
             z_sigma = T.dot(h, V_sigma[i, :, :]) + pl(b_sigma[i, :])
 
             # Any final warping. All N x C.
-            Alpha = softmax(z_alpha)  # TODO verify in right axis
+            Alpha = T.exp(z_alpha) / T.sum(T.exp(z_alpha), axis=1, keepdims=True)  # softmax(z_alpha)  # TODO verify in right axis
             Mu = z_mu
             Sigma = T.exp(z_sigma)  # TODO be explicit this is std
 
             lp_components = -0.5 * ((Mu - pr(x[:, i])) / Sigma) ** 2 \
                 - T.log(Sigma) - 0.5 * T.log(2 * np.pi) + T.log(Alpha)  # N x C
-            lp_curr.append(logsumexp_tt(lp_components, axis=1))
+            lpc = logsumexp_tt(lp_components, axis=1)
+            lp_curr.append(lpc)
+            dbg.append(lpc)
 
             bias = pl(Wflags[i, :])
-            prod = outer_tt(x[:, i], W1[i, :])
+            prod = outer_tt(x[:, i], W1[i, :])  # pl(x[0, i] * W1[i, 0])
             update = prod + bias
             a = a + update  # N x H
         lp.append(T.sum(lp_curr, axis=1) + T.log(1.0 / len(orderings)))
     logpdf = logsumexp_tt(lp, axis=1)
-    return logpdf
+    dbg = T.concatenate(dbg)
+    return logpdf, dbg
 
 
 def _RNADE_sample(params):

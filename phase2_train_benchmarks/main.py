@@ -24,9 +24,9 @@ def main():
     # as long as the loader code is small and simple
     run_config = {'norm_diag': ('MoG', {'n_components': 1, 'covariance_type': 'diag'}),
                   'norm_full': ('MoG', {'n_components': 1, 'covariance_type': 'full'}),
+                  'MoG': ('MoG', {'n_components': 5}),
+                  'IGN': ('IGN', {'n_layers': 3, 'n_epochs': 2500, 'lr': 1e-4}),
                   'RNADE': ('RNADE', {'n_components': 5})}
-    #              'MoG': ('MoG', {'n_components': 5}),
-    #              'IGN': ('IGN', {'n_layers': 3, 'n_epochs': 2500, 'lr': 1e-4}),
     # TODO give random str to rnade obj for its scratch dir and run name, that
     # way multiple runs can go in parallel, use mkdtemp for that.
 
