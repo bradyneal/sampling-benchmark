@@ -195,8 +195,9 @@ def RNADE(x, params):
             prod = outer_tt(x[:, i], W1[i, :])  # pl(x[0, i] * W1[i, 0])
             update = prod + bias
             a = a + update  # N x H
-        #lp.append(T.sum(lp_curr, axis=1) + T.log(1.0 / len(orderings)))
-        lp.append(T.sum(lp_curr))
+        # The following only works with N=1!!
+        # lp.append(T.sum(lp_curr, axis=1) + T.log(1.0 / len(orderings)))
+        lp.append(T.sum(lp_curr) + T.log(1.0 / len(orderings)))
     logpdf = logsumexp_tt(lp, axis=0)
     dbg = T.concatenate(dbg)
     return logpdf, dbg
