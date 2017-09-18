@@ -49,4 +49,7 @@ print 'err2 %f' % np.log10(np.max(np.abs(v0 - v2)))
 
 v0, dbgp2 = p2_model_class.loglik_chk(X[0, None], params_dict)
 print dbgp2
-print dbg_f(X[0, :])
+
+dbgp3 = dbg_f(X[0, :])
+print dbgp3
+
