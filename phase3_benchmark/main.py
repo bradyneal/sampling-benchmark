@@ -33,20 +33,13 @@ def format_trace(trace):
     return df.values
 
 
-def run_experiment(model_name, params_dict, sampler, outfile_f, max_N):
+def run_experiment(model_name, D, params_dict, sampler, outfile_f, max_N):
     print 'starting experiment'
-
-    # TODO save D in pkl file itself
-    if model_name == 'RNADE':
-        D = len(params_dict['orderings'][0])
-    elif model_name == 'MoG':
-        D = params_dict['means'].shape[1]
-    else:
-        assert(False)
     print 'D=%d' % D
 
     if sampler == EXACT_SAMPLER:
         X = SAMPLE_MODEL[model_name](params_dict, N=max_N)
+        assert(X.shape == (max_N, D))
         np.savetxt(outfile_f, X, delimiter=',')
         return
 
@@ -66,11 +59,11 @@ def run_experiment(model_name, params_dict, sampler, outfile_f, max_N):
             trace = next(sample_generator)
             t = time() - t
 
-            # TODO control some sort of thinning here
             X = format_trace(trace[-1:])
+            # TODO be nice if we could figure out how to do this chunkwise
+            assert(X.shape == (1, D))
             np.savetxt(outfile_f, X, delimiter=',')
             print t
-            # assert(X.ndim == 2 and X.shape[0] == CHUNK_SIZE)
     return
 
 
@@ -90,7 +83,7 @@ def main():
     model_file = os.path.join(input_path, mc_chain_file) + pkl_ext
     print 'loading %s' % model_file
     with open(model_file, 'rb') as f:
-        model_name, params_dict = pkl.load(f)
+        model_name, D, params_dict = pkl.load(f)
 
     sample_file = FILE_FMT % (get_real_base(mc_chain_file, DATA_EXT), sampler)
     # TODO verify sample_file safe, e.g. no \ or / etc
@@ -98,8 +91,9 @@ def main():
 
     # We could move the open and close inside run_experiment() to not keep an
     # extra file handle open, but whatever, this is good enough for now.
+    # TODO add warning if file aready exists
     with open(sample_file, 'ab') as f:  # Critical to use append mode!
-        run_experiment(model_name, params_dict, sampler, f, max_N=max_N)
+        run_experiment(model_name, D, params_dict, sampler, f, max_N=max_N)
     print 'done'  # Job will probably get killed before we get here.
 
 if __name__ == '__main__':

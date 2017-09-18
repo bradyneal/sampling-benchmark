@@ -36,7 +36,8 @@ class GaussianMixture_(GaussianMixture):
              'covariances': self.covariances_, 'type': self.covariance_type}
         return D
 
-    def loglik_chk(self, X, params):
+    @staticmethod
+    def loglik_chk(X, params):
         '''Indep check of loglik instead of just using self reported in
         original class. This could be made into some sort of static method
         since we never use self.'''
@@ -104,7 +105,8 @@ class IGN:
         D['gauss_basepdf'] = self.gauss_basepdf
         return D
 
-    def loglik_chk(self, X, params):
+    @staticmethod
+    def loglik_chk(X, params):
         base_logpdf = t_util.norm_logpdf_T if params['gauss_basepdf'] \
             else t_util.t_logpdf_T
 
@@ -250,7 +252,8 @@ class RNADE:
         D['orderings'] = self.nade_obj.orderings
         return D
 
-    def loglik_chk(self, X, params):
+    @staticmethod
+    def loglik_chk(X, params):
         N, n_visible = X.shape
 
         # TODO infer these from parameters

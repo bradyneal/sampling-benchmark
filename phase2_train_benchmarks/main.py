@@ -28,7 +28,7 @@ def main():
                   'IGN': ('IGN', {'n_layers': 3, 'n_epochs': 2500, 'lr': 1e-4}),
                   'RNADE': ('RNADE', {'n_components': 5})}
     # TODO give random str to rnade obj for its scratch dir and run name, that
-    # way multiple runs can go in parallel without same name
+    # way multiple runs can go in parallel, use mkdtemp for that.
 
     assert(len(sys.argv) == 2)  # Print usage error instead to be user friendly
     mc_chain_file = sys.argv[1]
@@ -40,10 +40,11 @@ def main():
     # anything weird in file.
     MC_chain = np.genfromtxt(mc_chain_file, dtype=float, delimiter=',',
                              skip_header=0, loose=False, invalid_raise=True)
-    print 'size %d x %d' % (MC_chain.shape[0], MC_chain.shape[1])
+    N, D = MC_chain.shape
+    print 'size %d x %d' % (N, D)
     # We could also print a scipy describe function or something to be fancy
     # TODO setup based on a fraction arg or something, maybe from config
-    N_train = int(np.ceil(0.8 * MC_chain.shape[0]))
+    N_train = int(np.ceil(0.8 * N))
 
     best_loglik = -np.inf
     best_case = None
@@ -88,7 +89,7 @@ def main():
     dump_file = os.path.join(output_path, mc_chain_file) + pkl_ext
     print 'saving %s' % dump_file
     with open(dump_file, 'wb') as f:
-        cPickle.dump((model_name, params_obj), f, cPickle.HIGHEST_PROTOCOL)
+        cPickle.dump((model_name, D, params_obj), f, cPickle.HIGHEST_PROTOCOL)
 
     # Also dump everything in another pkl file for debug purposes
     dump_file = os.path.join(output_path, 'all_model_dump') + pkl_ext
