@@ -44,27 +44,34 @@ def sample_classification_model(model_name, X, y, num_samples=NUM_SAMPLES,
     if reduced_d < d:
         num_non_categorical = reduced_d
     
-    model_name = model_name.replace('_class', '')   
+    model_name = model_name.replace('_class', '')
+    
+    # Build model
     if 'softmax_linear' == model_name:
-        return sample_softmax_linear(X, y, num_samples)
+        model = build_softmax_linear(X, y)
     elif 'shallow_nn' == model_name:
         return sample_shallow_nn_class(X, y, num_samples)
     elif 'gp_ExpQuad' == model_name:
-        return sample_gp(X, y, 'ExpQuad', num_samples)
+        model = build_gpc(X, y, 'ExpQuad')
     elif 'gp_Exponential' == model_name:
-        return sample_gp(X, y, 'Exponential', num_samples)
+        model = build_gpc(X, y, 'Exponential')
     elif 'gp_Matern32' == model_name:
-        return sample_gp(X, y, 'Matern32', num_samples)
+        model = build_gpc(X, y, 'Matern32')
     elif 'gp_Matern52' == model_name:
-        return sample_gp(X, y, 'Matern52', num_samples)
+        model = build_gpc(X, y, 'Matern52')
     elif 'gp_RatQuad' == model_name:
-        return sample_gp(X, y, 'RatQuad', num_samples)
+        model = build_gpc(X, y, 'RatQuad')
     else:
         raise ValueError('Unsupported model: {}\nSupported models: {}'
                          .format(model_name, CLASSIFICATION_MODEL_NAMES))
+    
+    # Sample from model
+    with model:
+        trace = pm.sample(draws=num_samples, step=step)
+        return format_trace(trace)
 
 
-def sample_softmax_linear(X, y, num_samples=NUM_SAMPLES):
+def model_softmax_linear(X, y):
     """
     Sample from Bayesian Softmax Linear Regression
     """
@@ -77,8 +84,7 @@ def sample_softmax_linear(X, y, num_samples=NUM_SAMPLES):
         logit = Xt.dot(W) + b
         p = tt.nnet.softmax(logit)
         observed = pm.Categorical('obs', p=p, observed=y)
-        trace = pm.sample(num_samples)
-    return format_trace(trace)
+    return model_softmax
 
 
 def sample_shallow_nn_class(X, y, num_samples=NUM_SAMPLES):
@@ -89,12 +95,12 @@ def sample_shallow_nn_class(X, y, num_samples=NUM_SAMPLES):
     return sample_shallow_nn(X, y, 'classification')
 
 
-def sample_gpc(X, y, cov_f='ExpQuad', num_samples=NUM_SAMPLES):
+def model_gpc(X, y, cov_f='ExpQuad'):
     """Sample from Gaussian Process"""
     # TODO also implement version that uses Elliptical slice sampling
     N, D = X.shape
 
-    with pm.Model():
+    with pm.Model() as model_gp:
         # uninformative prior on the function variance
         log_s2_f = pm.Uniform('log_s2_f', lower=-10.0, upper=5.0)
         s2_f = pm.Deterministic('s2_f', tt.exp(log_s2_f))
@@ -110,5 +116,4 @@ def sample_gpc(X, y, cov_f='ExpQuad', num_samples=NUM_SAMPLES):
         # Add the observations
         pm.Binomial('y', observed=y, n=np.ones(N), p=f_transform, shape=N)
 
-        trace = pm.sample(num_samples)
-    return format_trace(trace)
+    return model_gp

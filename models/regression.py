@@ -15,18 +15,17 @@ from .nn import sample_shallow_nn
 from . import NUM_SAMPLES
 from .utils import reduce_data_dimension
 
-
 REGRESSION_MODEL_NAMES = \
     ['ls_linear_regres', 'ls_quadratic_linear_regres',
-     # 'ls_pairwise_linear_regres', 'robust_pairwise_linear_regres',
+     'ls_pairwise_linear_regres', 'robust_pairwise_linear_regres',
      'robust_linear_regres', 'robust_quadratic_linear_regres',
      # 'shallow_nn_regres',
-     # 'gp_ExpQuad_regres', 'gp_Exponential_regres', 'gp_Matern32_regres','gp_Matern52_regres', 'gp_RatQuad_regres'
+     'gp_ExpQuad_regres', 'gp_Exponential_regres', 'gp_Matern32_regres','gp_Matern52_regres', 'gp_RatQuad_regres'
      ]
 
 
 def sample_regression_model(model_name, X, y, num_samples=NUM_SAMPLES,
-                            num_non_categorical=None):
+                            step=None, num_non_categorical=None):
     """
     Sample from the posteriors of any of the supported models
 
@@ -35,6 +34,7 @@ def sample_regression_model(model_name, X, y, num_samples=NUM_SAMPLES,
         X: data matrix
         y: targets
         num_samples: number points to sample from the model posterior
+        step: type of PyMC3 sampler to use
         num_non_categorical: number of non-categorical features
 
     Returns:
@@ -50,78 +50,83 @@ def sample_regression_model(model_name, X, y, num_samples=NUM_SAMPLES,
         num_non_categorical = reduced_d
     
     model_name = model_name.replace('_regres', '')
+    
+    # Build model
     if 'ls_linear' == model_name:
-        return sample_ls_linear(X, y, num_samples)
+        model = build_ls_linear(X, y)
     elif 'ls_pairwise_linear' == model_name:
-        return sample_ls_pairwise(X, y, num_non_categorical, num_samples)
+        model = build_ls_pairwise(X, y, num_non_categorical)
     elif 'ls_quadratic_linear' == model_name:
-        return sample_ls_quadratic(X, y, num_non_categorical, num_samples)
+        model = build_ls_quadratic(X, y, num_non_categorical)
     elif 'robust_linear' == model_name:
-        return sample_robust_linear(X, y, num_samples)
+        model = build_robust_linear(X, y)
     elif 'robust_pairwise_linear' == model_name:
-        return sample_robust_pairwise(X, y, num_non_categorical, num_samples)
+        model = build_robust_pairwise(X, y, num_non_categorical)
     elif 'robust_quadratic_linear' == model_name:
-        return sample_robust_quadratic(X, y, num_non_categorical, num_samples)
+        model = build_robust_quadratic(X, y, num_non_categorical)
     elif 'shallow_nn' == model_name:
         return sample_shallow_nn_regres(X, y, num_samples)
     elif 'gp_ExpQuad' == model_name:
-        return sample_gp(X, y, 'ExpQuad', num_samples)
+        model = build_gp(X, y, 'ExpQuad')
     elif 'gp_Exponential' == model_name:
-        return sample_gp(X, y, 'Exponential', num_samples)
+        model = build_gp(X, y, 'Exponential')
     elif 'gp_Matern32' == model_name:
-        return sample_gp(X, y, 'Matern32', num_samples)
+        model = build_gp(X, y, 'Matern32')
     elif 'gp_Matern52' == model_name:
-        return sample_gp(X, y, 'Matern52', num_samples)
+        model = build_gp(X, y, 'Matern52')
     elif 'gp_RatQuad' == model_name:
-        return sample_gp(X, y, 'RatQuad', num_samples)
+        model = build_gp(X, y, 'RatQuad')
     else:
         raise ValueError('Unsupported model: {}\nSupported models: {}'
                          .format(model_name, REGRESSION_MODEL_NAMES))
+    
+    # Sample from model
+    with model:
+        trace = pm.sample(draws=num_samples, step=step)
+        return format_trace(trace)
+
 
 # GLM Defaults
 # intercept:  flat prior
 # weights:    N(0, 10^6) prior
 # likelihood: Normal
 
-
-def sample_linear(X, y, num_samples=NUM_SAMPLES, robust=False):
+def build_linear(X, y, robust=False):
     """
-    Sample from Bayesian linear model (abstraction of least squares and robust
+    Build Bayesian linear model (abstraction of least squares and robust
     linear models that correspond to Normal and Student's T likelihoods
     respectively).
     """
-    with pm.Model():
+    with pm.Model() as model_linear:
         if robust:
             pm.glm.GLM(X, y, family=pm.glm.families.StudentT())
         else:
             pm.glm.GLM(X, y)
-        trace = pm.sample(num_samples)
-    return format_trace(trace)
+    return model_linear
 
 
-def sample_ls_linear(X, y, num_samples=NUM_SAMPLES):
+def build_ls_linear(X, y):
     """
-    Sample from Bayesian Least Squares Linear Regression. Uses Normal
+    Build Bayesian Least Squares Linear Regression. Uses Normal
     likelihood, which is equivalent to minimizing the mean squared error
     in the frequentist version of Least Squares.
     """
-    return sample_linear(X, y, num_samples=NUM_SAMPLES)
+    return build_linear(X, y)
 
 
-def sample_robust_linear(X, y, num_samples=NUM_SAMPLES):
+def build_robust_linear(X, y):
     """
-    Sample from Bayesian Robust Regression. Uses Student's T likelihood as it
+    Build Bayesian Robust Regression. Uses Student's T likelihood as it
     has heavier tails than the Normal likelihood, allowing it to place less
     emphasis on outliers.
     """
-    return sample_linear(X, y, num_samples=NUM_SAMPLES, robust=True)
+    return build_linear(X, y, robust=True)
 
 
-def sample_interaction_linear(X, y, num_non_categorical=None,
-                              num_samples=NUM_SAMPLES,
-                              robust=False, interaction='pairwise'):
+def build_interaction_linear(X, y, num_non_categorical=None,
+                             robust=False, interaction='pairwise'):
     """
-    Sample from Bayesian linear models with interaction and higher order terms
+    Build Bayesian linear models with interaction and higher order terms
     (abstraction of all linear regressions that have nonlinear data terms).
 
     Assumptions:
@@ -132,7 +137,7 @@ def sample_interaction_linear(X, y, num_non_categorical=None,
     if num_non_categorical is None:
         num_non_categorical = d
     data_df = numpy_to_dataframe(X, y)
-    with pm.Model():
+    with pm.Model() as model_interaction:
         if 'pairwise' == interaction:
             interaction_formula = get_pairwise_formula(num_non_categorical)
         elif 'quadratic' == interaction:
@@ -146,14 +151,12 @@ def sample_interaction_linear(X, y, num_non_categorical=None,
                                 family=pm.glm.families.StudentT())
         else:
             pm.glm.GLM.from_formula('y ~ ' + x_formula, data_df)
-        trace = pm.sample(num_samples)
-    return format_trace(trace)
+    return model_interaction
 
 
-def sample_ls_pairwise(X, y, num_non_categorical=None,
-                       num_samples=NUM_SAMPLES):
+def build_ls_pairwise(X, y, num_non_categorical=None):
     """
-    Sample from Bayesian Least Squares Linear Regression that has pairwise
+    Build Bayesian Least Squares Linear Regression that has pairwise
     interaction terms between all non-categorial variables. Uses Normal
     likelihood, which is equivalent to minimizing the mean squared error
     in the frequentist version of Least Squares.
@@ -162,15 +165,13 @@ def sample_ls_pairwise(X, y, num_non_categorical=None,
     1. all non-categorial variables come first in the ordering
     2. all variables are non-categorical if num_non_categorical isn't given
     """
-    return sample_interaction_linear(
-        X, y, num_non_categorical=num_non_categorical,
-        num_samples=num_samples, interaction='pairwise')
+    return build_interaction_linear(
+        X, y, num_non_categorical=num_non_categorical, interaction='pairwise')
 
 
-def sample_ls_quadratic(X, y, num_non_categorical=None,
-                        num_samples=NUM_SAMPLES):
+def build_ls_quadratic(X, y, num_non_categorical=None):
     """
-    Sample from Bayesian Least Squares Linear Regression that has all first and
+    Build Bayesian Least Squares Linear Regression that has all first and
     second order non-categorical data terms. Uses Normal likelihood, which is
     equivalent to minimizing the mean squared error in the frequentist version
     of Least Squares.
@@ -179,15 +180,13 @@ def sample_ls_quadratic(X, y, num_non_categorical=None,
     1. all non-categorial variables come first in the ordering
     2. all variables are non-categorical if num_non_categorical isn't given
     """
-    return sample_interaction_linear(
-        X, y, num_non_categorical=num_non_categorical,
-        num_samples=num_samples, interaction='quadratic')
+    return build_interaction_linear(
+        X, y, num_non_categorical=num_non_categorical, interaction='quadratic')
 
 
-def sample_robust_pairwise(X, y, num_non_categorical=None,
-                           num_samples=NUM_SAMPLES):
+def build_robust_pairwise(X, y, num_non_categorical=None):
     """
-    Sample from Bayesian Robust Linear Regression that has pairwise
+    Build Bayesian Robust Linear Regression that has pairwise
     interaction terms between all non-categorial variables. Uses Student's T
     likelihood as it has heavier tails than the Normal likelihood, allowing it
     to place less emphasis on outliers.
@@ -196,15 +195,14 @@ def sample_robust_pairwise(X, y, num_non_categorical=None,
     1. all non-categorial variables come first in the ordering
     2. all variables are non-categorical if num_non_categorical isn't given
     """
-    return sample_interaction_linear(
+    return build_interaction_linear(
         X, y, num_non_categorical=num_non_categorical, robust=True,
-        num_samples=num_samples, interaction='pairwise')
+        interaction='pairwise')
 
 
-def sample_robust_quadratic(X, y, num_non_categorical=None,
-                            num_samples=NUM_SAMPLES):
+def build_robust_quadratic(X, y, num_non_categorical=None):
     """
-    Sample from Bayesian Robust Linear Regression that has all first and
+    Build Bayesian Robust Linear Regression that has all first and
     second order non-categorical data terms. Uses Student's T likelihood as it
     has heavier tails than the Normal likelihood, allowing it to place less
     emphasis on outliers.
@@ -213,9 +211,9 @@ def sample_robust_quadratic(X, y, num_non_categorical=None,
     1. all non-categorial variables come first in the ordering
     2. all variables are non-categorical if num_non_categorical isn't given
     """
-    return sample_interaction_linear(
+    return build_interaction_linear(
         X, y, num_non_categorical=num_non_categorical, robust=True,
-        num_samples=num_samples, interaction='quadratic')
+        interaction='quadratic')
 
 
 def sample_shallow_nn_regres(X, y, num_samples=NUM_SAMPLES):
@@ -246,12 +244,12 @@ def build_pm_gp_cov(D, cov_f='ExpQuad'):
     return K
 
 
-def sample_gp(X, y, cov_f='ExpQuad', num_samples=NUM_SAMPLES):
-    """Sample from Gaussian Process"""
+def build_gp(X, y, cov_f='ExpQuad'):
+    """Build Gaussian Process"""
     # TODO also implement version that uses Elliptical slice sampling
     N, D = X.shape
 
-    with pm.Model():
+    with pm.Model() as model_gp:
         # uninformative prior on the function variance
         log_s2_f = pm.Uniform('log_s2_f', lower=-10.0, upper=5.0)
         s2_f = pm.Deterministic('s2_f', tt.exp(log_s2_f))
@@ -265,6 +263,5 @@ def sample_gp(X, y, cov_f='ExpQuad', num_samples=NUM_SAMPLES):
 
         pm.gp.GP('y_obs', cov_func=f_cov, sigma=s2_n,
                  observed={'X': X, 'Y': y})
-
-        trace = pm.sample(num_samples)
-    return format_trace(trace)
+        
+    return model_gp
