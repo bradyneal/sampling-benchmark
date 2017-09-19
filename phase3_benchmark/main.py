@@ -62,6 +62,7 @@ def run_experiment(model_name, D, params_dict, sampler, outfile_f, max_N):
             X = format_trace(trace[-1:])
             # TODO be nice if we could figure out how to do this chunkwise
             assert(X.shape == (1, D))
+            # TODO make sure to flush every once in a while
             np.savetxt(outfile_f, X, delimiter=',')
             print t
     return
