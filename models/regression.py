@@ -35,9 +35,10 @@ def sample_regression_model(model_name, X, y, num_samples=NUM_SAMPLES,
         X: data matrix
         y: targets
         num_samples: number points to sample from the model posterior
+        num_non_categorical: number of non-categorical features
 
     Returns:
-        samples (in currently undecided format)
+        samples
 
     Raises:
         ValueError: if the specified model name is not supported
@@ -50,29 +51,29 @@ def sample_regression_model(model_name, X, y, num_samples=NUM_SAMPLES,
     
     model_name = model_name.replace('_regres', '')
     if 'ls_linear' == model_name:
-        sample_ls_linear(X, y, num_samples)
+        return sample_ls_linear(X, y, num_samples)
     elif 'ls_pairwise_linear' == model_name:
-        sample_ls_pairwise(X, y, num_non_categorical, num_samples)
+        return sample_ls_pairwise(X, y, num_non_categorical, num_samples)
     elif 'ls_quadratic_linear' == model_name:
-        sample_ls_quadratic(X, y, num_non_categorical, num_samples)
+        return sample_ls_quadratic(X, y, num_non_categorical, num_samples)
     elif 'robust_linear' == model_name:
-        sample_robust_linear(X, y, num_samples)
+        return sample_robust_linear(X, y, num_samples)
     elif 'robust_pairwise_linear' == model_name:
-        sample_robust_pairwise(X, y, num_non_categorical, num_samples)
+        return sample_robust_pairwise(X, y, num_non_categorical, num_samples)
     elif 'robust_quadratic_linear' == model_name:
-        sample_robust_quadratic(X, y, num_non_categorical, num_samples)
+        return sample_robust_quadratic(X, y, num_non_categorical, num_samples)
     elif 'shallow_nn' == model_name:
-        sample_shallow_nn_regres(X, y, num_samples)
+        return sample_shallow_nn_regres(X, y, num_samples)
     elif 'gp_ExpQuad' == model_name:
-        sample_gp(X, y, 'ExpQuad', num_samples)
+        return sample_gp(X, y, 'ExpQuad', num_samples)
     elif 'gp_Exponential' == model_name:
-        sample_gp(X, y, 'Exponential', num_samples)
+        return sample_gp(X, y, 'Exponential', num_samples)
     elif 'gp_Matern32' == model_name:
-        sample_gp(X, y, 'Matern32', num_samples)
+        return sample_gp(X, y, 'Matern32', num_samples)
     elif 'gp_Matern52' == model_name:
-        sample_gp(X, y, 'Matern52', num_samples)
+        return sample_gp(X, y, 'Matern52', num_samples)
     elif 'gp_RatQuad' == model_name:
-        sample_gp(X, y, 'RatQuad', num_samples)
+        return sample_gp(X, y, 'RatQuad', num_samples)
     else:
         raise ValueError('Unsupported model: {}\nSupported models: {}'
                          .format(model_name, REGRESSION_MODEL_NAMES))
