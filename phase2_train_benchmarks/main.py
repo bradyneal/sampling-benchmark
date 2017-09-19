@@ -29,6 +29,7 @@ def main():
                   'RNADE': ('RNADE', {'n_components': 5})}
     # TODO give random str to rnade obj for its scratch dir and run name, that
     # way multiple runs can go in parallel, use mkdtemp for that.
+    # TODO provide list of runs candidates for the final save
 
     assert(len(sys.argv) == 2)  # Print usage error instead to be user friendly
     mc_chain_file = sys.argv[1]
@@ -38,6 +39,7 @@ def main():
     # Use np to directly load in csv, if this becomes a problem then use pandas
     # and then .values to get an np array out. Set to raise an error if
     # anything weird in file.
+    # TODO general util can include basic csv load and write
     MC_chain = np.genfromtxt(mc_chain_file, dtype=float, delimiter=',',
                              skip_header=0, loose=False, invalid_raise=True)
     N, D = MC_chain.shape

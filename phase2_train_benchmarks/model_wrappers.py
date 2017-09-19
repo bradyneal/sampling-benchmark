@@ -300,8 +300,7 @@ class RNADE:
                 for cc in xrange(lp_components.shape[1]):
                     lp_components[:, cc] = ss.norm.logpdf(X[:, i], Mu[:, cc], Sigma[:, cc])
                 # Need += to aggregate over the different visible vars
-                comp = logsumexp(lp_components + np.log(Alpha), axis=1)
-                lp[:, o_index] += comp
+                lp[:, o_index] += logsumexp(lp_components + np.log(Alpha), axis=1)
 
                 a += np.outer(X[:, i], W1[i, :]) + Wflags[i, None]  # N x H
         logpdf = logsumexp(lp + np.log(1.0 / len(orderings)), axis=1)
