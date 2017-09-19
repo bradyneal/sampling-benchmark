@@ -7,10 +7,11 @@ CLASSIFICATION_MODEL_NAMES constant.
 import pymc3 as pm
 import numpy as np
 import theano.tensor as tt
+from timeit import default_timer as timer
 
 from .utils import format_trace
 from .nn import sample_shallow_nn
-from . import NUM_SAMPLES
+from . import MAX_NUM_SAMPLES
 
 # Arguably, build_pm_gp_cov should go in some 3rd file like util
 from .regression import build_pm_gp_cov
@@ -20,7 +21,7 @@ CLASSIFICATION_MODEL_NAMES = \
      'gp_ExpQuad_class', 'gp_Exponential_class', 'gp_Matern32_class', 'gp_Matern52_class', 'gp_RatQuad_class']
 
 
-def sample_classification_model(model_name, X, y, num_samples=NUM_SAMPLES,
+def sample_classification_model(model_name, X, y, num_samples=MAX_NUM_SAMPLES,
                                 num_non_categorical=None):
     """
     Sample from the posteriors of any of the supported models
@@ -66,9 +67,19 @@ def sample_classification_model(model_name, X, y, num_samples=NUM_SAMPLES,
                          .format(model_name, CLASSIFICATION_MODEL_NAMES))
     
     # Sample from model
+    start = timer()
     with model:
-        trace = pm.sample(draws=num_samples, step=step)
-        return format_trace(trace)
+        pm._log.info('Auto-assigning NUTS sampler...')
+        if step is None:
+            start_, step = pm.init_nuts(init='advi', njobs=1, n_init=200000,
+                                        random_seed=-1, progressbar=True)
+        
+        for i, trace in enumerate(pm.iter_sample(MAX_NUM_SAMPLES, step)):
+            elapsed = timer() - start
+            if elapsed > MAX_TIME_IN_SECONDS:
+                print('exceeded max time... breaking')
+                break
+    return format_trace(trace)
 
 
 def model_softmax_linear(X, y):
@@ -87,7 +98,7 @@ def model_softmax_linear(X, y):
     return model_softmax
 
 
-def sample_shallow_nn_class(X, y, num_samples=NUM_SAMPLES):
+def sample_shallow_nn_class(X, y, num_samples=MAX_NUM_SAMPLES):
     """
     Sample from shallow Bayesian neural network, using variational inference.
     Uses Categorical likelihood.
