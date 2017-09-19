@@ -5,27 +5,29 @@ REGRESSION_MODEL_NAMES constant.
 """
 
 import pymc3 as pm
-
 import theano.tensor as tt
+from timeit import default_timer as timer
 
 from data.preprocessing.format import numpy_to_dataframe
 from .utils import format_trace, get_pairwise_formula, get_quadratic_formula, \
                    get_linear_formula, join_nonempty
 from .nn import sample_shallow_nn
-from . import NUM_SAMPLES
+from . import MAX_NUM_SAMPLES, MAX_TIME_IN_SECONDS
 from .utils import reduce_data_dimension
 
 REGRESSION_MODEL_NAMES = \
-    ['ls_linear_regres', 'robust_linear_regres', 'ls_quadratic_linear_regres',
-     # 'ls_pairwise_linear_regres', 'robust_pairwise_linear_regres', 'robust_quadratic_linear_regres',
+    [
+     # 'ls_linear_regres', 'robust_linear_regres', 'ls_quadratic_linear_regres',
+     'ls_pairwise_linear_regres', 'robust_pairwise_linear_regres', 'robust_quadratic_linear_regres',
      # 'shallow_nn_regres',
      # 'gp_ExpQuad_regres', 'gp_Exponential_regres', 'gp_Matern32_regres','gp_Matern52_regres',
      # 'gp_RatQuad_regres' # currently throws an error
      ]
 
 
-def sample_regression_model(model_name, X, y, num_samples=NUM_SAMPLES,
-                            step=None, num_non_categorical=None):
+def sample_regression_model(model_name, X, y, num_samples=MAX_NUM_SAMPLES,
+                            time=MAX_TIME_IN_SECONDS, step=None,
+                            num_non_categorical=None):
     """
     Sample from the posteriors of any of the supported models
 
@@ -81,9 +83,20 @@ def sample_regression_model(model_name, X, y, num_samples=NUM_SAMPLES,
                          .format(model_name, REGRESSION_MODEL_NAMES))
     
     # Sample from model
+    start = timer()
     with model:
-        trace = pm.sample(draws=num_samples, step=step)
-        return format_trace(trace)
+        pm._log.info('Auto-assigning NUTS sampler...')
+        if step is None:
+            start_, step = pm.init_nuts(init='advi', njobs=1, n_init=200000,
+                                        random_seed=-1, progressbar=True)
+        
+        for i, trace in enumerate(pm.iter_sample(MAX_NUM_SAMPLES, step)):
+            elapsed = timer() - start
+            if elapsed > MAX_TIME_IN_SECONDS:
+                print('exceeded max time... stopping')
+                break
+    return format_trace(trace)
+            
 
 
 # GLM Defaults
@@ -216,7 +229,7 @@ def build_robust_quadratic(X, y, num_non_categorical=None):
         interaction='quadratic')
 
 
-def sample_shallow_nn_regres(X, y, num_samples=NUM_SAMPLES):
+def sample_shallow_nn_regres(X, y, num_samples=MAX_NUM_SAMPLES):
     """
     Sample from shallow Bayesian neural network, using variational inference.
     Uses Normal likelihood.

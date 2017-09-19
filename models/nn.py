@@ -10,7 +10,7 @@ import theano
 import theano.tensor as tt
 
 from .utils import format_trace
-from . import NUM_SAMPLES
+from . import MAX_NUM_SAMPLES
 
 SUPPORTED_OUTPUTS = ['regression', 'classification']
 NUM_HIDDEN = 100
@@ -22,7 +22,7 @@ LIKELIHOOD_SD = 1000
 
 # deprecated once the generalized nn code is finished
 def sample_shallow_nn(
-    X, y, output, num_hidden=NUM_HIDDEN, num_samples=NUM_SAMPLES, vi=True,
+    X, y, output, num_hidden=NUM_HIDDEN, num_samples=MAX_NUM_SAMPLES, vi=True,
     num_scale1_iters=NUM_SCALE1_ITERS, num_scale0_iters=NUM_SCALE0_ITERS):
     """
     Sample from shallow Bayesian neural network
@@ -43,7 +43,7 @@ def sample_shallow_nn(
 
 
 def sample_fc_nn(
-    X, y, output, hidden_dims=[NUM_HIDDEN], num_samples=NUM_SAMPLES, vi=True,
+    X, y, output, hidden_dims=[NUM_HIDDEN], num_samples=MAX_NUM_SAMPLES, vi=True,
     num_scale1_iters=NUM_SCALE1_ITERS, num_scale0_iters=NUM_SCALE0_ITERS):
     """
     Sample from fully connected Bayesian neural network
