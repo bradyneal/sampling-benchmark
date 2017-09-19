@@ -1,6 +1,7 @@
 # Data
 *.csv
 *.pkl
+*.hdf5
 
 # Project Specific
 openml-python/
