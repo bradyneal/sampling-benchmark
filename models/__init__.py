@@ -1,4 +1,4 @@
-NUM_SAMPLES = 500
+NUM_SAMPLES = 1000000
 MAX_DATA_DIMENSION = {
     'linear': 50,
     'pairwise': 9,
