@@ -103,7 +103,7 @@ def _MoG_sample(w, mus, covs, N=1):
     D = mus.shape[1]
     n_mixtures = len(w)
 
-    k = np.random.choice(n_mixtures, N=N, replace=True, p=w)
+    k = np.random.choice(n_mixtures, size=N, replace=True, p=w)
 
     X = np.zeros((N, D))
     for nn, mm in enumerate(k):
