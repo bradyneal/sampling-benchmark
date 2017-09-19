@@ -1,5 +1,6 @@
 # Ryan Turner (turnerry@iro.umontreal.ca)
 import cPickle as pkl
+import ConfigParser
 import os
 import sys
 from time import time
@@ -9,11 +10,27 @@ from pymc3.backends.tracetab import trace_to_dataframe
 from models import BUILD_MODEL, SAMPLE_MODEL
 from samplers import BUILD_STEP
 
-DATA_EXT = '.csv'  # TODO go into config
-EXACT_SAMPLER = 'exact'
+DATA_EXT = '.csv'
+FILE_FMT = '%s_%s%s'
 
-CHUNK_SIZE = 1000  # Could make this command arg if we like
-FILE_FMT = '%s_%s' + DATA_EXT
+abspath2 = os.path.abspath  # TODO write combo func here
+
+
+def load_config(config_file):
+    config = ConfigParser.RawConfigParser()
+    assert(os.path.isabs(config_file))
+    config.read(config_file)
+
+    input_path = abspath2(config.get('phase2', 'output_path'))
+    output_path = abspath2(config.get('phase3', 'output_path'))
+
+    pkl_ext = config.get('common', 'pkl_ext')
+    exact_name = config.get('common', 'exact_name')
+
+    csv_ext = config.get('common', 'csv_ext')
+    assert(csv_ext == DATA_EXT)  # For now just assert instead of pass
+
+    return input_path, output_path, pkl_ext, exact_name
 
 
 def chomp(ss, ext):
@@ -36,12 +53,6 @@ def format_trace(trace):
 def run_experiment(model_name, D, params_dict, sampler, outfile_f, max_N):
     print 'starting experiment'
     print 'D=%d' % D
-
-    if sampler == EXACT_SAMPLER:
-        X = SAMPLE_MODEL[model_name](params_dict, N=max_N)
-        assert(X.shape == (max_N, D))
-        np.savetxt(outfile_f, X, delimiter=',')
-        return
 
     # Use default arg trick to get params to bind to model now
     logpdf = lambda x, p=params_dict: BUILD_MODEL[model_name](x, p)
@@ -70,31 +81,37 @@ def run_experiment(model_name, D, params_dict, sampler, outfile_f, max_N):
 
 def main():
     # Could use a getopt package if this got fancy, but this is simple enough
-    assert(len(sys.argv) == 4)
-    mc_chain_file = sys.argv[1]
-    sampler = sys.argv[2]
-    max_N = int(sys.argv[3])
+    assert(len(sys.argv) == 5)
+    config_file = abspath2(sys.argv[1])
+    param_file = sys.argv[2]
+    sampler = sys.argv[3]
+    max_N = int(sys.argv[4])
     # TODO add option to control random seed
 
-    # TODO all of these should go in config file
-    input_path = '.'
-    output_path = '.'
-    pkl_ext = '.pkl'
+    input_path, output_path, pkl_ext, exact_name = load_config(config_file)
 
-    model_file = os.path.join(input_path, mc_chain_file) + pkl_ext
+    model_file = os.path.join(input_path, param_file)
     print 'loading %s' % model_file
+    assert(os.path.isabs(model_file))
     with open(model_file, 'rb') as f:
         model_name, D, params_dict = pkl.load(f)
 
-    sample_file = FILE_FMT % (get_real_base(mc_chain_file, DATA_EXT), sampler)
+    param_base = get_real_base(param_file, pkl_ext)
+    sample_file = FILE_FMT % (param_base, sampler, DATA_EXT)
     # TODO verify sample_file safe, e.g. no \ or / etc
     sample_file = os.path.join(output_path, sample_file)
 
     # We could move the open and close inside run_experiment() to not keep an
     # extra file handle open, but whatever, this is good enough for now.
     # TODO add warning if file aready exists
+    assert(os.path.isabs(sample_file))
     with open(sample_file, 'ab') as f:  # Critical to use append mode!
-        run_experiment(model_name, D, params_dict, sampler, f, max_N=max_N)
+        if sampler == exact_name:
+            X = SAMPLE_MODEL[model_name](params_dict, N=max_N)
+            assert(X.shape == (max_N, D))
+            np.savetxt(f, X, delimiter=',')
+        else:
+            run_experiment(model_name, D, params_dict, sampler, f, max_N=max_N)
     print 'done'  # Job will probably get killed before we get here.
 
 if __name__ == '__main__':

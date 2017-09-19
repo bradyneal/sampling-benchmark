@@ -1,9 +1,32 @@
 # Ryan Turner (turnerry@iro.umontreal.ca)
+import ConfigParser
 import os
+import sys
 import numpy as np
 import pandas as pd
 from diagnostics import STD_DIAGNOSTICS
 from metrics import STD_METRICS
+
+DATA_EXT = '.csv'
+
+# TODO write combo func here, also add option to warn if not already abspath
+abspath2 = os.path.abspath
+
+
+def load_config(config_file):
+    config = ConfigParser.RawConfigParser()
+    assert(os.path.isabs(config_file))
+    config.read(config_file)
+
+    input_path = abspath2(config.get('phase3', 'output_path'))
+    output_path = abspath2(config.get('phase4', 'output_path'))
+
+    exact_name = config.get('common', 'exact_name')
+
+    csv_ext = config.get('common', 'csv_ext')
+    assert(csv_ext == DATA_EXT)  # For now just assert instead of pass
+
+    return input_path, output_path, exact_name
 
 
 def chomp(ss, ext):
@@ -13,7 +36,7 @@ def chomp(ss, ext):
     return ss[:-L]
 
 
-def find_traces(input_path, exclude=(), ext='.csv'):
+def find_traces(input_path, exclude=(), ext=DATA_EXT):
     # TODO switch to organized meta-data file in input dir with all files
 
     # Would prob not cause problem to remove sort here, but general good
@@ -27,6 +50,7 @@ def find_traces(input_path, exclude=(), ext='.csv'):
         fname = chomp(fname, ext)
         # Format: example-name_sampler-name.csv
         # example may also contain _ since it is combo of phases 0-2
+        # TODO put sep into config file also
         L = fname.rsplit('_', 1)
         assert(len(L) == 2)
         examples.add(L[0])
@@ -36,7 +60,7 @@ def find_traces(input_path, exclude=(), ext='.csv'):
     return samplers, examples
 
 
-def build_trace_name(input_path, example, sampler, ext='.csv'):
+def build_trace_name(input_path, example, sampler, ext=DATA_EXT):
     fname = '%s_%s%s' % (example, sampler, ext)
     return os.path.join(input_path, fname)
 
@@ -47,7 +71,7 @@ def load_chain(fname):
     return X
 
 
-def dump_results(df, output_path, tbl_name, ext='.csv'):
+def dump_results(df, output_path, tbl_name, ext=DATA_EXT):
     fname = tbl_name + ext
     fname = os.path.join(output_path, fname)
     df.to_csv(fname, na_rep='', header=True, index=True)
@@ -56,17 +80,17 @@ def dump_results(df, output_path, tbl_name, ext='.csv'):
 
 
 def main():
-    # TODO all of these should go in config file
-    input_path = './chains'
-    output_path = '.'
-    exact = 'exact'
+    assert(len(sys.argv) == 2)
+    config_file = abspath2(sys.argv[1])
+
+    input_path, output_path, exact_name = load_config(config_file)
+
     primary_metric = 'mean'
     primary_diag = 'Geweke'
-
     assert(primary_metric in STD_METRICS)
     assert(primary_diag in STD_DIAGNOSTICS)
 
-    samplers, examples = find_traces(input_path, exclude=[exact])
+    samplers, examples = find_traces(input_path, exclude=[exact_name])
     print 'found %d samplers and %d examples' % (len(samplers), len(examples))
 
     # Will remove this later when the list gets large
@@ -85,7 +109,7 @@ def main():
                                       names=['metric', 'example'])
     metric_df = pd.DataFrame(index=samplers, columns=cols, dtype=float)
     for example in examples:
-        fname = build_trace_name(input_path, example, exact)
+        fname = build_trace_name(input_path, example, exact_name)
         # TODO consider using robust standardization fit on exact chain to make
         # metrics unitless
         # Cannot run if exact does not exist
