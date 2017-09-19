@@ -20,4 +20,4 @@ def std(exact_chain, sampler_chain):
     err = _sq_err(exact_std, sampler_std)
     return err
 
-STD_DIAGNOSTICS = {'mean': mean, 'std': std}
+STD_METRICS = {'mean': mean, 'std': std}

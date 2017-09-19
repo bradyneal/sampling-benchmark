@@ -61,7 +61,10 @@ def main():
     output_path = '.'
     exact = 'exact'
     primary_metric = 'mean'
-    primary_diag = 'geweke'
+    primary_diag = 'Geweke'
+
+    assert(primary_metric in STD_METRICS)
+    assert(primary_diag in STD_DIAGNOSTICS)
 
     samplers, examples = find_traces(input_path, exclude=[exact])
     print 'found %d samplers and %d examples' % (len(samplers), len(examples))
@@ -85,10 +88,17 @@ def main():
         fname = build_trace_name(input_path, example, exact)
         # TODO consider using robust standardization fit on exact chain to make
         # metrics unitless
+        # Cannot run if exact does not exist
+        # TODO add error message
         exact_chain = load_chain(fname)
         for sampler in samplers:
             fname = build_trace_name(input_path, example, sampler)
-            curr_chain = load_chain(fname)
+            try:
+                curr_chain = load_chain(fname)
+            except:  # TODO restrict to only file not found exception
+                print 'chain not found:'
+                print fname
+                continue
 
             # compute diagnostics
             for diag_name, diag_f in STD_DIAGNOSTICS.iteritems():
@@ -102,13 +112,13 @@ def main():
 
             # TODO future comparison of posterior predictive (esp KL)
     # TODO verify these do nan for missing like numpy
-    metric_df_agg = metric_df.groupby(level=['metric']).mean()
-    metric_df_agg.sort(columns=primary_metric, ascending=False, axis=0,
-                       inplace=True)
+    metric_df_agg = metric_df.groupby(level=['metric'], axis=1).mean()
+    metric_df_agg.sort_values(by=primary_metric, ascending=False, axis=0,
+                              inplace=True)
 
-    diag_df_agg = metric_df.groupby(level=['metric']).mean()
-    diag_df_agg.sort(columns=primary_diag, ascending=False, axis=0,
-                     inplace=True)
+    diag_df_agg = diagnostic_df.groupby(level=['diagnostic'], axis=1).mean()
+    diag_df_agg.sort_values(by=primary_diag, ascending=False, axis=0,
+                            inplace=True)
 
     # save out results to csv file. can pretty print export these in phase 5.
     dump_results(metric_df, output_path, 'metric')
