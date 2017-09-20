@@ -32,13 +32,13 @@ def sample_and_save_posteriors(dids, task):
     
     for i, dataset_id in enumerate(dids):
         # Partition datasets based on preprocessing
-        if i < num_datasets * 1 // 4:
+        if i % 4 == 0:
             preprocess = Preprocess.ONEHOT
-        elif i < num_datasets * 2 // 4:
+        elif i % 4 == 1:
             preprocess = Preprocess.STANDARDIZED
-        elif i < num_datasets * 3 // 4:
+        elif i % 4 == 2:
             preprocess = Preprocess.ROBUST
-        else:
+        elif i % 4 == 3:
             preprocess = Preprocess.WHITENED
             
         # Suboptimal: this information could be moved
