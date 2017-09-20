@@ -33,24 +33,20 @@ def load_config(config_file):
     return input_path, output_path, pkl_ext, exact_name
 
 
-def chomp(ss, ext):
-    L = len(ext)
-    assert(ss[-L:] == ext)
-    return ss[:-L]
-
-
-def get_real_base(fname, ext):
-    _, fname = os.path.split(fname)
-    return chomp(fname, ext)
-
-
 def format_trace(trace):
     # TODO I don't think we need to import extra function to get df from trace
     df = trace_to_dataframe(trace)
     return df.values
 
 
-def run_experiment(model_name, D, params_dict, sampler, outfile_f, max_N):
+def is_safe_name(name_str, allow_dot=False):
+    # TODO make extra chars configurable
+    ignore = '-_.' if allow_dot else '-_'
+    safe = name_str.translate(None, ignore).isalnum()
+    return safe
+
+
+def sampling_part(model_name, D, params_dict, sampler, outfile_f, max_N):
     print 'starting experiment'
     print 'D=%d' % D
     assert(D >= 1)
@@ -80,10 +76,34 @@ def run_experiment(model_name, D, params_dict, sampler, outfile_f, max_N):
     return
 
 
-def is_safe_name(name_str):
-    # TODO make extra chars configurable
-    safe = name_str.translate(None, '-_').isalnum()
-    return safe
+def run_experiment(config, param_name, sampler, max_N):
+    input_path, output_path, pkl_ext, exact_name = config
+
+    assert(sampler == exact_name or sampler in BUILD_STEP)
+
+    model_file = os.path.join(input_path, param_name + pkl_ext)
+    print 'loading %s' % model_file
+    assert(os.path.isabs(model_file))
+    with open(model_file, 'rb') as f:
+        model_name, D, params_dict = pkl.load(f)
+    assert(model_name in SAMPLE_MODEL)
+
+    sample_file = FILE_FMT % (param_name, sampler, DATA_EXT)
+    assert(is_safe_name(sample_file, allow_dot=True))
+    sample_file = os.path.join(output_path, sample_file)
+
+    # We could move the open and close inside run_experiment() to not keep an
+    # extra file handle open, but whatever, this is good enough for now.
+    # TODO add warning if file aready exists
+    assert(os.path.isabs(sample_file))
+    with open(sample_file, 'ab') as f:  # Critical to use append mode!
+        if sampler == exact_name:
+            X = SAMPLE_MODEL[model_name](params_dict, N=max_N)
+            assert(X.shape == (max_N, D))
+            np.savetxt(f, X, delimiter=',')
+        else:
+            sampling_part(model_name, D, params_dict, sampler, f, max_N=max_N)
+    return
 
 
 def main():
@@ -98,31 +118,9 @@ def main():
     assert(is_safe_name(param_name))
     assert(max_N >= 0)
 
-    input_path, output_path, pkl_ext, exact_name = load_config(config_file)
-    assert(sampler == exact_name or sampler in BUILD_STEP)
+    config = load_config(config_file)
 
-    model_file = os.path.join(input_path, param_name + pkl_ext)
-    print 'loading %s' % model_file
-    assert(os.path.isabs(model_file))
-    with open(model_file, 'rb') as f:
-        model_name, D, params_dict = pkl.load(f)
-    assert(model_name in SAMPLE_MODEL)
-
-    sample_file = FILE_FMT % (param_name, sampler, DATA_EXT)
-    # TODO verify sample_file safe, e.g. no \ or / etc
-    sample_file = os.path.join(output_path, sample_file)
-
-    # We could move the open and close inside run_experiment() to not keep an
-    # extra file handle open, but whatever, this is good enough for now.
-    # TODO add warning if file aready exists
-    assert(os.path.isabs(sample_file))
-    with open(sample_file, 'ab') as f:  # Critical to use append mode!
-        if sampler == exact_name:
-            X = SAMPLE_MODEL[model_name](params_dict, N=max_N)
-            assert(X.shape == (max_N, D))
-            np.savetxt(f, X, delimiter=',')
-        else:
-            run_experiment(model_name, D, params_dict, sampler, f, max_N=max_N)
+    run_experiment(config, param_name, sampler, max_N)
     print 'done'  # Job will probably get killed before we get here.
 
 if __name__ == '__main__':

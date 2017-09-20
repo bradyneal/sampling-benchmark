@@ -1,0 +1,40 @@
+# Ryan Turner (turnerry@iro.umontreal.ca)
+import os
+import sys
+import main as m
+
+
+def chomp(ss, ext):
+    # TODO move to general util
+    L = len(ext)
+    assert(ss[-L:] == ext)
+    return ss[:-L]
+
+
+def get_model_list(input_path, ext):
+    L = sorted(chomp(fname, ext) for fname in os.listdir(input_path))
+    return L
+
+
+def main():
+    # Could use a getopt package if this got fancy, but this is simple enough
+    assert(len(sys.argv) == 3)
+    config_file = m.abspath2(sys.argv[1])
+    max_N = int(sys.argv[2])
+    # TODO add option to control random seed
+    assert(max_N >= 0)
+
+    config = m.load_config(config_file)
+
+    input_path, _, pkl_ext, _ = config
+    model_list = get_model_list(input_path, pkl_ext)
+    assert(all(m.is_safe_name(ss) for ss in model_list))
+
+    for param_name in model_list:
+        # TODO add exact to samplers
+        for sampler in m.BUILD_STEP.keys():
+            m.run_experiment(config, param_name, sampler, max_N)
+    print 'done'  # Job will probably get killed before we get here.
+
+if __name__ == '__main__':
+    main()

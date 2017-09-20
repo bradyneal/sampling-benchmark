@@ -36,7 +36,7 @@ def chomp(ss, ext):
     return ss[:-L]
 
 
-def find_traces(input_path, exclude=(), ext=DATA_EXT):
+def find_traces(input_path, exact_name, ext=DATA_EXT):
     # TODO switch to organized meta-data file in input dir with all files
 
     # Would prob not cause problem to remove sort here, but general good
@@ -48,14 +48,12 @@ def find_traces(input_path, exclude=(), ext=DATA_EXT):
     for fname in files:
         # TODO create general parser for filenames in the project util
         fname = chomp(fname, ext)
-        # Format: example-name_sampler-name.csv
-        # example may also contain _ since it is combo of phases 0-2
-        # TODO put sep into config file also
-        L = fname.rsplit('_', 1)
-        assert(len(L) == 2)
-        examples.add(L[0])
-        samplers.add(L[1])
-    samplers.difference(exclude) # For now exclude is only for samplers
+        curr_example, curr_sampler = fname.rsplit('_', 1)
+
+        if curr_sampler == exact_name:  # Only use example if have exact result
+            examples.add(curr_example)
+        else:
+            samplers.add(curr_sampler)  # Don't need to add exact to list
     samplers, examples = sorted(samplers), sorted(examples)
     return samplers, examples
 
@@ -72,10 +70,9 @@ def load_chain(fname):
 
 
 def dump_results(df, output_path, tbl_name, ext=DATA_EXT):
-    fname = tbl_name + ext
-    fname = os.path.join(output_path, fname)
+    fname = os.path.join(output_path, tbl_name + ext)
     df.to_csv(fname, na_rep='', header=True, index=True)
-    # Can also return where it was written in case we want to log it
+    # Also return where it was written in case we want to log it
     return fname
 
 
@@ -90,7 +87,7 @@ def main():
     assert(primary_metric in STD_METRICS)
     assert(primary_diag in STD_DIAGNOSTICS)
 
-    samplers, examples = find_traces(input_path, exclude=[exact_name])
+    samplers, examples = find_traces(input_path, exact_name)
     print 'found %d samplers and %d examples' % (len(samplers), len(examples))
 
     # Will remove this later when the list gets large
@@ -112,15 +109,14 @@ def main():
         fname = build_trace_name(input_path, example, exact_name)
         # TODO consider using robust standardization fit on exact chain to make
         # metrics unitless
-        # Cannot run if exact does not exist
-        # TODO add error message
+        # Cannot run if exact does not exist => no try-catch
         exact_chain = load_chain(fname)
         for sampler in samplers:
             fname = build_trace_name(input_path, example, sampler)
             try:
                 curr_chain = load_chain(fname)
-            except:  # TODO restrict to only file not found exception
-                print 'chain not found:'
+            except IOError:
+                print 'cannot access chain file and skipping:'
                 print fname
                 continue
 
