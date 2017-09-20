@@ -54,6 +54,7 @@ def sampling_part(model_name, D, params_dict, sampler, outfile_f, max_N):
     # Use default arg trick to get params to bind to model now
     logpdf = lambda x, p=params_dict: BUILD_MODEL[model_name](x, p)
 
+    t_total = 0.0
     with pm.Model():
         pm.DensityDist('x', logpdf, shape=D, testval=np.zeros(D))
         steps = BUILD_STEP[sampler]()
@@ -65,15 +66,16 @@ def sampling_part(model_name, D, params_dict, sampler, outfile_f, max_N):
             # TODO consider clock vs time
             t = time()
             trace = next(sample_generator)
-            t = time() - t
+            t_total += time() - t
 
             X = format_trace(trace[-1:])
             # TODO be nice if we could figure out how to do this chunkwise
             assert(X.shape == (1, D))
             # TODO make sure to flush every once in a while
             np.savetxt(outfile_f, X, delimiter=',')
-            print t
-    return
+    sec_sample = t_total / max_N
+    print 's/sample = %f' % sec_sample
+    return sec_sample
 
 
 def run_experiment(config, param_name, sampler, max_N):
@@ -92,10 +94,13 @@ def run_experiment(config, param_name, sampler, max_N):
     assert(is_safe_name(sample_file, allow_dot=True))
     sample_file = os.path.join(output_path, sample_file)
 
-    # We could move the open and close inside run_experiment() to not keep an
-    # extra file handle open, but whatever, this is good enough for now.
-    # TODO add warning if file aready exists
     assert(os.path.isabs(sample_file))
+    if os.path.isfile(sample_file):
+        print 'appending to already existing file:'
+    else:
+        print 'creating:'
+    print sample_file
+
     with open(sample_file, 'ab') as f:  # Critical to use append mode!
         if sampler == exact_name:
             X = SAMPLE_MODEL[model_name](params_dict, N=max_N)

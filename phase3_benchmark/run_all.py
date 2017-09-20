@@ -26,13 +26,19 @@ def main():
 
     config = m.load_config(config_file)
 
-    input_path, _, pkl_ext, _ = config
+    input_path, _, pkl_ext, exact_name = config
     model_list = get_model_list(input_path, pkl_ext)
     assert(all(m.is_safe_name(ss) for ss in model_list))
+    print 'using models:'
+    print model_list
+
+    sampler_list = m.BUILD_STEP.keys()
+    sampler_list.append(exact_name)
+    print 'using samplers:'
+    print sampler_list
 
     for param_name in model_list:
-        # TODO add exact to samplers
-        for sampler in m.BUILD_STEP.keys():
+        for sampler in sampler_list:
             m.run_experiment(config, param_name, sampler, max_N)
     print 'done'  # Job will probably get killed before we get here.
 
