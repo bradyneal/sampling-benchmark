@@ -202,7 +202,7 @@ def get_task_filename(task):
 
 def get_samples_filename(model_name, dataset_id):
     """Get location of samples from specified model with specified dataset"""
-    filename = '{}_{}'.format(dataset_id, model_name) + OLD_PICKLE_EXT
+    filename = '{}_{}'.format(dataset_id, model_name) + PICKLE_EXT
     return os.path.join(CONFIG['samples_folder'], filename)
    
 
