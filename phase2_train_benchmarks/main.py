@@ -12,8 +12,20 @@ from model_wrappers import STD_BENCH_MODELS
 # export PYTHONPATH=./bench_models/nade/:$PYTHONPATH
 # TODO fix, i don't like that, need to fix some garbage in __init__.py files
 
+PHASE3_MODELS = ('MoG', 'RNADE')
 DATA_EXT = '.csv'
 abspath2 = os.path.abspath  # TODO write combo func here
+
+
+def build_output_name(mc_chain_name, model_name, pkl_ext):
+    output_name = '%s_%s%s' % (mc_chain_name, model_name, pkl_ext)
+    return output_name
+
+
+def is_safe_name(name_str):
+    # TODO make extra chars configurable
+    safe = name_str.translate(None, '-_').isalnum()
+    return safe
 
 
 def load_config(config_file):
@@ -36,60 +48,38 @@ def load_config(config_file):
     return input_path, output_path, pkl_ext, train_frac, rnade_scratch
 
 
-def build_output_name(mc_chain_name, model_name, pkl_ext):
-    output_name = '%s_%s%s' % (mc_chain_name, model_name, pkl_ext)
-    return output_name
-
-
-def is_safe_name(name_str):
-    # TODO make extra chars configurable
-    safe = name_str.translate(None, '-_').isalnum()
-    return safe
-
-
-def main():
-    '''This program can be run in parallel across different MC_chain files
-    indep. This is a top level routine so I am not worried about needing a
-    verbosity setting.'''
-    candidates = ('MoG', 'RNADE')
-    debug_dump = False
-    standardize = True
-
-    assert(len(sys.argv) == 3)  # Print usage error instead to be user friendly
-    config_file = abspath2(sys.argv[1])
-    mc_chain_name = sys.argv[2]
-    assert(is_safe_name(mc_chain_name))
-
-    print 'config %s' % config_file
-    input_path, output_path, pkl_ext, train_frac, rnade_scratch = \
-        load_config(config_file)
-
-    mc_chain_file = os.path.join(input_path, mc_chain_name + DATA_EXT)
-    print 'loading %s' % mc_chain_file
-
+def get_default_run_setup(config):
+    input_path, output_path, pkl_ext, train_frac, rnade_scratch = config
     # Can run multiple instances in parallel with random subdir for scratch
     rnade_scratch = mkdtemp(dir=rnade_scratch)
     print 'rnade scratch %s' % rnade_scratch
     assert(os.path.isabs(rnade_scratch))
 
-    # TODO These can come from some other config file, maybe json or something
-    # as long as the loader code is small and simple
-    run_config = {'norm_diag': ('MoG', {'n_components': 1, 'covariance_type': 'diag'}),
-                  'norm_full': ('MoG', {'n_components': 1, 'covariance_type': 'full'}),
-                  'MoG': ('MoG', {'n_components': 5}),
-                  'IGN': ('IGN', {'n_layers': 3, 'n_epochs': 2500, 'lr': 1e-4}),
-                  'RNADE': ('RNADE', {'n_components': 5, 'scratch_dir': rnade_scratch})}
+    run_config = \
+        {'norm_diag': ('MoG', {'n_components': 1, 'covariance_type': 'diag'}),
+         'norm_full': ('MoG', {'n_components': 1, 'covariance_type': 'full'}),
+         'MoG': ('MoG', {'n_components': 5}),
+         'IGN': ('IGN', {'n_layers': 3, 'n_epochs': 2500, 'lr': 1e-4}),
+         'RNADE': ('RNADE', {'n_components': 5, 'scratch_dir': rnade_scratch})}
+    return run_config
 
-    # Use np to directly load in csv, if this becomes a problem then use pandas
-    # and then .values to get an np array out. Set to raise an error if
-    # anything weird in file.
+
+def run_experiment(config, mc_chain_name, standardize=True, debug_dump=False,
+                   setup=get_default_run_setup):
+    '''Call this instead of main for scripted multiple runs within python.'''
+    input_path, output_path, pkl_ext, train_frac, rnade_scratch = config
+
+    mc_chain_file = os.path.join(input_path, mc_chain_name + DATA_EXT)
+    print 'loading %s' % mc_chain_file
+
+    run_config = setup(config)
+
     # TODO general util can include basic csv load and write
     assert(os.path.isabs(mc_chain_file))
     MC_chain = np.genfromtxt(mc_chain_file, dtype=float, delimiter=',',
                              skip_header=0, loose=False, invalid_raise=True)
     N, D = MC_chain.shape
     print 'size %d x %d' % (N, D)
-    # We could also print a scipy describe function or something to be fancy
     N_train = int(np.ceil(train_frac * N))
 
     X_train, X_test = MC_chain[:N_train, :], MC_chain[N_train:, :]
@@ -124,7 +114,7 @@ def main():
 
         test_loglik = np.mean(loglik_vec)
         print '%s: %f' % (run_name, test_loglik)
-        if run_name in candidates and test_loglik > best_loglik:
+        if model_name in PHASE3_MODELS and test_loglik > best_loglik:
             best_loglik = test_loglik
             best_case = (model_name, model)
 
@@ -154,6 +144,22 @@ def main():
         assert(os.path.isabs(dump_file))
         with open(dump_file, 'wb') as f:
             pkl.dump(model_dump, f, pkl.HIGHEST_PROTOCOL)
+    return model_dump
+
+
+def main():
+    '''This program can be run in parallel across different MC_chain files
+    indep. This is a top level routine so I am not worried about needing a
+    verbosity setting.'''
+    assert(len(sys.argv) == 3)  # Print usage error instead to be user friendly
+    config_file = abspath2(sys.argv[1])
+    mc_chain_name = sys.argv[2]
+    assert(is_safe_name(mc_chain_name))
+
+    print 'config %s' % config_file
+    config = load_config(config_file)
+
+    run_experiment(config, mc_chain_name)
     print 'done'
 
 if __name__ == '__main__':
