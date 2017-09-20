@@ -17,11 +17,11 @@ from .utils import reduce_data_dimension
 
 REGRESSION_MODEL_NAMES = \
     [
-     # 'ls_linear_regres', 'robust_linear_regres', 'ls_quadratic_linear_regres',
-     'ls_pairwise_linear_regres', 'robust_pairwise_linear_regres', 'robust_quadratic_linear_regres',
-     # 'shallow_nn_regres',
-     # 'gp_ExpQuad_regres', 'gp_Exponential_regres', 'gp_Matern32_regres','gp_Matern52_regres',
-     # 'gp_RatQuad_regres' # currently throws an error
+     'ls-linear-regres', 'robust-linear-regres', 'ls-quadratic-linear-regres',
+     # 'ls-pairwise-linear-regres', 'robust-pairwise-linear-regres', 'robust-quadratic-linear-regres',
+     # 'shallow-nn-regres',
+     # 'gp-ExpQuad-regres', 'gp-Exponential-regres', 'gp-Matern32-regres','gp-Matern52-regres',
+     # 'gp-RatQuad-regres' # currently throws an error
      ]
 
 

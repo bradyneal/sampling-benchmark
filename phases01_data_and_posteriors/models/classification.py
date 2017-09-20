@@ -17,8 +17,8 @@ from . import MAX_NUM_SAMPLES
 from .regression import build_pm_gp_cov
 
 CLASSIFICATION_MODEL_NAMES = \
-    ['softmax_linear_class', 'shallow_nn_class',
-     'gp_ExpQuad_class', 'gp_Exponential_class', 'gp_Matern32_class', 'gp_Matern52_class', 'gp_RatQuad_class']
+    ['softmax-linear-class', 'shallow-nn-class',
+     'gp-ExpQuad-class', 'gp-Exponential-class', 'gp-Matern32-class', 'gp-Matern52-class', 'gp-RatQuad-class']
 
 
 def sample_classification_model(model_name, X, y, num_samples=MAX_NUM_SAMPLES,

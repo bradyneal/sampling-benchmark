@@ -7,7 +7,7 @@ import pickle
 
 from .config import CONFIG, Preprocess
 
-PICKLE_EXT = '.pickle'
+PICKLE_EXT = '.pkl'
 READING_ERRORS = EOFError
 
 
@@ -199,7 +199,7 @@ def get_task_filename(task):
 
 def get_samples_filename(model_name, dataset_id):
     """Get location of samples from specified model with specified dataset"""
-    filename = '{}-{}'.format(model_name, dataset_id) + PICKLE_EXT
+    filename = '{}_{}'.format(dataset_id, model_name) + PICKLE_EXT
     return os.path.join(CONFIG['samples_folder'], filename)
    
 
