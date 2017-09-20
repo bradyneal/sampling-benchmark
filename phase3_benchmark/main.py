@@ -7,6 +7,7 @@ from time import time
 import numpy as np
 import pymc3 as pm
 from pymc3.backends.tracetab import trace_to_dataframe
+import theano
 from models import BUILD_MODEL, SAMPLE_MODEL
 from samplers import BUILD_STEP
 
@@ -14,6 +15,7 @@ DATA_EXT = '.csv'
 FILE_FMT = '%s_%s%s'
 
 abspath2 = os.path.abspath  # TODO write combo func here
+all_counters = []
 
 
 def load_config(config_file):
@@ -46,14 +48,25 @@ def is_safe_name(name_str, allow_dot=False):
     return safe
 
 
+def get_counters():
+    L = [int(x.get_value()) for x in all_counters]
+    return L
+
+
 def sampling_part(model_name, D, params_dict, sampler, outfile_f, max_N):
     print 'starting experiment'
     print 'D=%d' % D
     assert(D >= 1)
 
     # Use default arg trick to get params to bind to model now
-    logpdf = lambda x, p=params_dict: BUILD_MODEL[model_name](x, p)
+    def logpdf(x, p=params_dict):
+        s = theano.shared(0, name="function_calls")
+        all_counters.append(s)
+        s.default_update = s + 1
+        ll = BUILD_MODEL[model_name](x, p)
+        return ll + s * 0
 
+    del all_counters[:]
     t_total = 0.0
     with pm.Model():
         pm.DensityDist('x', logpdf, shape=D, testval=np.zeros(D))
@@ -73,6 +86,9 @@ def sampling_part(model_name, D, params_dict, sampler, outfile_f, max_N):
             assert(X.shape == (1, D))
             # TODO make sure to flush every once in a while
             np.savetxt(outfile_f, X, delimiter=',')
+
+        print 'function calls:'
+        print get_counters()
     sec_sample = t_total / max_N
     print 's/sample = %f' % sec_sample
     return sec_sample
