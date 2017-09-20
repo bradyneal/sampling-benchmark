@@ -8,6 +8,7 @@ import pickle
 from .config import CONFIG, Preprocess
 
 PICKLE_EXT = '.pkl'
+OLD_PICKLE_EXT = '.pickle'
 READING_ERRORS = EOFError
 
 
@@ -15,7 +16,7 @@ def get_downloaded_dataset_ids(preprocess=Preprocess.RAW):
     """Get all dataset ids in the corresponding preprocessed data folder"""
     dataset_filenames = os.listdir(get_folder(preprocess))
     dataset_filenames.sort()
-    return [int(filename.rstrip(PICKLE_EXT)) for filename in dataset_filenames]
+    return [int(filename.rstrip(OLD_PICKLE_EXT)) for filename in dataset_filenames]
 
 
 def read_dataset(dataset_id, preprocess=Preprocess.RAW):
@@ -119,7 +120,7 @@ def write_data_error(e, dataset_id, activity_type):
     
     # Update set with error type    
     filename = os.path.join(CONFIG['errors_folder'],
-                            activity_type + '_error_set' + PICKLE_EXT)
+                            activity_type + '_error_set' + OLD_PICKLE_EXT)
     if not os.path.isfile(filename):
         error_set = set()
     else:
@@ -171,6 +172,8 @@ def is_task_file(task):
     Return whether or not the dataset ids corresponding to the specified task
     have already be downloaded
     """
+    print('task:', task)
+    print('task file:', get_task_filename(task))
     return os.path.isfile(get_task_filename(task))
 
 
@@ -189,17 +192,17 @@ def get_folder(preprocess=Preprocess.RAW):
     
 def get_dataset_filename(dataset_id, preprocess=Preprocess.RAW):
     """Get location of dataset"""
-    return os.path.join(get_folder(preprocess), str(dataset_id) + PICKLE_EXT)
+    return os.path.join(get_folder(preprocess), str(dataset_id) + OLD_PICKLE_EXT)
 
 
 def get_task_filename(task):
     """Get location of dataset ids corresponding to specified task"""
-    return os.path.join(CONFIG['tasks_folder'], task + PICKLE_EXT)
+    return os.path.join(CONFIG['tasks_folder'], task + OLD_PICKLE_EXT)
 
 
 def get_samples_filename(model_name, dataset_id):
     """Get location of samples from specified model with specified dataset"""
-    filename = '{}_{}'.format(dataset_id, model_name) + PICKLE_EXT
+    filename = '{}_{}'.format(dataset_id, model_name) + OLD_PICKLE_EXT
     return os.path.join(CONFIG['samples_folder'], filename)
    
 

@@ -45,22 +45,22 @@ def sample_classification_model(model_name, X, y, num_samples=MAX_NUM_SAMPLES,
     if reduced_d < d:
         num_non_categorical = reduced_d
     
-    model_name = model_name.replace('_class', '')
+    model_name = model_name.replace('-class', '')
     
     # Build model
-    if 'softmax_linear' == model_name:
+    if 'softmax-linear' == model_name:
         model = build_softmax_linear(X, y)
-    elif 'shallow_nn' == model_name:
+    elif 'shallow-nn' == model_name:
         return sample_shallow_nn_class(X, y, num_samples)
-    elif 'gp_ExpQuad' == model_name:
+    elif 'gp-ExpQuad' == model_name:
         model = build_gpc(X, y, 'ExpQuad')
-    elif 'gp_Exponential' == model_name:
+    elif 'gp-Exponential' == model_name:
         model = build_gpc(X, y, 'Exponential')
-    elif 'gp_Matern32' == model_name:
+    elif 'gp-Matern32' == model_name:
         model = build_gpc(X, y, 'Matern32')
-    elif 'gp_Matern52' == model_name:
+    elif 'gp-Matern52' == model_name:
         model = build_gpc(X, y, 'Matern52')
-    elif 'gp_RatQuad' == model_name:
+    elif 'gp-RatQuad' == model_name:
         model = build_gpc(X, y, 'RatQuad')
     else:
         raise ValueError('Unsupported model: {}\nSupported models: {}'
