@@ -255,3 +255,5 @@ def RNADE_sample(params, N=1):
 
 BUILD_MODEL = {'MoG': MoG, 'RNADE': RNADE}
 SAMPLE_MODEL = {'MoG': MoG_sample, 'RNADE': RNADE_sample}
+
+assert(set(BUILD_MODEL.keys()) == set(SAMPLE_MODEL.keys()))

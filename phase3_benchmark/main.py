@@ -53,6 +53,7 @@ def format_trace(trace):
 def run_experiment(model_name, D, params_dict, sampler, outfile_f, max_N):
     print 'starting experiment'
     print 'D=%d' % D
+    assert(D >= 1)
 
     # Use default arg trick to get params to bind to model now
     logpdf = lambda x, p=params_dict: BUILD_MODEL[model_name](x, p)
@@ -79,25 +80,35 @@ def run_experiment(model_name, D, params_dict, sampler, outfile_f, max_N):
     return
 
 
+def is_safe_name(name_str):
+    # TODO make extra chars configurable
+    safe = name_str.translate(None, '-_').isalnum()
+    return safe
+
+
 def main():
     # Could use a getopt package if this got fancy, but this is simple enough
     assert(len(sys.argv) == 5)
     config_file = abspath2(sys.argv[1])
-    param_file = sys.argv[2]
+    param_name = sys.argv[2]
     sampler = sys.argv[3]
     max_N = int(sys.argv[4])
     # TODO add option to control random seed
 
-    input_path, output_path, pkl_ext, exact_name = load_config(config_file)
+    assert(is_safe_name(param_name))
+    assert(max_N >= 0)
 
-    model_file = os.path.join(input_path, param_file)
+    input_path, output_path, pkl_ext, exact_name = load_config(config_file)
+    assert(sampler == exact_name or sampler in BUILD_STEP)
+
+    model_file = os.path.join(input_path, param_name + pkl_ext)
     print 'loading %s' % model_file
     assert(os.path.isabs(model_file))
     with open(model_file, 'rb') as f:
         model_name, D, params_dict = pkl.load(f)
+    assert(model_name in SAMPLE_MODEL)
 
-    param_base = get_real_base(param_file, pkl_ext)
-    sample_file = FILE_FMT % (param_base, sampler, DATA_EXT)
+    sample_file = FILE_FMT % (param_name, sampler, DATA_EXT)
     # TODO verify sample_file safe, e.g. no \ or / etc
     sample_file = os.path.join(output_path, sample_file)
 

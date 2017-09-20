@@ -12,6 +12,7 @@ from model_wrappers import STD_BENCH_MODELS
 # export PYTHONPATH=./bench_models/nade/:$PYTHONPATH
 # TODO fix, i don't like that, need to fix some garbage in __init__.py files
 
+DATA_EXT = '.csv'
 abspath2 = os.path.abspath  # TODO write combo func here
 
 
@@ -24,6 +25,9 @@ def load_config(config_file):
     output_path = abspath2(config.get('phase2', 'output_path'))
     pkl_ext = config.get('common', 'pkl_ext')
 
+    csv_ext = config.get('common', 'csv_ext')
+    assert(csv_ext == DATA_EXT)  # For now just assert instead of pass
+
     train_frac = config.getfloat('phase2', 'train_frac')
     assert(0.0 <= train_frac and train_frac <= 1.0)
 
@@ -32,12 +36,15 @@ def load_config(config_file):
     return input_path, output_path, pkl_ext, train_frac, rnade_scratch
 
 
-def build_output_name(mc_chain_file, model_name, pkl_ext):
-    _, fname = os.path.split(mc_chain_file)
-    fname, _ = os.path.splitext(fname)
-
-    output_name = '%s_%s%s' % (fname, model_name, pkl_ext)
+def build_output_name(mc_chain_name, model_name, pkl_ext):
+    output_name = '%s_%s%s' % (mc_chain_name, model_name, pkl_ext)
     return output_name
+
+
+def is_safe_name(name_str):
+    # TODO make extra chars configurable
+    safe = name_str.translate(None, '-_').isalnum()
+    return safe
 
 
 def main():
@@ -50,14 +57,14 @@ def main():
 
     assert(len(sys.argv) == 3)  # Print usage error instead to be user friendly
     config_file = abspath2(sys.argv[1])
-    mc_chain_file = sys.argv[2]
-    # TODO assert no / \ or other wierd chars in mc_chain_file
+    mc_chain_name = sys.argv[2]
+    assert(is_safe_name(mc_chain_name))
 
     print 'config %s' % config_file
     input_path, output_path, pkl_ext, train_frac, rnade_scratch = \
         load_config(config_file)
 
-    mc_chain_file = os.path.join(input_path, mc_chain_file)
+    mc_chain_file = os.path.join(input_path, mc_chain_name + DATA_EXT)
     print 'loading %s' % mc_chain_file
 
     # Can run multiple instances in parallel with random subdir for scratch
@@ -133,7 +140,7 @@ def main():
     params_obj = model.get_params()
 
     # Now dump to finish the job
-    dump_file = build_output_name(mc_chain_file, model_name, pkl_ext)
+    dump_file = build_output_name(mc_chain_name, model_name, pkl_ext)
     dump_file = os.path.join(output_path, dump_file)
     print 'saving %s' % dump_file
     assert(os.path.isabs(dump_file))
