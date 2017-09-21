@@ -15,7 +15,7 @@ from time import time as wall_time
 from time import clock as cpu_time
 
 DATA_EXT = '.csv'
-FILE_FMT = '%s_%s'
+FILE_FMT = '%s_%s-'  # Add - before random tempfile string
 
 abspath2 = os.path.abspath  # TODO write combo func here
 
@@ -84,6 +84,9 @@ def controller(model_setup, sampler, data_f, meta_f, N, time_grid_ms):
     model_name, D, params_dict = model_setup
     assert(model_name in BUILD_MODEL)
 
+    meta_headers = ['sample', 'dump_time', 'chunk_cpu_time', 'chunk_wall_time',
+                    'chunk_size', 'f_calls']
+
     print 'starting experiment'
     print 'D=%d' % D
     assert(D >= 1)
@@ -103,18 +106,20 @@ def controller(model_setup, sampler, data_f, meta_f, N, time_grid_ms):
     chunk_wall_time = 0.0
     next_dump_time_ms = 0.0
     time_dbg_chk = 0.0
+    len_chk = 0
     with pm.Model():
         pm.DensityDist('x', logpdf, shape=D, testval=np.zeros(D))
         steps = BUILD_STEP[sampler]()
-        # Does init happen here?? that needs to be timed.
         sample_generator = pm.sampling.iter_sample(N, steps)
 
         print 'setup function calls:'
         print get_counters()
 
+        meta_f.write(','.join(meta_headers))
+        meta_f.write('\n')
+
         print 'starting to sample'
-        # TODO dump meta here for init
-        # TODO write header for meta-data
+        # TODO figure out where init time is and dump into meta_f
         last_chunk = 0
         for ii in xrange(N):
             dump_time_ms_chk = next_grid(1e3 * total_cpu_time, time_grid_ms)
@@ -149,14 +154,13 @@ def controller(model_setup, sampler, data_f, meta_f, N, time_grid_ms):
                 time_dbg_chk += chunk_cpu_time
                 # TODO check is approx equal to next grid on chunk_cpu_time
                 assert(time_dbg_chk <= next_dump_time_ms)
-                # not true first time around
                 assert(ii == 0 or next_dump_time_ms == dump_time_ms_chk)
-                # TODO add check that sum of chunk_size==ii
+                len_chk += chunk_size
+                assert(ii == len_chk)
 
                 # Write out meta-data
                 meta = [ii, next_dump_time_ms, chunk_cpu_time, chunk_wall_time,
                         chunk_size, f_calls]
-                print meta  # TODO remove, just debug
                 np.savetxt(meta_f, [meta], delimiter=',')
                 chunk_cpu_time, chunk_wall_time = 0.0, 0.0
 
@@ -185,12 +189,12 @@ def run_experiment(config, param_name, sampler, N):
     assert(model_name in SAMPLE_MODEL)
 
     sample_file = FILE_FMT % (param_name, sampler)
-    # TODO put following in util
+    # TODO put following in util, the suffix not really needed on exact, but
+    # let's do it for consistency
     assert(is_safe_name(sample_file))
     data_f, data_path = mkstemp(suffix=DATA_EXT, prefix=sample_file,
                                 dir=output_path, text=False)
     data_f = os.fdopen(data_f, 'ab')  # Convert to actual file object
-
     print 'saving samples to %s' % data_path
 
     if sampler == exact_name:
@@ -202,9 +206,8 @@ def run_experiment(config, param_name, sampler, N):
         print 'saving meta-data to %s' % meta_file_name
         assert(not os.path.isfile(meta_file_name))  # This could be warning
         with open(meta_file_name, 'ab') as meta_f:  # Must use append mode!
-            R = controller(model_setup, sampler, data_f, meta_f, N, t_grid_ms)
+            controller(model_setup, sampler, data_f, meta_f, N, t_grid_ms)
     data_f.close()
-    return R
 
 
 def main():
@@ -222,13 +225,6 @@ def main():
     config = load_config(config_file)
 
     run_experiment(config, param_name, sampler, max_N)
-
-    # In run all put outer-loop to be nchains in case we stop early
-    # TODO step 4: find all runs
-    # Put into multitrace for diagnostics or list of mat ok??
-    # For metrics can just append into single chain
-    # How to handle burn-in for metrics?? thinning non-issue.
-    # Need to plot perf as func of burn-in??
     print 'done'  # Job will probably get killed before we get here.
 
 if __name__ == '__main__':
