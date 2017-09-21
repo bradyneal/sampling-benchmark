@@ -26,7 +26,7 @@ def main():
 
     config = m.load_config(config_file)
 
-    input_path, _, pkl_ext, exact_name = config
+    input_path, output_path, pkl_ext, meta_ext, exact_name, t_grid_ms = config
     model_list = get_model_list(input_path, pkl_ext)
     assert(all(m.is_safe_name(ss) for ss in model_list))
     print 'using models:'
