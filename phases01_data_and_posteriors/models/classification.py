@@ -17,8 +17,8 @@ from . import MAX_NUM_SAMPLES
 from .regression import build_pm_gp_cov
 
 CLASSIFICATION_MODEL_NAMES = \
-    ['softmax_linear_class', 'shallow_nn_class',
-     'gp_ExpQuad_class', 'gp_Exponential_class', 'gp_Matern32_class', 'gp_Matern52_class', 'gp_RatQuad_class']
+    ['softmax-linear-class', 'shallow-nn-class',
+     'gp-ExpQuad-class', 'gp-Exponential-class', 'gp-Matern32-class', 'gp-Matern52-class', 'gp-RatQuad-class']
 
 
 def sample_classification_model(model_name, X, y, num_samples=MAX_NUM_SAMPLES,
@@ -45,22 +45,22 @@ def sample_classification_model(model_name, X, y, num_samples=MAX_NUM_SAMPLES,
     if reduced_d < d:
         num_non_categorical = reduced_d
     
-    model_name = model_name.replace('_class', '')
+    model_name = model_name.replace('-class', '')
     
     # Build model
-    if 'softmax_linear' == model_name:
+    if 'softmax-linear' == model_name:
         model = build_softmax_linear(X, y)
-    elif 'shallow_nn' == model_name:
+    elif 'shallow-nn' == model_name:
         return sample_shallow_nn_class(X, y, num_samples)
-    elif 'gp_ExpQuad' == model_name:
+    elif 'gp-ExpQuad' == model_name:
         model = build_gpc(X, y, 'ExpQuad')
-    elif 'gp_Exponential' == model_name:
+    elif 'gp-Exponential' == model_name:
         model = build_gpc(X, y, 'Exponential')
-    elif 'gp_Matern32' == model_name:
+    elif 'gp-Matern32' == model_name:
         model = build_gpc(X, y, 'Matern32')
-    elif 'gp_Matern52' == model_name:
+    elif 'gp-Matern52' == model_name:
         model = build_gpc(X, y, 'Matern52')
-    elif 'gp_RatQuad' == model_name:
+    elif 'gp-RatQuad' == model_name:
         model = build_gpc(X, y, 'RatQuad')
     else:
         raise ValueError('Unsupported model: {}\nSupported models: {}'

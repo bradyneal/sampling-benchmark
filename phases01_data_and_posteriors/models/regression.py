@@ -17,11 +17,11 @@ from .utils import reduce_data_dimension
 
 REGRESSION_MODEL_NAMES = \
     [
-     # 'ls_linear_regres', 'robust_linear_regres', 'ls_quadratic_linear_regres',
-     'ls_pairwise_linear_regres', 'robust_pairwise_linear_regres', 'robust_quadratic_linear_regres',
-     # 'shallow_nn_regres',
-     # 'gp_ExpQuad_regres', 'gp_Exponential_regres', 'gp_Matern32_regres','gp_Matern52_regres',
-     # 'gp_RatQuad_regres' # currently throws an error
+     'ls-linear-regres', 'robust-linear-regres', 'ls-quadratic-linear-regres',
+     # 'ls-pairwise-linear-regres', 'robust-pairwise-linear-regres', 'robust-quadratic-linear-regres',
+     # 'shallow-nn-regres',
+     # 'gp-ExpQuad-regres', 'gp-Exponential-regres', 'gp-Matern32-regres','gp-Matern52-regres',
+     # 'gp-RatQuad-regres' # currently throws an error
      ]
 
 
@@ -51,32 +51,32 @@ def sample_regression_model(model_name, X, y, num_samples=MAX_NUM_SAMPLES,
     if reduced_d < d:
         num_non_categorical = reduced_d
     
-    model_name = model_name.replace('_regres', '')
+    model_name = model_name.replace('-regres', '')
     
     # Build model
-    if 'ls_linear' == model_name:
+    if 'ls-linear' == model_name:
         model = build_ls_linear(X, y)
-    elif 'ls_pairwise_linear' == model_name:
+    elif 'ls-pairwise-linear' == model_name:
         model = build_ls_pairwise(X, y, num_non_categorical)
-    elif 'ls_quadratic_linear' == model_name:
+    elif 'ls-quadratic-linear' == model_name:
         model = build_ls_quadratic(X, y, num_non_categorical)
-    elif 'robust_linear' == model_name:
+    elif 'robust-linear' == model_name:
         model = build_robust_linear(X, y)
-    elif 'robust_pairwise_linear' == model_name:
+    elif 'robust-pairwise-linear' == model_name:
         model = build_robust_pairwise(X, y, num_non_categorical)
-    elif 'robust_quadratic_linear' == model_name:
+    elif 'robust-quadratic-linear' == model_name:
         model = build_robust_quadratic(X, y, num_non_categorical)
-    elif 'shallow_nn' == model_name:
+    elif 'shallow-nn' == model_name:
         return sample_shallow_nn_regres(X, y, num_samples)
-    elif 'gp_ExpQuad' == model_name:
+    elif 'gp-ExpQuad' == model_name:
         model = build_gp(X, y, 'ExpQuad')
-    elif 'gp_Exponential' == model_name:
+    elif 'gp-Exponential' == model_name:
         model = build_gp(X, y, 'Exponential')
-    elif 'gp_Matern32' == model_name:
+    elif 'gp-Matern32' == model_name:
         model = build_gp(X, y, 'Matern32')
-    elif 'gp_Matern52' == model_name:
+    elif 'gp-Matern52' == model_name:
         model = build_gp(X, y, 'Matern52')
-    elif 'gp_RatQuad' == model_name:
+    elif 'gp-RatQuad' == model_name:
         model = build_gp(X, y, 'RatQuad')
     else:
         raise ValueError('Unsupported model: {}\nSupported models: {}'
