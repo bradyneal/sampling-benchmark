@@ -2,6 +2,7 @@
 *.csv
 *.pkl
 *.hdf5
+*.meta
 
 # Project Specific
 openml-python/

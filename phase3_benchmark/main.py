@@ -156,7 +156,8 @@ def controller(model_setup, sampler, data_f, meta_f, N, time_grid_ms):
                 # Write out meta-data
                 meta = [ii, next_dump_time_ms, chunk_cpu_time, chunk_wall_time,
                         chunk_size, f_calls]
-                np.savetxt(meta_f, meta, delimiter=',')
+                print meta  # TODO remove, just debug
+                np.savetxt(meta_f, [meta], delimiter=',')
                 chunk_cpu_time, chunk_wall_time = 0.0, 0.0
 
                 # Find the next grid point for quantized time
@@ -190,12 +191,15 @@ def run_experiment(config, param_name, sampler, N):
                                 dir=output_path, text=False)
     data_f = os.fdopen(data_f, 'ab')  # Convert to actual file object
 
+    print 'saving samples to %s' % data_path
+
     if sampler == exact_name:
         X = SAMPLE_MODEL[model_name](params_dict, N=N)
         assert(X.shape == (N, D))
         np.savetxt(data_f, X, delimiter=',')
     else:
         meta_file_name = data_path + meta_ext
+        print 'saving meta-data to %s' % meta_file_name
         assert(not os.path.isfile(meta_file_name))  # This could be warning
         with open(meta_file_name, 'ab') as meta_f:  # Must use append mode!
             R = controller(model_setup, sampler, data_f, meta_f, N, t_grid_ms)
