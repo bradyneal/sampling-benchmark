@@ -18,9 +18,10 @@ def get_model_list(input_path, ext):
 
 def main():
     # Could use a getopt package if this got fancy, but this is simple enough
-    assert(len(sys.argv) == 3)
+    assert(len(sys.argv) == 4)
     config_file = m.abspath2(sys.argv[1])
     max_N = int(sys.argv[2])
+    N_chains = int(sys.argv[3])
     # TODO add option to control random seed
     assert(max_N >= 0)
 
@@ -33,13 +34,16 @@ def main():
     print model_list
 
     sampler_list = m.BUILD_STEP.keys()
-    sampler_list.append(exact_name)
     print 'using samplers:'
     print sampler_list
 
     for param_name in model_list:
-        for sampler in sampler_list:
-            m.run_experiment(config, param_name, sampler, max_N)
+        m.run_experiment(config, param_name, exact_name, max_N)
+
+    for _ in xrange(N_chains):
+        for param_name in model_list:
+            for sampler in sampler_list:
+                m.run_experiment(config, param_name, sampler, max_N)
     print 'done'  # Job will probably get killed before we get here.
 
 if __name__ == '__main__':
