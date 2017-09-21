@@ -8,7 +8,7 @@ from itertools import combinations
 import pandas as pd
 from sklearn.decomposition import PCA
 
-from . import MAX_DATA_DIMENSION
+from . import MAX_DATA_DIMENSION, MAX_GP_N
 from data.preprocessing.format import make_col_names
 
 
@@ -20,6 +20,16 @@ def format_trace(trace):
     numpy array.
     """
     return pd.DataFrame.as_matrix(trace_to_dataframe(trace))
+
+
+def subsample(X, model_name):
+    """Subsample X if the model is a Gaussian process"""
+    if 'gp' in model_name:
+        n = X.shape[0]
+        idx = np.random.randint(n, size=MAX_GP_N)
+        return X[idx, :]
+    else:
+        return X
 
 
 def reduce_data_dimension(X, model_name, transform=None,

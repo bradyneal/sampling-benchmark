@@ -11,7 +11,8 @@ from timeit import default_timer as timer
 
 from .utils import format_trace
 from .nn import sample_shallow_nn
-from . import MAX_NUM_SAMPLES
+from . import MAX_NUM_SAMPLES, MAX_TIME_IN_SECONDS
+from .utils import reduce_data_dimension, subsample
 
 # Arguably, build_pm_gp_cov should go in some 3rd file like util
 from .regression import build_pm_gp_cov
@@ -39,6 +40,7 @@ def sample_classification_model(model_name, X, y, num_samples=MAX_NUM_SAMPLES,
     Raises:
         ValueError: if the specified model name is not supported
     """
+    X = subsample(X, model_name)
     d = X.shape[1]
     X = reduce_data_dimension(X, model_name)
     reduced_d = X.shape[1]
