@@ -6,3 +6,4 @@ MAX_DATA_DIMENSION = {
     'pairwise': 9,
     'quadratic': 8
 }
+MAX_GP_N = 1000

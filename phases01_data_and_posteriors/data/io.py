@@ -172,8 +172,6 @@ def is_task_file(task):
     Return whether or not the dataset ids corresponding to the specified task
     have already be downloaded
     """
-    print('task:', task)
-    print('task file:', get_task_filename(task))
     return os.path.isfile(get_task_filename(task))
 
 
