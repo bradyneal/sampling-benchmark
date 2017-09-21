@@ -11,6 +11,8 @@ from data.io import read_dataset_Xy, read_dataset_categorical, write_samples, \
 from data.config import Preprocess
 from data.preprocessing.format import to_ndarray
 
+NUM_MODELS_PER_DATASET = 1
+
 
 # For each different task (e.g. regression, classification, etc.),
 # run outer loop that loops over datasets and inner loop that loops over models.
@@ -47,11 +49,12 @@ def sample_and_save_posteriors(dids, task):
         X, y = read_dataset_Xy(dataset_id, preprocess)
         X = to_ndarray(X)
         
-        for model_name in model_names:
+        random.shuffle(model_names)
+        for model_name in model_names[:NUM_MODELS_PER_DATASET]:
             name = '{}_{}'.format(dataset_id, model_name)
             if is_samples_file(model_name, dataset_id):
                 print(name + ' samples file already exists... skipping')
-                continue
+                continue                
             print('Starting sampling ' + name)
             samples = sample_model(model_name, X, y,
                                    num_non_categorical=num_non_categorical)
