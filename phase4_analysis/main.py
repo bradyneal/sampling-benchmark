@@ -34,7 +34,7 @@ def load_config(config_file):
 
 
 def load_meta(input_path, fname, meta_ext, n_grid):
-    os.path.join(input_path, fname) + meta_ext
+    fname = os.path.join(input_path, fname) + meta_ext
     df = pd.read_csv(fname, header=0)
     idx = pd.Series(index=df['grid_idx'].values, data=df['sample'].values)
     assert(idx[0] == 0)
@@ -44,13 +44,6 @@ def load_meta(input_path, fname, meta_ext, n_grid):
     assert(idx.shape == (n_grid,))
     assert(np.all(np.isfinite(idx)))
     return idx
-
-
-def chomp(ss, ext):
-    # TODO move to common util folder to avoid repetition
-    L = len(ext)
-    assert(ss[-L:] == ext)
-    return ss[:-L]
 
 
 def find_traces(input_path, exact_name, ext=DATA_EXT):
@@ -63,15 +56,17 @@ def find_traces(input_path, exact_name, ext=DATA_EXT):
     samplers_to_use = set()  # Can exluce exact from list of samplers
     file_lookup = {}
     for fname in files:
+        if not fname.endswith(DATA_EXT):
+            continue
+
         # TODO create general parser for filenames in the project util
         # also assert safe name
-        case_name = chomp(fname, ext)
         # Warning! hash seems to have _ in it somestimes atm
-        case_name, temp_str = case_name.rsplit('-', 1)  # Chop off hash part
-        assert(len(temp_str) == 6)  # For now, TODO remove
+        case_name, temp_str = fname.rsplit('-', 1)  # Chop off hash part+ext
+        assert(len(temp_str) == 6 + len(ext))  # For now, TODO remove
         curr_example, curr_sampler = case_name.rsplit('_', 1)
 
-        S = file_lookup.get((curr_example, curr_sampler), set())
+        S = file_lookup.setdefault((curr_example, curr_sampler), set())
         S.add(fname)  # Use set to ensure don't use chain more than once
 
         if curr_sampler == exact_name:  # Only use example if have exact result
@@ -153,14 +148,13 @@ def main():
         fname, = file_lookup[(example, exact_name)]  # singleton set
         exact_chain = load_chain(input_path, fname)
         for metric in metrics:
-            perf_target.loc[metric, example] = build_target(exact_chain)
+            perf_target.loc[metric, example] = build_target(exact_chain, metric)
         for sampler in samplers:
             all_chains = []  # will be used by diags
             # Go in sorted order to keep it reproducible
             file_list = sorted(file_lookup[(example, sampler)])
-            if len(file_list) < n_chains:  # TODO make optional
-                print 'only found %d / %d chains for %s x %s' % \
-                    (len(file_list), n_chains, example, sampler)
+            print 'found %d / %d chains for %s x %s' % \
+                (len(file_list), n_chains, example, sampler)
             for c_num, fname in enumerate(file_list):
                 curr_chain = load_chain(input_path, fname)
                 all_chains.append(curr_chain)
@@ -179,7 +173,7 @@ def main():
         mean_perf = perf_slice.mean(dim='chain', skipna=True)
         dump_results(mean_perf.to_pandas().T, output_path, 'perf-%s' % example)
         target_rate = xr_mean_lte(perf_slice,
-                                  perf_target.slice(example=example),
+                                  perf_target.sel(example=example),
                                   dim='chain')
         dump_results(target_rate.to_pandas().T, output_path,
                      'perf-%s' % example)
@@ -206,6 +200,8 @@ def main():
     dump_results(final_perf_rate.to_pandas().T, output_path, 'final-perf-rate')
 
     dump_results(diagnostic_df, output_path, 'diagnostic')
+
+    # Could also include option to dump everything in netCDF if we want
     print 'done'
 
 if __name__ == '__main__':
