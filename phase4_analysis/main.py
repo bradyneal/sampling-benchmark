@@ -159,6 +159,9 @@ def main():
                     perf_curr = eval_inc(exact_chain, curr_chain, metric, idx)
                     assert(perf_curr.shape == (n_grid,))
                     perf.loc[:, metric, c_num, sampler, example] = perf_curr
+            for diag_name, diag_f in STD_DIAGNOSTICS.iteritems():
+                score = diag_f(all_chains)
+                diagnostic_df.loc[sampler, (diag_name, example)] = score
 
     # Now slice and dice to get summaries
     for example in examples:
