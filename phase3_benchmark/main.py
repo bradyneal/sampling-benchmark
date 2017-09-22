@@ -1,5 +1,6 @@
 # Ryan Turner (turnerry@iro.umontreal.ca)
 import cPickle as pkl
+import csv
 import ConfigParser
 import os
 import sys
@@ -16,6 +17,7 @@ from time import clock as cpu_time
 
 DATA_EXT = '.csv'
 FILE_FMT = '%s_%s-'  # Add - before random tempfile string
+MAX_N = 1000000
 
 abspath2 = os.path.abspath  # TODO write combo func here
 
@@ -45,6 +47,7 @@ def load_config(config_file):
     input_path = abspath2(config.get('phase2', 'output_path'))
     output_path = abspath2(config.get('phase3', 'output_path'))
     t_grid_ms = config.getint('phase3', 'time_grid_ms')
+    n_grid = config.getint('phase3', 'n_grid')
 
     pkl_ext = config.get('common', 'pkl_ext')
     meta_ext = config.get('common', 'meta_ext')
@@ -53,7 +56,7 @@ def load_config(config_file):
     csv_ext = config.get('common', 'csv_ext')
     assert(csv_ext == DATA_EXT)  # For now just assert instead of pass
 
-    return input_path, output_path, pkl_ext, meta_ext, exact_name, t_grid_ms
+    return input_path, output_path, pkl_ext, meta_ext, exact_name, t_grid_ms, n_grid
 
 
 def format_trace(trace):
@@ -70,22 +73,25 @@ def is_safe_name(name_str, allow_dot=False):
 
 
 def next_grid(x, grid_size):
-    x_next = grid_size * ((x // grid_size) + 1)
+    grid_idx = int(x // grid_size) + 1
+    x_next = grid_size * grid_idx
     assert(x_next > x)
     assert(x_next - x <= grid_size)  # no skipping
-    return x_next
+    return grid_idx, x_next
 
 
-def controller(model_setup, sampler, data_f, meta_f, N, time_grid_ms):
+def controller(model_setup, sampler, data_f, meta_f, time_grid_ms, n_grid):
     assert(sampler in BUILD_STEP)
-    assert(N >= 0)
     assert(time_grid_ms > 0)
 
     model_name, D, params_dict = model_setup
     assert(model_name in BUILD_MODEL)
 
-    meta_headers = ['sample', 'dump_time', 'chunk_cpu_time', 'chunk_wall_time',
+    meta_headers = ['grid_idx', 'sample',
+                    'grid_time_ms', 'chunk_cpu_time_s', 'chunk_wall_time_s',
                     'chunk_size', 'f_calls']
+    meta_writer = csv.writer(meta_f)
+    meta_writer.writerow(meta_headers)
 
     print 'starting experiment'
     print 'D=%d' % D
@@ -100,29 +106,35 @@ def controller(model_setup, sampler, data_f, meta_f, N, time_grid_ms):
         ll = BUILD_MODEL[model_name](x, p)
         return ll + s * 0
 
+    # TODO put all this in some form of generator, it would be cleaner
+    # Can also just build up meta-data with generator, and skip file IO
+    # Incremental file IO is not really needed here
+
     reset_counters()
+    last_count = 0
+
     total_cpu_time = 0.0
     chunk_cpu_time = 0.0
     chunk_wall_time = 0.0
+
+    grid_idx = 0
     next_dump_time_ms = 0.0
+
     time_dbg_chk = 0.0
     len_chk = 0
     with pm.Model():
         pm.DensityDist('x', logpdf, shape=D, testval=np.zeros(D))
         steps = BUILD_STEP[sampler]()
-        sample_generator = pm.sampling.iter_sample(N, steps)
+        sample_generator = pm.sampling.iter_sample(MAX_N, steps)
 
         print 'setup function calls:'
         print get_counters()
 
-        meta_f.write(','.join(meta_headers))
-        meta_f.write('\n')
-
         print 'starting to sample'
         # TODO figure out where init time is and dump into meta_f
         last_chunk = 0
-        for ii in xrange(N):
-            dump_time_ms_chk = next_grid(1e3 * total_cpu_time, time_grid_ms)
+        for ii in xrange(MAX_N):
+            grid_chk, dump_time_ms_chk = next_grid(1e3 * total_cpu_time, time_grid_ms)
 
             # Get calls not including this point, is there much overhead to
             # doing this each iter??
@@ -155,28 +167,36 @@ def controller(model_setup, sampler, data_f, meta_f, N, time_grid_ms):
                 # TODO check is approx equal to next grid on chunk_cpu_time
                 assert(time_dbg_chk <= next_dump_time_ms)
                 assert(ii == 0 or next_dump_time_ms == dump_time_ms_chk)
+                assert(ii == 0 or grid_idx == grid_chk)
                 len_chk += chunk_size
                 assert(ii == len_chk)
 
                 # Write out meta-data
-                meta = [ii, next_dump_time_ms, chunk_cpu_time, chunk_wall_time,
-                        chunk_size, f_calls]
-                np.savetxt(meta_f, [meta], delimiter=',')
+                chunk_calls = f_calls - last_count
+                last_count = f_calls
+                meta = [grid_idx, ii,
+                        next_dump_time_ms, chunk_cpu_time, chunk_wall_time,
+                        chunk_size, chunk_calls]
+                print meta
+                meta_writer.writerow(meta)
                 chunk_cpu_time, chunk_wall_time = 0.0, 0.0
 
                 # Find the next grid point for quantized time
-                next_dump_time_ms = next_grid(total_cpu_time_ms, time_grid_ms)
+                grid_idx, next_dump_time_ms = \
+                    next_grid(total_cpu_time_ms, time_grid_ms)
+                if grid_idx >= n_grid:
+                    break
             chunk_cpu_time += tc_delta
             chunk_wall_time += tw_delta
         print 'function calls:'
         print get_counters()
-    sec_sample = total_cpu_time / N
+    sec_sample = total_cpu_time / len(trace)
     print 's/sample = %f' % sec_sample
     return sec_sample
 
 
-def run_experiment(config, param_name, sampler, N):
-    input_path, output_path, pkl_ext, meta_ext, exact_name, t_grid_ms = config
+def run_experiment(config, param_name, sampler, n_exact):
+    input_path, output_path, pkl_ext, meta_ext, exact_name, t_grid_ms, n_grid = config
 
     assert(sampler == exact_name or sampler in BUILD_STEP)
 
@@ -198,15 +218,15 @@ def run_experiment(config, param_name, sampler, N):
     print 'saving samples to %s' % data_path
 
     if sampler == exact_name:
-        X = SAMPLE_MODEL[model_name](params_dict, N=N)
-        assert(X.shape == (N, D))
+        X = SAMPLE_MODEL[model_name](params_dict, N=n_exact)
+        assert(X.shape == (n_exact, D))
         np.savetxt(data_f, X, delimiter=',')
     else:
         meta_file_name = data_path + meta_ext
         print 'saving meta-data to %s' % meta_file_name
         assert(not os.path.isfile(meta_file_name))  # This could be warning
         with open(meta_file_name, 'ab') as meta_f:  # Must use append mode!
-            controller(model_setup, sampler, data_f, meta_f, N, t_grid_ms)
+            controller(model_setup, sampler, data_f, meta_f, t_grid_ms, n_grid)
     data_f.close()
 
 
@@ -216,15 +236,15 @@ def main():
     config_file = abspath2(sys.argv[1])
     param_name = sys.argv[2]
     sampler = sys.argv[3]
-    max_N = int(sys.argv[4])
+    n_exact = int(sys.argv[4])
     # TODO add option to control random seed
 
     assert(is_safe_name(param_name))
-    assert(max_N >= 0)
+    assert(n_exact >= 0)
 
     config = load_config(config_file)
 
-    run_experiment(config, param_name, sampler, max_N)
+    run_experiment(config, param_name, sampler, n_exact)
     print 'done'  # Job will probably get killed before we get here.
 
 if __name__ == '__main__':
