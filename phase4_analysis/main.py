@@ -111,11 +111,6 @@ def main():
     input_path, output_path, meta_ext, exact_name, n_grid = \
         load_config(config_file)
 
-    primary_metric = 'mean'
-    primary_diag = 'Geweke'
-    assert(primary_metric in STD_METRICS)
-    assert(primary_diag in STD_DIAGNOSTICS)
-
     samplers, examples, file_lookup = find_traces(input_path, exact_name)
     print 'found %d samplers and %d examples' % (len(samplers), len(examples))
     print '%d files in lookup table' % \
@@ -176,19 +171,18 @@ def main():
                                   perf_target.sel(example=example),
                                   dim='chain')
         dump_results(target_rate.to_pandas().T, output_path,
-                     'perf-%s' % example)
+                     'perf-rate-%s' % example)
 
     for metric in metrics:
         perf_slice = perf.sel(metric=metric)
-        # Resulting are metric x sampler
-        # TODO transpose
+        # Resulting are time x sampler
         time_perf = perf_slice.mean(dim=('chain', 'example'), skipna=True)
-        dump_results(time_perf.to_pandas().T, output_path,
+        dump_results(time_perf.to_pandas(), output_path,
                      'time-perf-%s' % metric)
         target_rate_v_time = \
             xr_mean_lte(perf_slice, perf_target.sel(metric=metric),
                         dim=('chain', 'example'))
-        dump_results(target_rate_v_time.to_pandas().T, output_path,
+        dump_results(target_rate_v_time.to_pandas(), output_path,
                      'time-perf-rate-%s' % metric)
 
     # Resulting is metric x sampler
