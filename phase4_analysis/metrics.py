@@ -21,3 +21,23 @@ def std(exact_chain, sampler_chain):
     return err
 
 STD_METRICS = {'mean': mean, 'std': std}
+
+
+def build_target(exact_chain, metric):
+    metric_f = STD_METRICS[metric]
+
+    # TODO do something better
+    N = exact_chain.shape[0] // 2
+    target = metric_f(exact_chain, exact_chain[:N, :])
+    return target
+
+
+def eval_inc(exact_chain, curr_chain, metric, idx):
+    assert(np.ndim(idx) == 1)
+    metric_f = STD_METRICS[metric]
+
+    # Just so it naively right now
+    perf = np.zeros(len(idx))
+    for ii, n_samples in enumerate(idx):
+        perf[ii] = metric_f(exact_chain, curr_chain[:n_samples, :])
+    return perf
