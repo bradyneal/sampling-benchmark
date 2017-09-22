@@ -3,6 +3,7 @@
 name: samp-phase01
 dependencies:
 - h5py
+- joblib
 - numpy
 - pandas
 - python=3

@@ -40,7 +40,7 @@ def sample_classification_model(model_name, X, y, num_samples=MAX_NUM_SAMPLES,
     Raises:
         ValueError: if the specified model name is not supported
     """
-    X = subsample(X, model_name)
+    X, y = subsample(X, y, model_name)
     d = X.shape[1]
     X = reduce_data_dimension(X, model_name)
     reduced_d = X.shape[1]

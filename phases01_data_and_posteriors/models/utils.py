@@ -6,6 +6,7 @@ in this package.
 from pymc3.backends.tracetab import trace_to_dataframe
 from itertools import combinations
 import pandas as pd
+import numpy as np
 from sklearn.decomposition import PCA
 
 from . import MAX_DATA_DIMENSION, MAX_GP_N
@@ -22,14 +23,13 @@ def format_trace(trace):
     return pd.DataFrame.as_matrix(trace_to_dataframe(trace))
 
 
-def subsample(X, model_name):
+def subsample(X, y, model_name):
     """Subsample X if the model is a Gaussian process"""
-    if 'gp' in model_name:
-        n = X.shape[0]
+    if 'gp' in model_name and X.shape[0] > MAX_GP_N:
         idx = np.random.randint(n, size=MAX_GP_N)
-        return X[idx, :]
+        return X[idx, :], y[idx]
     else:
-        return X
+        return X, y
 
 
 def reduce_data_dimension(X, model_name, transform=None,
