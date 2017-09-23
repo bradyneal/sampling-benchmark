@@ -20,12 +20,6 @@ import bench_models.nade.TrainingController as TrainingController
 from bench_models.nade.Utils.DropoutMask import create_dropout_masks
 from bench_models.nade.Utils.theano_helpers import floatX
 
-# TODO put in wrappers for:
-# simple gauss (diag and full), MoG, RNADE, IGN, RNVP (py2 vs 3 issues?)
-# later: other mixtures (MoT?), RNADE variants like laplace,
-# other implentations of RNVP/RNADE, maybe fancy stuff like DPM
-# factor analysis/PCA also possible as ref points
-
 
 def rescale(X, shift, scale):
     assert(X.ndim == 2)
@@ -35,16 +29,17 @@ def rescale(X, shift, scale):
     return Y
 
 
-def mvn_logpdf(X, mu, prec_U):
+def mvn_logpdf_from_chol(X, mu, inv_chol_U_cov):
+    '''inv_chol_U_cov = inv(chol(covariance).T) where chol return tril mat.'''
     assert(X.ndim == 2)
     D = X.shape[1]
-    assert(mu.shape == (D,) and prec_U.shape == (D, D))
-    # Eventually remove since slow
-    assert(np.allclose(prec_U, np.triu(prec_U)))
+    assert(mu.shape == (D,) and inv_chol_U_cov.shape == (D, D))
+    # This has overhead, but there is too much potential for confusion to skip
+    assert(np.allclose(inv_chol_U_cov, np.triu(inv_chol_U_cov)))
 
-    log_det_cov = -2.0 * np.sum(np.log(np.diag(prec_U)))
+    log_det_cov = -2.0 * np.sum(np.log(np.diag(inv_chol_U_cov)))
     dev = X - mu[None, :]
-    maha = np.sum(np.square(np.dot(dev, prec_U)), axis=1)
+    maha = np.sum(np.square(np.dot(dev, inv_chol_U_cov)), axis=1)
     return -0.5 * (D * np.log(2 * np.pi) + log_det_cov + maha)
 
 
@@ -56,6 +51,7 @@ class GaussianMixture_(GaussianMixture):
         '''Add get_params object to GaussianMixture.'''
         D = {'weights': self.weights_, 'means': self.means_,
              'covariances': self.covariances_, 'type': self.covariance_type}
+        # TODO use precision too
         return D
 
     @staticmethod
@@ -93,6 +89,12 @@ class BayesianGaussianMixture_(BayesianGaussianMixture):
         D = {'weights': self.weights_, 'means': self.means_,
              'covariances': self.covariances_, 'type': self.covariance_type,
              'precisions_cholesky': self.precisions_cholesky_}
+
+        # Verify sklearn is coherent and consistent with precisions_cholesky
+        for cc in xrange(D['precisions_cholesky'].shape[1]):
+            chol_U = np.linalg.inv(D['precisions_cholesky'][cc, :, :])
+            cov = np.dot(chol_U.T, chol_U)
+            assert(np.allclose(cov, D['covariances'][cc, :, :]))
         return D
 
     @staticmethod
@@ -112,18 +114,19 @@ class BayesianGaussianMixture_(BayesianGaussianMixture):
         for ii in xrange(len(w)):
             mu = params['means'][ii, :]
             prec_U = params['precisions_cholesky'][ii, :, :]
-            gauss_part = mvn_logpdf(X, mu, prec_U)  # More efficient and stable
+            # More efficient and stable than normal mvn log pdf
+            gauss_part = mvn_logpdf_from_chol(X, mu, prec_U)
 
             # Now check against traditional mvn in scipy
             S = params['covariances'][ii, :, :]
             try:
                 gauss_part_chk = ss.multivariate_normal.logpdf(X, mu, S)
                 # TODO eventually move to numerical logger
-                err = np.max(np.abs(gauss_part_chk - gauss_part))
-                if not (err <= 1e-8):
-                    print 'gauss chk err: %f' % err
-            except LinAlgError:  # Sometimes hard to take cholesky
-                gauss_part_chk = np.nan  # Just skip
+                if not np.allclose(gauss_part, gauss_part_chk):
+                    err = np.max(np.abs(gauss_part_chk - gauss_part))
+                    print 'gauss chk log10 err: %f' % np.log10(err)
+            except LinAlgError:
+                pass  # Sometimes it is just too hard to take cholesky
 
             loglik[:, ii] = np.log(w[ii]) + gauss_part
         loglik = logsumexp(loglik, axis=1)
@@ -191,7 +194,6 @@ class RNADE:
                  pretraining_epochs=5, validation_loops=20, valid_frac=0.2,
                  lr=0.02, epoch_size=100, batch_size=100, momentum=0.9,
                  dataset_name='RNADE_test_run', scratch_dir='.'):
-        # TODO eliminate need for these things
         self.dataset_name = dataset_name
         self.scratch_dir = scratch_dir
 
@@ -236,7 +238,6 @@ class RNADE:
         # Rest of stuff in here copied/adapted from orderlessNADE.py, seems
         # more complicated than it needs to be.  Can it be made simpler??
 
-        # TODO Maybe we can do this in memory without writing files out
         masks_filename = self.dataset_name + "." + floatX + ".masks"
         masks_route = os.path.join(self.scratch_dir, masks_filename)
         create_dropout_masks(self.scratch_dir, masks_filename, n_visible, ks=1000)
@@ -247,7 +248,6 @@ class RNADE:
         validation_loss = lambda ins: -ins.model.estimate_average_loglikelihood_for_dataset_using_masks(validation_dataset, masks_dataset, loops=self.validation_loops)
         validation_loss_measurement = Instrumentation.Function('validation_loss', validation_loss)
 
-        # TODO make optional
         console = Backends.Console()
         textfile_log = Backends.TextFile(os.path.join(self.scratch_dir, "NADE_training.log"))
         hdf5_backend = Backends.HDF5(self.scratch_dir, "NADE")
@@ -283,7 +283,7 @@ class RNADE:
             trainer.train()
 
         # Configure training
-        ordering = range(n_visible)  # TODO should this be np array??
+        ordering = range(n_visible)
         np.random.shuffle(ordering)
         trainer = Optimization.MomentumSGD(nade, nade.__getattribute__(loss_function))
         trainer.set_datasets([training_dataset, masks_dataset])
@@ -394,7 +394,6 @@ class RNADE:
         logpdf = logpdf - np.sum(np.log(params['scale']))
         return logpdf
 
-# Dict with sklearn like interfaces for each of the models we will use to train
-# samples.
+# Dict with sklearn like interfaces for each of the models
 STD_BENCH_MODELS = {'MoG': GaussianMixture_, 'VBMoG': BayesianGaussianMixture_,
                     'IGN': IGN, 'RNADE': RNADE}

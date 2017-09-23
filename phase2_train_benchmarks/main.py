@@ -12,7 +12,7 @@ from model_wrappers import STD_BENCH_MODELS
 # export PYTHONPATH=./bench_models/nade/:$PYTHONPATH
 # TODO fix, i don't like that, need to fix some garbage in __init__.py files
 
-PHASE3_MODELS = ('MoG', 'RNADE')
+PHASE3_MODELS = ('MoG', 'RNADE')  # TODO add VBMoG
 DATA_EXT = '.csv'
 abspath2 = os.path.abspath  # TODO write combo func here
 
@@ -83,48 +83,46 @@ def run_experiment(config, mc_chain_name, standardize=True, debug_dump=False,
     print 'size %d x %d' % (N, D)
     N_train = int(np.ceil(train_frac * N))
 
-    # TODO code up rescale adjust function to 
+    # TODO code up rescale adjust function too
 
     best_loglik = -np.inf
     best_case = None
     model_dump = {}
     for run_name, (model_name, args, cv_args) in run_config.iteritems():
         print 'running %s with arguments' % model_name
-        # TODO use pretty print or whatever it is called to print dict nicely
         print args
-        print 'CV'
-        print cv_args
+        print 'grid searching over parameters'
+        print cv_args.keys()
 
+        # Do the training
         model = STD_BENCH_MODELS[model_name](**args)
-        try:
-            if len(cv_args) == 0:
-                model.fit(MC_chain[:N_train, :])
-            else:
-                # TODO eventually move to skopt
-                model = GridSearchCV(model, cv_args)
-                model.fit(MC_chain[:N_train, :])
-                model = model.best_estimator_  # Get original model back out
-        except Exception as err:
-            print '%s failed!' % run_name
-            print err
-            continue
-        # Get score for each sample, can then use benchmark tools for table
-        # with error bars and all that at a later point.
-        loglik_vec = model.score_samples(MC_chain[N_train:, :])
-
+        if len(cv_args) == 0:
+            model.fit(MC_chain[:N_train, :])
+        else:
+            # TODO eventually move to skopt
+            cv_model = GridSearchCV(model, cv_args)
+            cv_model.fit(MC_chain[:N_train, :])
+            model = cv_model.best_estimator_  # Get original model back out
+            print 'CV optimum'
+            print cv_model.best_params_
+        # Get the performance for this model
         params_obj = model.get_params_()
-        loglik_vec_chk = model.loglik_chk(MC_chain[N_train:, :], params_obj)
+        # Using _chk function as the real b.c. that is what we use in phase 3
+        loglik_vec = model.loglik_chk(MC_chain[N_train:, :], params_obj)
+        test_loglik = np.mean(loglik_vec)
+        print 'loglik %s: %f' % (run_name, test_loglik)
+
+        # Check we get same answer as sklearn built in score
+        loglik_vec_chk = model.score_samples(MC_chain[N_train:, :])
         err = np.max(np.abs(loglik_vec - loglik_vec_chk))
         print 'loglik chk %s log10 err: %f' % (run_name, np.log10(err))
         print 'loglik chk %s: %f' % (run_name, np.mean(loglik_vec_chk))
 
-        test_loglik = np.mean(loglik_vec)
-        print 'loglik %s: %f' % (run_name, test_loglik)
+        # Update which is best so far
         if model_name in PHASE3_MODELS and test_loglik > best_loglik:
             best_loglik = test_loglik
             best_case = (model_name, model)
-
-        model_dump[run_name] = (model_name, params_obj)
+        model_dump[run_name] = (model_name, params_obj)  # For debug dump
     assert(best_case is not None)
 
     model_name, model = best_case
