@@ -82,14 +82,6 @@ def run_experiment(config, mc_chain_name, standardize=True, debug_dump=False,
     print 'size %d x %d' % (N, D)
     N_train = int(np.ceil(train_frac * N))
 
-    X_train, X_test = MC_chain[:N_train, :], MC_chain[N_train:, :]
-
-    if standardize:
-        # Might make more sense to use robust scaler here
-        scaler = StandardScaler()
-        X_train = scaler.fit_transform(X_train)
-        X_test = scaler.transform(X_test)
-
     best_loglik = -np.inf
     best_case = None
     model_dump = {}
@@ -102,13 +94,13 @@ def run_experiment(config, mc_chain_name, standardize=True, debug_dump=False,
         # All models are setup in sklearn pattern to make later use with skopt
         # easier, and can use sklearn estimators with no wrappers.
         model = STD_BENCH_MODELS[model_name](**args)
-        model.fit(X_train)
+        model.fit(MC_chain[:N_train, :])
         # Get score for each sample, can then use benchmark tools for table
         # with error bars and all that at a later point.
-        loglik_vec = model.score_samples(X_test)
+        loglik_vec = model.score_samples(MC_chain[N_train:, :])
 
         params_obj = model.get_params()
-        loglik_vec_chk = model.loglik_chk(X_test, params_obj)
+        loglik_vec_chk = model.loglik_chk(MC_chain[N_train:, :], params_obj)
         err = np.max(np.abs(loglik_vec - loglik_vec_chk))
         print 'loglik chk log10 err %f' % np.log10(err)
 
@@ -128,6 +120,10 @@ def run_experiment(config, mc_chain_name, standardize=True, debug_dump=False,
     # seem brittle.  We also need to re-implement these objects anyway for
     # reuse with pymc3, so we might as well just save the parameters clean.
     params_obj = model.get_params()
+
+    # TODO sample data here and do sanity check against original
+    # Might make more sense just ot sample example here
+    # on each time print: moments, test stat (t or U, BF, KS), p-val for test
 
     # Now dump to finish the job
     dump_file = build_output_name(mc_chain_name, model_name, pkl_ext)

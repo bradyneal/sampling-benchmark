@@ -26,9 +26,18 @@ from bench_models.nade.Utils.theano_helpers import floatX
 # factor analysis/PCA also possible as ref points
 
 
+def rescale(X, shift, scale):
+    assert(X.ndim == 2)
+    assert(shift.ndim == 1 and scale.ndim == 1)
+
+    Y = (X - shift[None, :]) / scale[None, :]
+    return Y
+
+
 class GaussianMixture_(GaussianMixture):
     '''We could use multiple inheritence to enforce that all these classes have
     a get_params() method, but that might be more trouble than it is worth.'''
+    # TODO add some grid search here
 
     def get_params(self):
         '''Add get_params object to GaussianMixture.'''
@@ -143,6 +152,9 @@ class RNADE:
 
         self.nade_class = NADE.OrderlessMoGNADE
         self.nade_obj = None
+        self.shift = None
+        self.scale = None
+
 
     def fit(self, X):
         # TODO create short aliases on import for some of the long names here
@@ -152,8 +164,14 @@ class RNADE:
         N, n_visible = X.shape
         n_train = int(np.ceil((1.0 - self.valid_frac) * N))
 
-        training_dataset = Dataset(X[:n_train, :])
-        validation_dataset = Dataset(X[n_train:, :])
+        # Could consider replacing this with robust version
+        self.shift = np.mean(X[:n_train, :], axis=0)
+        self.scale = np.std(X[:n_train, :], axis=0)
+
+        training_dataset = \
+            Dataset(rescale(X[:n_train, :], self.shift, self.scale))
+        validation_dataset = \
+            Dataset(rescale(X[n_train:, :], self.shift, self.scale))
 
         # Rest of stuff in here copied/adapted from orderlessNADE.py, seems
         # more complicated than it needs to be.  Can it be made simpler??
@@ -239,8 +257,11 @@ class RNADE:
 
     def score_samples(self, X):
         assert(self.nade_obj is not None)
-        logpdf = self.nade_obj.logdensity(X.T)
+        X_std = rescale(X, self.shift, self.scale).T
+        logpdf = self.nade_obj.logdensity(X_std)
         assert(logpdf.shape == (X.shape[0],))
+        # Jacobian adjust back
+        logpdf = logpdf - np.sum(np.log(self.scale))
         return logpdf
 
     def get_params(self):
@@ -250,11 +271,14 @@ class RNADE:
         D = self.nade_obj.get_parameters()
         # This could be a deep copy or cast to np array if we wanted to be safe
         D['orderings'] = self.nade_obj.orderings
+        D['shift'] = self.shift
+        D['scale'] = self.scale
         return D
 
     @staticmethod
     def loglik_chk(X, params):
         N, n_visible = X.shape
+        X = rescale(X, params['shift'], params['scale'])
 
         # TODO infer these from parameters
         n_hidden, n_layers = params['n_hidden'], params['n_layers']
@@ -304,6 +328,10 @@ class RNADE:
 
                 a += np.outer(X[:, i], W1[i, :]) + Wflags[i, None]  # N x H
         logpdf = logsumexp(lp + np.log(1.0 / len(orderings)), axis=1)
+
+        assert(logpdf.shape == (X.shape[0],))
+        # Jacobian adjust back
+        logpdf = logpdf - np.sum(np.log(params['scale']))
         return logpdf
 
 # Dict with sklearn like interfaces for each of the models we will use to train
