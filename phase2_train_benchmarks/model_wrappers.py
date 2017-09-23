@@ -1,5 +1,6 @@
 # Ryan Turner (turnerry@iro.umontreal.ca)
 import os
+import warnings
 import numpy as np
 from numpy.linalg.linalg import LinAlgError
 import scipy.stats as ss
@@ -29,6 +30,36 @@ def rescale(X, shift, scale):
     return Y
 
 
+class Gaussian():
+    def __init__(self, diag=False):
+        self.diag = diag
+        self.mu = None
+        self.cov = None
+
+    def fit(self, X):
+        self.mu = np.mean(X, axis=0)
+        if self.diag:
+            self.cov = np.diag(np.var(X, axis=0))
+        else:
+            self.cov = np.cov(X, rowvar=False, bias=True)
+        self.cov = self.cov + 1e-6 * np.eye(X.shape[1])  # TODO remove
+        print self.cov
+
+    def score_samples(self, X):
+        return self.loglik_chk(X, self.get_params_())
+
+    def get_params_(self):
+        D = {'mean': self.mu, 'covariance': self.cov}
+        return D
+
+    @staticmethod
+    def loglik_chk(X, params):
+        # Could be more efficient in diag case later
+        logpdf = ss.multivariate_normal.logpdf(X, params['mean'],
+                                               params['covariance'])
+        return logpdf
+
+
 def mvn_logpdf_from_chol(X, mu, inv_chol_U_cov):
     '''inv_chol_U_cov = inv(chol(covariance).T) where chol return tril mat.'''
     assert(X.ndim == 2)
@@ -43,94 +74,76 @@ def mvn_logpdf_from_chol(X, mu, inv_chol_U_cov):
     return -0.5 * (D * np.log(2 * np.pi) + log_det_cov + maha)
 
 
+def get_params_mixture(mixture):
+    '''Add get_params object to BayesianGaussianMixture.'''
+    D = {'weights': mixture.weights_, 'means': mixture.means_,
+         'covariances': mixture.covariances_, 'type': mixture.covariance_type,
+         'precisions_cholesky': mixture.precisions_cholesky_}
+
+    # Verify sklearn is coherent and consistent with precisions_cholesky
+    for cc in xrange(D['precisions_cholesky'].shape[0]):
+        chol_U = np.linalg.inv(D['precisions_cholesky'][cc, :, :])
+        cov = np.dot(chol_U.T, chol_U)
+        assert(np.allclose(cov, D['covariances'][cc, :, :]))
+    return D
+
+
+def loglik_mixture(X, params):
+    '''Indep check of loglik instead of just using self reported in
+    original class. This could be made into some sort of static method
+    since we never use self.'''
+    # other types not yet supported
+    assert(params['type'] == 'full')
+
+    N = X.shape[0]
+
+    w = params['weights']
+    w = w / np.sum(w)  # Just to be sure normalized
+
+    loglik = np.zeros((N, len(w)))
+    for ii in xrange(len(w)):
+        mu = params['means'][ii, :]
+        prec_U = params['precisions_cholesky'][ii, :, :]
+        # More efficient and stable than normal mvn log pdf
+        gauss_part = mvn_logpdf_from_chol(X, mu, prec_U)
+
+        # Now check against traditional mvn in scipy
+        S = params['covariances'][ii, :, :]
+        try:
+            gauss_part_chk = ss.multivariate_normal.logpdf(X, mu, S)
+            # TODO eventually move to numerical logger
+            if not np.allclose(gauss_part, gauss_part_chk):
+                err = np.max(np.abs(gauss_part_chk - gauss_part))
+                print 'gauss chk log10 err: %f' % np.log10(err)
+        except LinAlgError:
+            pass  # Sometimes it is just hard to do cholesky
+
+        loglik[:, ii] = np.log(w[ii]) + gauss_part
+    loglik = logsumexp(loglik, axis=1)
+    return loglik
+
+
 class GaussianMixture_(GaussianMixture):
     '''We could use multiple inheritence to enforce that all these classes have
     a get_params() method, but that might be more trouble than it is worth.'''
 
     def get_params_(self):
-        '''Add get_params object to GaussianMixture.'''
-        D = {'weights': self.weights_, 'means': self.means_,
-             'covariances': self.covariances_, 'type': self.covariance_type}
-        # TODO use precision too
-        return D
+        # Way to do these functions with =??
+        return get_params_mixture(self)
 
     @staticmethod
     def loglik_chk(X, params):
-        '''Indep check of loglik instead of just using self reported in
-        original class. This could be made into some sort of static method
-        since we never use self.'''
-        # other types not yet supported
-        assert(params['type'] in ('full', 'diag'))
-
-        N = X.shape[0]
-
-        w = params['weights']
-        w = w / np.sum(w)  # Just to be sure normalized
-
-        loglik = np.zeros((N, len(w)))
-        for ii in xrange(len(w)):
-            mu = params['means'][ii, :]
-            S = params['covariances'][ii, :, :] if params['type'] == 'full' \
-                else np.diag(params['covariances'][ii, :])
-            # Not efficient for diag case, but this is only a check function
-            gauss_part = ss.multivariate_normal.logpdf(X, mu, S)
-            loglik[:, ii] = np.log(w[ii]) + gauss_part
-        loglik = logsumexp(loglik, axis=1)
-        return loglik
+        return loglik_mixture(X, params)
 
 
 class BayesianGaussianMixture_(BayesianGaussianMixture):
-    '''We could use multiple inheritence to enforce that all these classes have
-    a get_params() method, but that might be more trouble than it is worth.'''
-    # TODO eliminate repeat code with GaussianMixture
-
     def get_params_(self):
-        '''Add get_params object to BayesianGaussianMixture.'''
-        D = {'weights': self.weights_, 'means': self.means_,
-             'covariances': self.covariances_, 'type': self.covariance_type,
-             'precisions_cholesky': self.precisions_cholesky_}
-
-        # Verify sklearn is coherent and consistent with precisions_cholesky
-        for cc in xrange(D['precisions_cholesky'].shape[1]):
-            chol_U = np.linalg.inv(D['precisions_cholesky'][cc, :, :])
-            cov = np.dot(chol_U.T, chol_U)
-            assert(np.allclose(cov, D['covariances'][cc, :, :]))
-        return D
+        # Way to do these functions with =??
+        return get_params_mixture(self)
 
     @staticmethod
     def loglik_chk(X, params):
-        '''Indep check of loglik instead of just using self reported in
-        original class. This could be made into some sort of static method
-        since we never use self.'''
-        # other types not yet supported
-        assert(params['type'] == 'full')
-
-        N = X.shape[0]
-
-        w = params['weights']
-        w = w / np.sum(w)  # Just to be sure normalized
-
-        loglik = np.zeros((N, len(w)))
-        for ii in xrange(len(w)):
-            mu = params['means'][ii, :]
-            prec_U = params['precisions_cholesky'][ii, :, :]
-            # More efficient and stable than normal mvn log pdf
-            gauss_part = mvn_logpdf_from_chol(X, mu, prec_U)
-
-            # Now check against traditional mvn in scipy
-            S = params['covariances'][ii, :, :]
-            try:
-                gauss_part_chk = ss.multivariate_normal.logpdf(X, mu, S)
-                # TODO eventually move to numerical logger
-                if not np.allclose(gauss_part, gauss_part_chk):
-                    err = np.max(np.abs(gauss_part_chk - gauss_part))
-                    print 'gauss chk log10 err: %f' % np.log10(err)
-            except LinAlgError:
-                pass  # Sometimes it is just too hard to take cholesky
-
-            loglik[:, ii] = np.log(w[ii]) + gauss_part
-        loglik = logsumexp(loglik, axis=1)
-        return loglik
+        return loglik_mixture(X, params)
 
 
 class IGN:
@@ -219,14 +232,13 @@ class RNADE:
 
 
     def fit(self, X):
-        # TODO create short aliases on import for some of the long names here
-        # to avoid these super long lines
-        # TODO change " to ' to keep style consistent
+        # This function is a mess, it comes from original RNADE code, I won't
+        # even bother to fully clean this up.
 
         N, n_visible = X.shape
         n_train = int(np.ceil((1.0 - self.valid_frac) * N))
 
-        # Could consider replacing this with robust version
+        # Consider pulling this out
         self.shift = np.mean(X[:n_train, :], axis=0)
         self.scale = np.std(X[:n_train, :], axis=0)
 
@@ -234,9 +246,6 @@ class RNADE:
             Dataset(rescale(X[:n_train, :], self.shift, self.scale))
         validation_dataset = \
             Dataset(rescale(X[n_train:, :], self.shift, self.scale))
-
-        # Rest of stuff in here copied/adapted from orderlessNADE.py, seems
-        # more complicated than it needs to be.  Can it be made simpler??
 
         masks_filename = self.dataset_name + "." + floatX + ".masks"
         masks_route = os.path.join(self.scratch_dir, masks_filename)
@@ -266,7 +275,6 @@ class RNADE:
             trainer.set_datapoints_as_columns(True)
             trainer.add_controller(TrainingController.AdaptiveLearningRate(self.lr, 0, epochs=self.pretraining_epochs))
             trainer.add_controller(TrainingController.MaxIterations(self.pretraining_epochs))
-            # TODO use np.inf in these spots
             trainer.add_controller(TrainingController.ConfigurationSchedule("momentum", [(2, 0), (float('inf'), self.momentum)]))
             trainer.set_updates_per_epoch(self.epoch_size)
             trainer.set_minibatch_size(self.batch_size)
@@ -312,8 +320,7 @@ class RNADE:
         if trainer.was_successful():
             self.nade_obj = nade
         else:
-            # TODO convert to real warning
-            print 'Training error in RNADE!'
+            warnings.warn('RNADE training failed')
 
     def score_samples(self, X):
         assert(self.nade_obj is not None)
@@ -378,12 +385,12 @@ class RNADE:
                 # Any final warping. All N x C.
                 Alpha = softmax(z_alpha)
                 Mu = z_mu
-                Sigma = np.exp(z_sigma)  # TODO be explicit this is std
+                Sigma_std = np.exp(z_sigma)
 
                 lp_components = np.zeros(Alpha.shape)
                 for cc in xrange(lp_components.shape[1]):
-                    lp_components[:, cc] = ss.norm.logpdf(X[:, i], Mu[:, cc], Sigma[:, cc])
-                # Need += to aggregate over the different visible vars
+                    lp_components[:, cc] = ss.norm.logpdf(X[:, i], Mu[:, cc], Sigma_std[:, cc])
+                # The += is needed to aggregate over the different visible vars
                 lp[:, o_index] += logsumexp(lp_components + np.log(Alpha), axis=1)
 
                 a += np.outer(X[:, i], W1[i, :]) + Wflags[i, None]  # N x H
@@ -396,4 +403,4 @@ class RNADE:
 
 # Dict with sklearn like interfaces for each of the models
 STD_BENCH_MODELS = {'MoG': GaussianMixture_, 'VBMoG': BayesianGaussianMixture_,
-                    'IGN': IGN, 'RNADE': RNADE}
+                    'IGN': IGN, 'RNADE': RNADE, 'Gaussian': Gaussian}

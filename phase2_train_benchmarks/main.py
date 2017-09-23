@@ -12,20 +12,36 @@ from model_wrappers import STD_BENCH_MODELS
 # export PYTHONPATH=./bench_models/nade/:$PYTHONPATH
 # TODO fix, i don't like that, need to fix some garbage in __init__.py files
 
-PHASE3_MODELS = ('MoG', 'RNADE')  # TODO add VBMoG
+PHASE3_MODELS = ('MoG', 'VBMoG', 'RNADE')  # Models implemented in phase 3
 DATA_EXT = '.csv'
-abspath2 = os.path.abspath  # TODO write combo func here
+
+# ============================================================================
+# TODO move everything here to general util file
 
 
-def build_output_name(mc_chain_name, model_name, pkl_ext):
-    output_name = '%s_%s%s' % (mc_chain_name, model_name, pkl_ext)
+def abspath2(fname):
+    return os.path.abspath(os.path.expanduser(fname))
+
+
+def build_output_name(mc_chain_name, model_name, pkl_ext, sep='_'):
+    output_name = ''.join((mc_chain_name, sep, model_name, pkl_ext))
     return output_name
 
 
-def is_safe_name(name_str):
-    # TODO make extra chars configurable
-    safe = name_str.translate(None, '-_').isalnum()
+def is_safe_name(name_str, sep_chars='_-'):
+    safe = name_str.translate(None, sep_chars).isalnum()
     return safe
+
+
+def load_np(input_path, fname):
+    fname = os.path.join(input_path, fname + DATA_EXT)
+    print 'loading %s' % fname
+    assert(os.path.isabs(fname))
+    X = np.genfromtxt(fname, dtype=float, delimiter=',', skip_header=0,
+                      loose=False, invalid_raise=True)
+    return X
+
+# ============================================================================
 
 
 def load_config(config_file):
@@ -58,8 +74,8 @@ def get_default_run_setup(config):
     #          'IGN': ('IGN', {'n_layers': 3, 'n_epochs': 2500, 'lr': 1e-4}, {}),
     #          'RNADE': ('RNADE', {'n_components': 5, 'scratch_dir': rnade_scratch}, {})
     run_config = \
-        {'norm_diag': ('MoG', {'n_components': 1, 'covariance_type': 'diag'}, {}),
-         'norm_full': ('MoG', {'n_components': 1, 'covariance_type': 'full'}, {}),
+        {'norm_diag': ('Gaussian', {'diag': True}, {}),
+         'norm_full': ('Gaussian', {'diag': False}, {}),
          'MoG': ('MoG', {}, {'n_components': range(2, 101)}),
          'VBMoG': ('VBMoG', {'n_components': 100}, {})}
     return run_config
@@ -68,17 +84,10 @@ def get_default_run_setup(config):
 def run_experiment(config, mc_chain_name, standardize=True, debug_dump=False,
                    setup=get_default_run_setup):
     '''Call this instead of main for scripted multiple runs within python.'''
+    run_config = setup(config)
     input_path, output_path, pkl_ext, train_frac, rnade_scratch = config
 
-    mc_chain_file = os.path.join(input_path, mc_chain_name + DATA_EXT)
-    print 'loading %s' % mc_chain_file
-
-    run_config = setup(config)
-
-    # TODO general util can include basic csv load and write
-    assert(os.path.isabs(mc_chain_file))
-    MC_chain = np.genfromtxt(mc_chain_file, dtype=float, delimiter=',',
-                             skip_header=0, loose=False, invalid_raise=True)
+    MC_chain = load_np(input_path, mc_chain_name)
     N, D = MC_chain.shape
     print 'size %d x %d' % (N, D)
     N_train = int(np.ceil(train_frac * N))
