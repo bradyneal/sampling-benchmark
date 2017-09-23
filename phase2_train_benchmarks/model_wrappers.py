@@ -1,9 +1,10 @@
 # Ryan Turner (turnerry@iro.umontreal.ca)
 import os
 import numpy as np
+from numpy.linalg.linalg import LinAlgError
 import scipy.stats as ss
 from scipy.misc import logsumexp
-from sklearn.mixture import GaussianMixture
+from sklearn.mixture import BayesianGaussianMixture, GaussianMixture
 
 # IGN stuff
 import bench_models.ign.ign as ign
@@ -34,12 +35,24 @@ def rescale(X, shift, scale):
     return Y
 
 
+def mvn_logpdf(X, mu, prec_U):
+    assert(X.ndim == 2)
+    D = X.shape[1]
+    assert(mu.shape == (D,) and prec_U.shape == (D, D))
+    # Eventually remove since slow
+    assert(np.allclose(prec_U, np.triu(prec_U)))
+
+    log_det_cov = -2.0 * np.sum(np.log(np.diag(prec_U)))
+    dev = X - mu[None, :]
+    maha = np.sum(np.square(np.dot(dev, prec_U)), axis=1)
+    return -0.5 * (D * np.log(2 * np.pi) + log_det_cov + maha)
+
+
 class GaussianMixture_(GaussianMixture):
     '''We could use multiple inheritence to enforce that all these classes have
     a get_params() method, but that might be more trouble than it is worth.'''
-    # TODO add some grid search here
 
-    def get_params(self):
+    def get_params_(self):
         '''Add get_params object to GaussianMixture.'''
         D = {'weights': self.weights_, 'means': self.means_,
              'covariances': self.covariances_, 'type': self.covariance_type}
@@ -65,6 +78,53 @@ class GaussianMixture_(GaussianMixture):
                 else np.diag(params['covariances'][ii, :])
             # Not efficient for diag case, but this is only a check function
             gauss_part = ss.multivariate_normal.logpdf(X, mu, S)
+            loglik[:, ii] = np.log(w[ii]) + gauss_part
+        loglik = logsumexp(loglik, axis=1)
+        return loglik
+
+
+class BayesianGaussianMixture_(BayesianGaussianMixture):
+    '''We could use multiple inheritence to enforce that all these classes have
+    a get_params() method, but that might be more trouble than it is worth.'''
+    # TODO eliminate repeat code with GaussianMixture
+
+    def get_params_(self):
+        '''Add get_params object to BayesianGaussianMixture.'''
+        D = {'weights': self.weights_, 'means': self.means_,
+             'covariances': self.covariances_, 'type': self.covariance_type,
+             'precisions_cholesky': self.precisions_cholesky_}
+        return D
+
+    @staticmethod
+    def loglik_chk(X, params):
+        '''Indep check of loglik instead of just using self reported in
+        original class. This could be made into some sort of static method
+        since we never use self.'''
+        # other types not yet supported
+        assert(params['type'] == 'full')
+
+        N = X.shape[0]
+
+        w = params['weights']
+        w = w / np.sum(w)  # Just to be sure normalized
+
+        loglik = np.zeros((N, len(w)))
+        for ii in xrange(len(w)):
+            mu = params['means'][ii, :]
+            prec_U = params['precisions_cholesky'][ii, :, :]
+            gauss_part = mvn_logpdf(X, mu, prec_U)  # More efficient and stable
+
+            # Now check against traditional mvn in scipy
+            S = params['covariances'][ii, :, :]
+            try:
+                gauss_part_chk = ss.multivariate_normal.logpdf(X, mu, S)
+                # TODO eventually move to numerical logger
+                err = np.max(np.abs(gauss_part_chk - gauss_part))
+                if not (err <= 1e-8):
+                    print 'gauss chk err: %f' % err
+            except LinAlgError:  # Sometimes hard to take cholesky
+                gauss_part_chk = np.nan  # Just skip
+
             loglik[:, ii] = np.log(w[ii]) + gauss_part
         loglik = logsumexp(loglik, axis=1)
         return loglik
@@ -107,7 +167,7 @@ class IGN:
         logpdf, _ = ign.ign_log_pdf(X, self.fit_layers, self.base_logpdf)
         return logpdf
 
-    def get_params(self):
+    def get_params_(self):
         assert(self.fit_layers is not None)
         # Make a copy, maybe we should even make a deep copy
         D = dict(self.fit_layers)
@@ -264,7 +324,7 @@ class RNADE:
         logpdf = logpdf - np.sum(np.log(self.scale))
         return logpdf
 
-    def get_params(self):
+    def get_params_(self):
         assert(self.nade_obj is not None)
         # This could later be truncated down to the params we actually need in
         # loglik_chk()
@@ -336,4 +396,5 @@ class RNADE:
 
 # Dict with sklearn like interfaces for each of the models we will use to train
 # samples.
-STD_BENCH_MODELS = {'MoG': GaussianMixture_, 'IGN': IGN, 'RNADE': RNADE}
+STD_BENCH_MODELS = {'MoG': GaussianMixture_, 'VBMoG': BayesianGaussianMixture_,
+                    'IGN': IGN, 'RNADE': RNADE}

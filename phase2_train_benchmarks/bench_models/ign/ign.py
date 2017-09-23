@@ -428,7 +428,6 @@ def train_ign(x_train, x_valid, layers, reg_dict, n_epochs, batch_size,
         cost /= len(batch_order)
         cost_list[epoch] = cost
         loglik_vec = loglik_f(x_train)
-        print ss.describe(loglik_vec)
         loglik[epoch] = loglik_vec.mean()
         loglik_valid[epoch] = summary_f(loglik_f(x_valid))
 
