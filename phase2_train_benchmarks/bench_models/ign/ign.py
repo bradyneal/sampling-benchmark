@@ -396,7 +396,8 @@ def create_ign_updates(x_train, layers, reg_dict, batch_size, lr,
 
 
 def train_ign(x_train, x_valid, layers, reg_dict, n_epochs, batch_size,
-              burn_in=50, lr=1e-3, base_logpdf=t_util.norm_logpdf_T):
+              burn_in=50, lr=1e-3, base_logpdf=t_util.norm_logpdf_T,
+              verbose=False):
     N, D = x_train.shape
     assert(x_valid.ndim == 2 and x_valid.shape[1] == D)
     batch_order = np.arange(int(N / batch_size))
@@ -413,7 +414,8 @@ def train_ign(x_train, x_valid, layers, reg_dict, n_epochs, batch_size,
     cost_list[epoch] = np.nan
     loglik[epoch] = loglik_f(x_train).mean()
     loglik_valid[epoch] = summary_f(loglik_f(x_valid))
-    print 'initial', loglik[epoch], loglik_valid[epoch]
+    if verbose:
+        print 'initial', loglik[epoch], loglik_valid[epoch]
 
     best_valid = -np.inf
     while epoch < n_epochs:
@@ -436,10 +438,12 @@ def train_ign(x_train, x_valid, layers, reg_dict, n_epochs, batch_size,
             layers = t_util.make_unshared_dict(layers_shared)
             best_valid = loglik_valid[epoch]
 
-        print 'iter-%d %f %f %f (%f)' % (epoch, cost, loglik[epoch],
-                                         loglik_valid[epoch], best_valid)
+        if verbose:
+            print 'iter-%d %f %f %f (%f)' % (epoch, cost, loglik[epoch],
+                                             loglik_valid[epoch], best_valid)
     assert(epoch == n_epochs)
-    print 'best valid %f' % best_valid
+    if verbose:
+        print 'best valid %f' % best_valid
     return cost_list, loglik, loglik_valid, layers
 
 # ============================================================================

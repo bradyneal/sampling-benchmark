@@ -6,6 +6,7 @@ import sys
 from tempfile import mkdtemp
 import numpy as np
 from sklearn.model_selection import GridSearchCV
+from sklearn.preprocessing import StandardScaler
 from model_wrappers import STD_BENCH_MODELS
 
 # Currently first requires:
@@ -14,6 +15,8 @@ from model_wrappers import STD_BENCH_MODELS
 
 PHASE3_MODELS = ('MoG', 'VBMoG', 'RNADE')  # Models implemented in phase 3
 DATA_EXT = '.csv'
+DATA_CENTER = 'data_center'
+DATA_SCALE = 'data_scale'
 
 # ============================================================================
 # TODO move everything here to general util file
@@ -94,7 +97,13 @@ def run_experiment(config, mc_chain_name, standardize=True, debug_dump=False,
     print 'size %d x %d' % (N, D)
     N_train = int(np.ceil(train_frac * N))
 
-    # TODO code up rescale adjust function too
+    X_train, X_test = MC_chain[:N_train, :], MC_chain[N_train:, :]
+
+    if standardize:
+        # We can go to robust scaler if we still have trouble
+        scaler = StandardScaler()
+        X_train = scaler.fit_transform(X_train)
+        X_test = scaler.transform(X_test)
 
     best_loglik = -np.inf
     best_case = None
@@ -108,23 +117,23 @@ def run_experiment(config, mc_chain_name, standardize=True, debug_dump=False,
         # Do the training
         model = STD_BENCH_MODELS[model_name](**args)
         if len(cv_args) == 0:
-            model.fit(MC_chain[:N_train, :])
+            model.fit(X_train)
         else:
             # If the optimization require a larger space we can switch to skopt
             cv_model = GridSearchCV(model, cv_args)
-            cv_model.fit(MC_chain[:N_train, :])
+            cv_model.fit(X_train)
             model = cv_model.best_estimator_  # Get original model back out
             print 'CV optimum'
             print cv_model.best_params_
         # Get the performance for this model
         params_obj = model.get_params_()
         # Using _chk function as the real b.c. that is what we use in phase 3
-        loglik_vec = model.loglik_chk(MC_chain[N_train:, :], params_obj)
+        loglik_vec = model.loglik_chk(X_test, params_obj)
         test_loglik = np.mean(loglik_vec)
         print 'loglik %s: %f' % (run_name, test_loglik)
 
         # Check we get same answer as sklearn built in score
-        loglik_vec_chk = model.score_samples(MC_chain[N_train:, :])
+        loglik_vec_chk = model.score_samples(X_test)
         err = np.max(np.abs(loglik_vec - loglik_vec_chk))
         print 'loglik chk %s log10 err: %f' % (run_name, np.log10(err))
         print 'loglik chk %s: %f' % (run_name, np.mean(loglik_vec_chk))
@@ -143,6 +152,11 @@ def run_experiment(config, mc_chain_name, standardize=True, debug_dump=False,
     # seem brittle.  We also need to re-implement these objects anyway for
     # reuse with pymc3, so we might as well just save the parameters clean.
     params_obj = model.get_params_()
+    # Save the scale info to get back to the original data space too.
+    assert(DATA_CENTER not in params_obj)
+    assert(DATA_SCALE not in params_obj)
+    params_obj[DATA_CENTER] = scaler.mean_
+    params_obj[DATA_SCALE] = scaler.scale_
 
     # TODO sample data here and do sanity check against original
     # Might make more sense just ot sample example here

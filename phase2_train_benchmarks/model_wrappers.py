@@ -22,14 +22,6 @@ from bench_models.nade.Utils.DropoutMask import create_dropout_masks
 from bench_models.nade.Utils.theano_helpers import floatX
 
 
-def rescale(X, shift, scale):
-    assert(X.ndim == 2)
-    assert(shift.ndim == 1 and scale.ndim == 1)
-
-    Y = (X - shift[None, :]) / scale[None, :]
-    return Y
-
-
 class Gaussian():
     def __init__(self, diag=False):
         self.diag = diag
@@ -42,7 +34,6 @@ class Gaussian():
             self.cov = np.diag(np.var(X, axis=0))
         else:
             self.cov = np.cov(X, rowvar=False, bias=True)
-        self.cov = self.cov + 1e-6 * np.eye(X.shape[1])  # TODO remove
 
     def score_samples(self, X):
         return self.loglik_chk(X, self.get_params_())
@@ -226,9 +217,6 @@ class RNADE:
 
         self.nade_class = NADE.OrderlessMoGNADE
         self.nade_obj = None
-        self.shift = None
-        self.scale = None
-
 
     def fit(self, X):
         # This function is a mess, it comes from original RNADE code, I won't
@@ -237,14 +225,8 @@ class RNADE:
         N, n_visible = X.shape
         n_train = int(np.ceil((1.0 - self.valid_frac) * N))
 
-        # Consider pulling this out
-        self.shift = np.mean(X[:n_train, :], axis=0)
-        self.scale = np.std(X[:n_train, :], axis=0)
-
-        training_dataset = \
-            Dataset(rescale(X[:n_train, :], self.shift, self.scale))
-        validation_dataset = \
-            Dataset(rescale(X[n_train:, :], self.shift, self.scale))
+        training_dataset = Dataset(X[:n_train, :])
+        validation_dataset = Dataset(X[n_train:, :])
 
         masks_filename = self.dataset_name + "." + floatX + ".masks"
         masks_route = os.path.join(self.scratch_dir, masks_filename)
@@ -323,11 +305,8 @@ class RNADE:
 
     def score_samples(self, X):
         assert(self.nade_obj is not None)
-        X_std = rescale(X, self.shift, self.scale).T
-        logpdf = self.nade_obj.logdensity(X_std)
+        logpdf = self.nade_obj.logdensity(X.T)
         assert(logpdf.shape == (X.shape[0],))
-        # Jacobian adjust back
-        logpdf = logpdf - np.sum(np.log(self.scale))
         return logpdf
 
     def get_params_(self):
@@ -337,14 +316,11 @@ class RNADE:
         D = self.nade_obj.get_parameters()
         # This could be a deep copy or cast to np array if we wanted to be safe
         D['orderings'] = self.nade_obj.orderings
-        D['shift'] = self.shift
-        D['scale'] = self.scale
         return D
 
     @staticmethod
     def loglik_chk(X, params):
         N, n_visible = X.shape
-        X = rescale(X, params['shift'], params['scale'])
 
         # TODO infer these from parameters
         n_hidden, n_layers = params['n_hidden'], params['n_layers']
@@ -396,8 +372,6 @@ class RNADE:
         logpdf = logsumexp(lp + np.log(1.0 / len(orderings)), axis=1)
 
         assert(logpdf.shape == (X.shape[0],))
-        # Jacobian adjust back
-        logpdf = logpdf - np.sum(np.log(params['scale']))
         return logpdf
 
 # Dict with sklearn like interfaces for each of the models
