@@ -20,6 +20,7 @@ def main():
     # Could use a getopt package if this got fancy, but this is simple enough
     assert(len(sys.argv) == 4)
     config_file = m.abspath2(sys.argv[1])
+    # TODO put these guys in config file
     max_N = int(sys.argv[2])
     N_chains = int(sys.argv[3])
     # TODO add option to control random seed

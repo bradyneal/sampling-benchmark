@@ -3,7 +3,7 @@ import cPickle as pkl
 import ConfigParser
 import os
 import sys
-from tempfile import mkstemp
+from tempfile import NamedTemporaryFile
 import numpy as np
 import pandas as pd
 import pymc3 as pm
@@ -46,6 +46,17 @@ def build_output_name(param_name, sampler, sep='_', sub_sep='-'):
     output_name = ''.join((param_name, sep, sampler, sub_sep))
     assert(is_safe_name(output_name))
     return output_name
+
+
+def get_temp_filename(dir_, prefix, ext=DATA_EXT):
+    # Warning! NamedTemporaryFile sometimes put _ in the random string, we need
+    # to be careful this does not mess up our convention. There does not appear
+    # to be a way to stop this.
+    tf = NamedTemporaryFile(suffix=ext, prefix=prefix, dir=dir_, delete=False)
+    fname = tf.name
+    tf.close()
+    assert(abspath2(fname))
+    return fname
 
 # ============================================================================
 # Part of Fred's funky system to keep track of Theano function evals which
@@ -163,13 +174,11 @@ def run_experiment(config, param_name, sampler, n_exact):
     model_name, D, params_dict = model_setup
     assert(model_name in SAMPLE_MODEL)
 
-    # TODO move until done
-    sample_file = build_output_name(param_name, sampler)
-    data_f, data_path = mkstemp(suffix=DATA_EXT, prefix=sample_file,
-                                dir=output_path, text=False)
-    data_f = os.fdopen(data_f, 'wb')  # Convert to actual file object
-    print 'saving samples to %s' % data_path
+    # Reserve temp file to avoid collisions
+    data_file_name = build_output_name(param_name, sampler)
+    data_file_name = get_temp_filename(output_path, data_file_name)
 
+    # Now sample
     if sampler == exact_name:
         X = SAMPLE_MODEL[model_name](params_dict, N=n_exact)
         assert(X.shape == (n_exact, D))
@@ -179,13 +188,15 @@ def run_experiment(config, param_name, sampler, n_exact):
     else:
         X, meta = controller(model_setup, sampler, t_grid_ms, n_grid)
 
-        meta_file_name = data_path + meta_ext
+        # Save meta data
+        meta_file_name = data_file_name + meta_ext
         print 'saving meta-data to %s' % meta_file_name
         assert(not os.path.isfile(meta_file_name))  # This could be warning
         assert(not meta.isnull().any().any())
         meta.to_csv(meta_file_name, header=True, index=False)
-    np.savetxt(data_f, X, delimiter=',')
-    data_f.close()
+    # Now save the data
+    print 'saving samples to %s' % data_file_name
+    np.savetxt(data_file_name, X, delimiter=',')
 
 
 def main():
