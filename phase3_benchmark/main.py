@@ -18,11 +18,34 @@ from time import time as wall_time
 from time import clock as cpu_time
 
 SAMPLE_INDEX_COL = 'sample'
+DATA_CENTER = 'data_center'
+DATA_SCALE = 'data_scale'
 DATA_EXT = '.csv'
-FILE_FMT = '%s_%s-'  # Add - before random tempfile string
-MAX_N = 1000000
+MAX_N = 1000000  # Some value to prevent blowing out HDD space with samples.
 
-abspath2 = os.path.abspath  # TODO write combo func here
+# ============================================================================
+# TODO move everything here to general util file
+
+
+def format_trace(trace):
+    # TODO I don't think we need to import extra function to get df from trace
+    df = trace_to_dataframe(trace)
+    return df.values
+
+
+def abspath2(fname):
+    return os.path.abspath(os.path.expanduser(fname))
+
+
+def is_safe_name(name_str, sep_chars='_-'):
+    safe = name_str.translate(None, sep_chars).isalnum()
+    return safe
+
+
+def build_output_name(param_name, sampler, sep='_', sub_sep='-'):
+    output_name = ''.join((param_name, sep, sampler, sub_sep))
+    assert(is_safe_name(output_name))
+    return output_name
 
 # ============================================================================
 # Part of Fred's funky system to keep track of Theano function evals which
@@ -62,19 +85,6 @@ def load_config(config_file):
     return input_path, output_path, pkl_ext, meta_ext, exact_name, t_grid_ms, n_grid
 
 
-def format_trace(trace):
-    # TODO I don't think we need to import extra function to get df from trace
-    df = trace_to_dataframe(trace)
-    return df.values
-
-
-def is_safe_name(name_str, allow_dot=False):
-    # TODO make extra chars configurable
-    ignore = '-_.' if allow_dot else '-_'
-    safe = name_str.translate(None, ignore).isalnum()
-    return safe
-
-
 def controller(model_setup, sampler, time_grid_ms, n_grid):
     assert(sampler in BUILD_STEP)
     assert(time_grid_ms > 0)
@@ -96,7 +106,16 @@ def controller(model_setup, sampler, time_grid_ms, n_grid):
         s = theano.shared(0, name='function_calls')
         all_counters.append(s)
         s.default_update = s + 1
-        ll = BUILD_MODEL[model_name](x, p)
+
+        # Benchmark was trained on standardized data, but we want to sample in
+        # scale of original problem to be realistic.
+        x_std = (x - p[DATA_CENTER]) / p[DATA_SCALE]
+        ll = BUILD_MODEL[model_name](x_std, p)
+        # This constant offset actually cancels in MCMC, but might as well do
+        # the logpdf correctly to avoid secretly leaking scale information. We
+        # might want to consider adding random shifts since real densities are
+        # not normalized.
+        ll = ll - np.sum(np.log(p[DATA_SCALE]))
         return ll + s * 0
 
     reset_counters()
@@ -105,14 +124,13 @@ def controller(model_setup, sampler, time_grid_ms, n_grid):
         steps = BUILD_STEP[sampler]()
         sample_generator = pm.sampling.iter_sample(MAX_N, steps)
 
-        TC = time_chunker(sample_generator, 1e-3 * time_grid_ms, timers,
-                          n_grid=n_grid)
+        time_grid_s = 1e-3 * time_grid_ms
+        TC = time_chunker(sample_generator, time_grid_s, timers, n_grid=n_grid)
 
         print 'starting to sample'
         # This could all go in a list comp if we get rid of the assert check
         cum_size = 0
         meta = []
-        # TODO termination condition
         for trace, metarow in TC:
             meta.append(metarow)
             cum_size += metarow[CHUNK_SIZE]
@@ -146,10 +164,7 @@ def run_experiment(config, param_name, sampler, n_exact):
     assert(model_name in SAMPLE_MODEL)
 
     # TODO move until done
-    sample_file = FILE_FMT % (param_name, sampler)
-    # TODO put following in util, the suffix not really needed on exact, but
-    # let's do it for consistency
-    assert(is_safe_name(sample_file))
+    sample_file = build_output_name(param_name, sampler)
     data_f, data_path = mkstemp(suffix=DATA_EXT, prefix=sample_file,
                                 dir=output_path, text=False)
     data_f = os.fdopen(data_f, 'wb')  # Convert to actual file object
@@ -158,13 +173,16 @@ def run_experiment(config, param_name, sampler, n_exact):
     if sampler == exact_name:
         X = SAMPLE_MODEL[model_name](params_dict, N=n_exact)
         assert(X.shape == (n_exact, D))
+        # Benchmark model trained on standardized data, move back to original.
+        X = params_dict[DATA_SCALE][None, :] * X + \
+            params_dict[DATA_CENTER][None, :]
     else:
         X, meta = controller(model_setup, sampler, t_grid_ms, n_grid)
 
         meta_file_name = data_path + meta_ext
         print 'saving meta-data to %s' % meta_file_name
         assert(not os.path.isfile(meta_file_name))  # This could be warning
-        # TODO adjust all opts
+        assert(not meta.isnull().any().any())
         meta.to_csv(meta_file_name, header=True, index=False)
     np.savetxt(data_f, X, delimiter=',')
     data_f.close()
@@ -185,7 +203,7 @@ def main():
     config = load_config(config_file)
 
     run_experiment(config, param_name, sampler, n_exact)
-    print 'done'  # Job will probably get killed before we get here.
+    print 'done'
 
 if __name__ == '__main__':
     main()

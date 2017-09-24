@@ -2,72 +2,28 @@
 import numpy as np
 import theano.tensor as T
 
-from theano.sandbox.linalg.ops import Det, MatrixInverse, Cholesky
 
-det = Det()
-minv = MatrixInverse()
-chol = Cholesky()
+def mvn_logpdf_from_chol(X, mu, inv_chol_U_cov):
+    '''inv_chol_U_cov = inv(chol(covariance).T) where chol return tril mat.'''
+    assert(X.ndim == 2)
 
+    # Assuming only X is Theano var so can do this in np only part
+    D, = mu.shape
+    assert(mu.shape == (D,) and inv_chol_U_cov.shape == (D, D))
+    # This has overhead, but there is too much potential for confusion to skip
+    assert(np.allclose(inv_chol_U_cov, np.triu(inv_chol_U_cov)))
+    log_det_cov = -2.0 * np.sum(np.log(np.diag(inv_chol_U_cov)))
+    log_part_func = D * np.log(2 * np.pi) + log_det_cov
 
-def mvn_logpdf(sample, mean, cov):
-    """Return a theano expression representing the values of the log prob
-    density function of the multivariate normal.
-    Parameters
-    ----------
-    sample : Theano variable
-        Array of shape ``(n, d)`` where ``n`` is the number of samples and
-        ``d`` the dimensionality of the data.
-    mean : Theano variable
-        Array of shape ``(d,)`` representing the mean of the distribution.
-    cov : Theano variable
-        Array of shape ``(d, d)`` representing the covariance of the
-        distribution.
-    Returns
-    -------
-    l : Theano variable
-        Array of shape ``(n,)`` where each entry represents the log density of
-        the corresponding sample.
-    Examples
-    --------
-    >>> import theano
-    >>> import theano.tensor as T
-    >>> import numpy as np
-    >>> from breze.learn.utils import theano_floatx
-    >>> sample = T.matrix('sample')
-    >>> mean = T.vector('mean')
-    >>> cov = T.matrix('cov')
-    >>> p = logpdf(sample, mean, cov)
-    >>> f_p = theano.function([sample, mean, cov], p)
-    >>> mu = np.array([-1, 1])
-    >>> sigma = np.array([[.9, .4], [.4, .3]])
-    >>> X = np.array([[-1, 1], [1, -1]])
-    >>> mu, sigma, X = theano_floatx(mu, sigma, X)
-    >>> ps = f_p(X, mu, sigma)
-    >>> np.allclose(ps, np.log([4.798702e-01, 7.73744047e-17]))
-    True
-    """
-    # TODO replace with cholesky stuff
-
-    inv_cov = minv(cov)
-
-    inv_cov = minv(cov)
-    L = chol(inv_cov)
-
-    log_part_func = (
-        - .5 * T.log(det(cov))
-        - .5 * sample.shape[1] * T.log(2 * np.pi))
-
-    mean = T.shape_padleft(mean)
-    residual = sample - mean
-    B = T.dot(residual, L)
-    A = (B ** 2).sum(axis=1)
-    log_density = - .5 * A
-
-    return log_density + log_part_func
+    # Theano part
+    dev = X - mu[None, :]
+    maha = T.sum(T.sqr(T.dot(dev, inv_chol_U_cov)), axis=1)
+    logpdf = -0.5 * (log_part_func + maha)
+    return logpdf
 
 
 def logsumexp_tt(X, axis=None):
-    # Supposedly theano is smart enough to convert this
+    # Supposedly theano is smart enough to convert this, way to force it??
     Y = T.log(T.sum(T.exp(X), axis=axis))
     return Y
 
@@ -78,22 +34,20 @@ def outer_tt(x, y):
 
 
 def MoG(x, params):
-    # TODO x is theano vector?? check.
+    assert(x.ndim == 1)  # Assuming x is theano vector here
     assert(params['type'] == 'full')
 
     w = params['weights']
     w = w / np.sum(w)  # Just to be sure normalized
     n_mixtures = len(w)
 
-    # TODO use scan
+    # Would this be an faster with scan??
     loglik_mix = [None] * n_mixtures
     for mm in xrange(n_mixtures):
-        # Could check posdef if we wanted to be extra safe
-        mu, S = params['means'][mm, :], params['covariances'][mm, :, :]
-        # TODO use padleft or right
-        loglik_mix[mm] = mvn_logpdf(T.shape_padleft(x), mu, S)[0]
+        mu = params['means'][mm, :]
+        PC = params['precisions_cholesky'][mm, :, :]
+        loglik_mix[mm] = mvn_logpdf_from_chol(T.shape_padleft(x), mu, PC)[0]
     loglik_mix_T = T.log(w) + T.stack(loglik_mix, axis=0)
-    # Way to force theano to use logsumexp??
     logpdf = logsumexp_tt(loglik_mix_T, axis=0)
     return logpdf
 
@@ -253,7 +207,7 @@ def RNADE_sample(params, N=1):
     X = np.concatenate([_RNADE_sample(params) for _ in xrange(N)], axis=0)
     return X
 
-BUILD_MODEL = {'MoG': MoG, 'RNADE': RNADE}
-SAMPLE_MODEL = {'MoG': MoG_sample, 'RNADE': RNADE_sample}
+BUILD_MODEL = {'MoG': MoG, 'VBMoG': MoG, 'RNADE': RNADE}
+SAMPLE_MODEL = {'MoG': MoG_sample, 'VBMoG': MoG_sample, 'RNADE': RNADE_sample}
 
 assert(set(BUILD_MODEL.keys()) == set(SAMPLE_MODEL.keys()))
