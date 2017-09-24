@@ -43,7 +43,6 @@ class Gaussian():
         else:
             self.cov = np.cov(X, rowvar=False, bias=True)
         self.cov = self.cov + 1e-6 * np.eye(X.shape[1])  # TODO remove
-        print self.cov
 
     def score_samples(self, X):
         return self.loglik_chk(X, self.get_params_())

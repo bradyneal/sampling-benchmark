@@ -65,19 +65,21 @@ def load_config(config_file):
 
 
 def get_default_run_setup(config):
+    max_mixtures = 25
+
     input_path, output_path, pkl_ext, train_frac, rnade_scratch = config
     # Can run multiple instances in parallel with random subdir for scratch
     rnade_scratch = mkdtemp(dir=rnade_scratch)
     print 'rnade scratch %s' % rnade_scratch
     assert(os.path.isabs(rnade_scratch))
 
-    #          'IGN': ('IGN', {'n_layers': 3, 'n_epochs': 2500, 'lr': 1e-4}, {}),
-    #          'RNADE': ('RNADE', {'n_components': 5, 'scratch_dir': rnade_scratch}, {})
     run_config = \
         {'norm_diag': ('Gaussian', {'diag': True}, {}),
          'norm_full': ('Gaussian', {'diag': False}, {}),
-         'MoG': ('MoG', {}, {'n_components': range(2, 101)}),
-         'VBMoG': ('VBMoG', {'n_components': 100}, {})}
+         'MoG': ('MoG', {}, {'n_components': range(2, max_mixtures + 1)}),
+         'VBMoG': ('VBMoG', {'n_components': max_mixtures}, {}),
+         'IGN': ('IGN', {'n_layers': 3, 'n_epochs': 2500, 'lr': 1e-4}, {}),
+         'RNADE': ('RNADE', {'n_components': 5, 'scratch_dir': rnade_scratch}, {})}
     return run_config
 
 
@@ -108,7 +110,7 @@ def run_experiment(config, mc_chain_name, standardize=True, debug_dump=False,
         if len(cv_args) == 0:
             model.fit(MC_chain[:N_train, :])
         else:
-            # TODO eventually move to skopt
+            # If the optimization require a larger space we can switch to skopt
             cv_model = GridSearchCV(model, cv_args)
             cv_model.fit(MC_chain[:N_train, :])
             model = cv_model.best_estimator_  # Get original model back out
