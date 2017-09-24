@@ -3,6 +3,7 @@ import numpy as np
 
 
 def _sq_err(exact, approx):
+    # TODO rename rmse and implement MAPE
     err = np.sqrt(np.sum((exact - approx) ** 2))
     return err
 
@@ -24,9 +25,9 @@ STD_METRICS = {'mean': mean, 'std': std}
 
 
 def build_target(exact_chain, metric):
+    # This will be phased out when we go to n_eff
     metric_f = STD_METRICS[metric]
 
-    # TODO do something better
     N = exact_chain.shape[0] // 2
     target = metric_f(exact_chain, exact_chain[:N, :])
     return target

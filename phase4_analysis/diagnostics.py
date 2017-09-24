@@ -20,7 +20,8 @@ def geweke(chains):
     scores = []
     for nn in xrange(n_chains):
         for ii in xrange(D):
-            R = pm.diagnostics.geweke(chains[:, ii, nn])
+            # TODO way to automatically adjust intervals in case N too small
+            R = pm.diagnostics.geweke(chains[:, ii, nn], intervals=5)
             scores.append(np.mean(R[:, 1]))
     # TODO look into what is best way to aggregate this into one score
     score = np.mean(scores)
@@ -84,8 +85,8 @@ def effective_n(chains):
         if t % 2:
             t -= 1
 
-        n_eff = int(num_chains * num_samples / (1.0 + 2 * rho[1:t - 1].sum()))
-        return min(num_chains * num_samples, n_eff)
+        n_eff = num_chains * num_samples / (1.0 + 2 * rho[1:t - 1].sum())
+        return min(num_chains * num_samples + 0.0, n_eff)
 
     n_eff = np.zeros(chains.shape[1])
     for ii in xrange(chains.shape[1]):
