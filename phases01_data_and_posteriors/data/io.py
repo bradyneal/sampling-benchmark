@@ -39,7 +39,7 @@ def read_samples(model_name, dataset_id, csv=CSV_DEFAULT):
     """Read model samples for specified dataset from disk"""
     filename = get_samples_filename(model_name, dataset_id, csv=csv)
     if csv:
-        np.loadtxt(filename, delimiter=',')
+        return np.loadtxt(filename, delimiter=',')
     else:
         return read_file(filename)
     
