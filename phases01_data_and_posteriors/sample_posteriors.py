@@ -18,7 +18,7 @@ NUM_MODELS_PER_DATASET = 1
 NUM_CORES_PER_CPU = 16
 NUM_CPUS = 1
 NUM_CORES = NUM_CPUS * NUM_CORES_PER_CPU
-NUM_JOBS = NUM_CORES / 2
+NUM_JOBS = int(NUM_CORES / 2)
 
 
 # For each different task (e.g. regression, classification, etc.),
