@@ -18,17 +18,15 @@ def get_model_list(input_path, ext):
 
 def main():
     # Could use a getopt package if this got fancy, but this is simple enough
-    assert(len(sys.argv) == 4)
+    assert(len(sys.argv) == 3)
     config_file = m.abspath2(sys.argv[1])
     # TODO put these guys in config file
-    max_N = int(sys.argv[2])
-    N_chains = int(sys.argv[3])
+    N_chains = int(sys.argv[2])
     # TODO add option to control random seed
-    assert(max_N >= 0)
 
     config = m.load_config(config_file)
 
-    input_path, output_path, pkl_ext, meta_ext, exact_name, t_grid_ms, n_grid = config
+    input_path, output_path, pkl_ext, meta_ext, exact_name, t_grid_ms, n_grid, n_exact = config
     model_list = get_model_list(input_path, pkl_ext)
     assert(all(m.is_safe_name(ss) for ss in model_list))
     print 'using models:'
@@ -39,13 +37,13 @@ def main():
     print sampler_list
 
     for param_name in model_list:
-        m.run_experiment(config, param_name, exact_name, max_N)
+        m.run_experiment(config, param_name, exact_name)
 
     for _ in xrange(N_chains):
         for param_name in model_list:
             for sampler in sampler_list:
-                m.run_experiment(config, param_name, sampler, max_N)
-    print 'done'  # Job will probably get killed before we get here.
+                m.run_experiment(config, param_name, sampler)
+    print 'done'
 
 if __name__ == '__main__':
     main()

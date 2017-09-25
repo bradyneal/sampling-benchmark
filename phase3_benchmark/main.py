@@ -55,7 +55,7 @@ def get_temp_filename(dir_, prefix, ext=DATA_EXT):
     tf = NamedTemporaryFile(suffix=ext, prefix=prefix, dir=dir_, delete=False)
     fname = tf.name
     tf.close()
-    assert(abspath2(fname))
+    assert(os.path.isabs(fname))
     return fname
 
 # ============================================================================
@@ -85,15 +85,19 @@ def load_config(config_file):
     output_path = abspath2(config.get('phase3', 'output_path'))
     t_grid_ms = config.getint('phase3', 'time_grid_ms')
     n_grid = config.getint('phase3', 'n_grid')
+    n_exact = config.getint('phase3', 'n_exact')
+    assert(n_exact > 0)  # didn't test =0 case
 
     pkl_ext = config.get('common', 'pkl_ext')
     meta_ext = config.get('common', 'meta_ext')
     exact_name = config.get('common', 'exact_name')
+    assert(exact_name.isalnum())
 
     csv_ext = config.get('common', 'csv_ext')
     assert(csv_ext == DATA_EXT)  # For now just assert instead of pass
 
-    return input_path, output_path, pkl_ext, meta_ext, exact_name, t_grid_ms, n_grid
+    # TODO get dict
+    return input_path, output_path, pkl_ext, meta_ext, exact_name, t_grid_ms, n_grid, n_exact
 
 
 def controller(model_setup, sampler, time_grid_ms, n_grid):
@@ -161,8 +165,8 @@ def controller(model_setup, sampler, time_grid_ms, n_grid):
     return trace, meta
 
 
-def run_experiment(config, param_name, sampler, n_exact):
-    input_path, output_path, pkl_ext, meta_ext, exact_name, t_grid_ms, n_grid = config
+def run_experiment(config, param_name, sampler):
+    input_path, output_path, pkl_ext, meta_ext, exact_name, t_grid_ms, n_grid, n_exact = config
 
     assert(sampler == exact_name or sampler in BUILD_STEP)
 
@@ -201,19 +205,16 @@ def run_experiment(config, param_name, sampler, n_exact):
 
 def main():
     # Could use a getopt package if this got fancy, but this is simple enough
-    assert(len(sys.argv) == 5)
+    assert(len(sys.argv) == 4)
     config_file = abspath2(sys.argv[1])
     param_name = sys.argv[2]
     sampler = sys.argv[3]
-    n_exact = int(sys.argv[4])
     # TODO add option to control random seed
-
     assert(is_safe_name(param_name))
-    assert(n_exact >= 0)
 
     config = load_config(config_file)
 
-    run_experiment(config, param_name, sampler, n_exact)
+    run_experiment(config, param_name, sampler)
     print 'done'
 
 if __name__ == '__main__':
