@@ -12,7 +12,7 @@ from data.preprocessing.format import numpy_to_dataframe
 from .utils import format_trace, get_pairwise_formula, get_quadratic_formula, \
                    get_linear_formula, join_nonempty
 from .nn import sample_shallow_nn
-from . import MAX_NUM_SAMPLES, MAX_TIME_IN_SECONDS
+from . import MAX_NUM_SAMPLES, MAX_TIME_IN_SECONDS, MIN_NUM_SAMPLES, NUM_INIT_STEPS
 from .utils import reduce_data_dimension, subsample
 
 REGRESSION_MODEL_NAMES = \
@@ -88,12 +88,12 @@ def sample_regression_model(model_name, X, y, num_samples=MAX_NUM_SAMPLES,
     with model:
         pm._log.info('Auto-assigning NUTS sampler...')
         if step is None:
-            start_, step = pm.init_nuts(init='advi', njobs=1, n_init=200000,
-                                        random_seed=-1, progressbar=True)
+            start_, step = pm.init_nuts(init='advi', njobs=1, n_init=NUM_INIT_STEPS,
+                                        random_seed=-1, progressbar=False)
         
         for i, trace in enumerate(pm.iter_sample(MAX_NUM_SAMPLES, step)):
             elapsed = timer() - start
-            if elapsed > MAX_TIME_IN_SECONDS:
+            if elapsed > MAX_TIME_IN_SECONDS and i >= MIN_NUM_SAMPLES:
                 print('exceeded max time... stopping')
                 break
     return format_trace(trace)
