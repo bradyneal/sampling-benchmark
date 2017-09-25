@@ -76,22 +76,20 @@ def save_metric_summary(perf, output_path):
 
     for example in examples:
         # We could make this tighter with time=-1 in sep sel() call
-        perf_slice = perf.sel(time=n_grid - 1, example=example)
-        mean_perf = perf_slice.mean(dim='chain', skipna=True)
-        df = mean_perf.to_pandas()
+        df = perf.sel(time=n_grid - 1, example=example).to_pandas()
         assert(df.index.name == 'sampler')
         assert(df.columns.name == 'metric')
         io.save_pd(df, output_path, '%s-%s' % (example, space), DATA_EXT)
 
     for metric in metrics:
         perf_slice = perf.sel(metric=metric)
-        time_perf = perf_slice.mean(dim=('chain', 'example'), skipna=True)
+        time_perf = perf_slice.mean(dim='example', skipna=True)
         df = time_perf.to_pandas()
         assert(df.index.name == 'time')
         assert(df.columns.name == 'sampler')
         io.save_pd(df, output_path, 'time-%s-%s' % (metric, space), DATA_EXT)
 
-    final_perf = perf.isel(time=-1).mean(dim=('chain', 'example'), skipna=True)
+    final_perf = perf.isel(time=-1).mean(dim='example', skipna=True)
     df = final_perf.to_pandas()
     assert(df.index.name == 'sampler')
     assert(df.columns.name == 'metric')
@@ -131,14 +129,12 @@ def main():
     metrics = STD_METRICS.keys()
 
     # Setup perf datastruct, easy to swap order in xr
-    coords = [('time', xrange(n_grid)), ('chain', xrange(n_chains)),
+    coords = [('time', xrange(n_grid)),
               ('sampler', samplers), ('example', examples),
               ('metric', metrics), ('space', spaces)]
     perf = init_data_array(coords)
-    # Final perf with synched scores
-    coords = [('sampler', samplers), ('example', examples),
-              ('metric', metrics), ('space', spaces)]
-    perf_sync_final = init_data_array(coords)
+    # Final perf with synched scores, skip time
+    perf_sync_final = init_data_array(coords[1:])
 
     # Aggregate all the performance numbers into huge array
     # TODO pull out into function
@@ -150,29 +146,33 @@ def main():
         scaler = StandardScaler()
         exact_chain = scaler.fit_transform(exact_chain)
         for sampler in samplers:
-            all_chains = []  # will be used by diags
             # Go in sorted order to keep it reproducible
             file_list = sorted(file_lookup[(example, sampler)])
             print 'found %d / %d chains for %s x %s' % \
                 (len(file_list), n_chains, example, sampler)
-            for c_num, fname in enumerate(file_list):
+
+            all_chains = []
+            all_meta = np.zeros((n_grid, len(file_list)), dtype=int)
+            for ii, fname in enumerate(file_list):
                 curr_chain = io.load_np(input_path, fname, ext='')
-                curr_chain = scaler.transform(curr_chain)
-                all_chains.append(curr_chain)
-
+                all_chains.append(scaler.transform(curr_chain))
                 idx = load_meta(input_path, fname, meta_ext, n_grid)
-                for metric in metrics:
-                    R = eval_inc(exact_chain, curr_chain, metric, idx)
-                    assert(all(err.shape == (n_grid,) for err in R))
+                all_meta[:, ii] = idx
 
-                    # Save all 3 views on how to scale the error.
-                    perf.loc[:, c_num, sampler, example, metric, 'err'] = R[0]
-                    perf.loc[:, c_num, sampler, example, metric, 'ess'] = R[1]
-                    perf.loc[:, c_num, sampler, example, metric, 'eff'] = R[2]
+            # Do analyses that can be done with unequal length chains
+            for metric in metrics:
+                R = eval_inc(exact_chain, all_chains, metric, all_meta)
+                assert(all(err.shape == (n_grid,) for err in R))
 
-            # Now do analyses that can only be done @ end with multiple chains
+                # Save all 3 views on how to scale the error.
+                perf.loc[:, sampler, example, metric, 'err'] = R[0]
+                perf.loc[:, sampler, example, metric, 'ess'] = R[1]
+                perf.loc[:, sampler, example, metric, 'eff'] = R[2]
+
+            # Do analyses that can only be done @ end with equal len chains
             all_chains = combine_chains(all_chains)  # Now np array
             for metric, metric_f in STD_METRICS.iteritems():
+                # TODO fix this, this is garbage results for new metric_f
                 R = np.mean([metric_f(exact_chain, c) for c in all_chains],
                             axis=0)
 
