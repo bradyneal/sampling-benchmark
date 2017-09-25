@@ -15,6 +15,10 @@ from data.config import Preprocess
 from data.preprocessing.format import to_ndarray
 
 NUM_MODELS_PER_DATASET = 1
+NUM_CORES_PER_CPU = 16
+NUM_CPUS = 1
+NUM_CORES = NUM_CPUS * NUM_CORES_PER_CPU
+NUM_JOBS = NUM_CORES / 2
 
 
 # For each different task (e.g. regression, classification, etc.),
@@ -35,7 +39,7 @@ def sample_and_save_posteriors(dids, task):
     
     process_dataset_task = partial(process_dataset, model_names=model_names,
                                    sample_model=sample_model)
-    Parallel(n_jobs=-1)(map(delayed(process_dataset_task), enumerate(dids)))
+    Parallel(n_jobs=NUM_JOBS)(map(delayed(process_dataset_task), enumerate(dids)))
 
 
 # def process_dataset(i, dataset_id):
