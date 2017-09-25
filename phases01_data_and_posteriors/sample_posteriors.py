@@ -15,7 +15,7 @@ from data.config import Preprocess
 from data.preprocessing.format import to_ndarray
 
 NUM_MODELS_PER_DATASET = 1
-NUM_CORES_PER_CPU = 16
+NUM_CORES_PER_CPU = 2
 NUM_CPUS = 1
 NUM_CORES = NUM_CPUS * NUM_CORES_PER_CPU
 NUM_JOBS = int(NUM_CORES / 2)
@@ -76,7 +76,10 @@ def process_dataset(i_and_dataset_id, model_names, sample_model):
         samples = sample_model(model_name, X, y,
                                num_non_categorical=num_non_categorical)
         print('Finished sampling ' + name)
-        write_samples(samples, model_name, dataset_id, overwrite=False)
+        if samples is not None:
+            write_samples(samples, model_name, dataset_id, overwrite=False)
+        else:
+            print(name, 'exceeded hard time limit, so it was discarded')
 
 
 if __name__ == '__main__':
