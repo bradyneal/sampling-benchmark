@@ -3,25 +3,13 @@ import numpy as np
 import pymc3 as pm
 
 
-def combine_chains(chains):
-    assert(all(np.ndim(x) == 2 for x in chains))
-    min_n = min(x.shape[0] for x in chains)
-    assert(min_n > 0)
-
-    # Take end since these are the best samples, could also thin to size
-    combo = np.stack([x[-min_n:, :] for x in chains], axis=2)
-    # TODO permute to n_chains, n_steps, n_vars
-    return combo
-
-
 def geweke(chains):
-    chains = combine_chains(chains)
-    N, D, n_chains = chains.shape
+    n_chains, N, D = chains.shape
     scores = []
     for nn in xrange(n_chains):
         for ii in xrange(D):
             # TODO way to automatically adjust intervals in case N too small
-            R = pm.diagnostics.geweke(chains[:, ii, nn], intervals=5)
+            R = pm.diagnostics.geweke(chains[nn, :, ii])
             scores.append(np.mean(R[:, 1]))
     # TODO look into what is best way to aggregate this into one score
     score = np.mean(scores)
@@ -29,11 +17,10 @@ def geweke(chains):
 
 
 def gelman_rubin(chains):
-    chains = combine_chains(chains)
-    Rhat = np.zeros(chains.shape[1])
-    for ii in xrange(chains.shape[1]):
-        x = chains[:, ii, :].T
-        num_samples = x.shape[1]
+    n_chains, num_samples, D = chains.shape
+    Rhat = np.zeros(D)
+    for ii in xrange(D):
+        x = chains[:, :, ii]
 
         # Calculate between-chain variance
         B = num_samples * np.var(np.mean(x, axis=1), axis=0, ddof=1)
@@ -49,7 +36,7 @@ def gelman_rubin(chains):
 
 
 def effective_n(chains):
-    chains = combine_chains(chains)
+    n_chains, num_samples, D = chains.shape
 
     def get_vhat(x):
         # TODO eliminate repetition with gelman rubin
@@ -88,9 +75,9 @@ def effective_n(chains):
         n_eff = num_chains * num_samples / (1.0 + 2 * rho[1:t - 1].sum())
         return min(num_chains * num_samples + 0.0, n_eff)
 
-    n_eff = np.zeros(chains.shape[1])
-    for ii in xrange(chains.shape[1]):
-        x = chains[:, ii, :].T
+    n_eff = np.zeros(D)
+    for ii in xrange(D):
+        x = chains[:, :, ii]
 
         Vhat = get_vhat(x)
         n_eff[ii] = get_neff(x, Vhat)

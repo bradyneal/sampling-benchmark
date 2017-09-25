@@ -2,35 +2,34 @@
 import numpy as np
 
 
-def _sq_err(exact, approx):
-    # TODO rename rmse and implement MAPE
-    err = np.sqrt(np.sum((exact - approx) ** 2))
-    return err
-
-
 def mean(exact_chain, sampler_chain):
     exact_mu = np.mean(exact_chain, axis=0)
-    sampler_mu = np.mean(sampler_chain, axis=0)
-    err = _sq_err(exact_mu, sampler_mu)
-    return err
+    approx_mu = np.mean(sampler_chain, axis=0)
+
+    V = np.var(exact_chain, axis=0)  # TODO look into bias arg on all var calls
+    N = sampler_chain.shape[0]
+
+    err = (exact_mu - approx_mu) ** 2
+    ess = V / err  # Cap at N??
+    eff = ess / N
+    # Do we want the sqrt??
+    return np.sqrt(np.mean(err)), np.mean(ess), np.mean(eff)
 
 
-def std(exact_chain, sampler_chain):
-    exact_std = np.std(exact_chain, axis=0)
-    sampler_std = np.std(sampler_chain, axis=0)
-    err = _sq_err(exact_std, sampler_std)
-    return err
+def var(exact_chain, sampler_chain):
+    exact_var = np.var(exact_chain, axis=0)
+    approx_var = np.var(sampler_chain, axis=0)
 
-STD_METRICS = {'mean': mean, 'std': std}
+    V = np.var(exact_chain, axis=0)
+    N = sampler_chain.shape[0]
 
+    err = (exact_var - approx_var) ** 2
+    ess = 2.0 * (V ** 2) / err
+    eff = ess / N
+    return np.sqrt(np.mean(err)), np.mean(ess), np.mean(eff)
 
-def build_target(exact_chain, metric):
-    # This will be phased out when we go to n_eff
-    metric_f = STD_METRICS[metric]
-
-    N = exact_chain.shape[0] // 2
-    target = metric_f(exact_chain, exact_chain[:N, :])
-    return target
+# TODO add ks and cov
+STD_METRICS = {'mean': mean, 'var': var}
 
 
 def eval_inc(exact_chain, curr_chain, metric, idx):
@@ -38,7 +37,10 @@ def eval_inc(exact_chain, curr_chain, metric, idx):
     metric_f = STD_METRICS[metric]
 
     # Just so it naively right now
-    perf = np.zeros(len(idx))
+    err = np.zeros(len(idx))
+    ess = np.zeros(len(idx))
+    eff = np.zeros(len(idx))
     for ii, n_samples in enumerate(idx):
-        perf[ii] = metric_f(exact_chain, curr_chain[:n_samples, :])
-    return perf
+        err[ii], ess[ii], eff[ii] = \
+           metric_f(exact_chain, curr_chain[:n_samples, :])
+    return err, ess, eff
