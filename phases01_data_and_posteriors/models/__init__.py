@@ -5,8 +5,8 @@ SOFT_MAX_TIME_IN_SECONDS = SOFT_MAX_TIME_IN_MINUTES * 60
 HARD_MAX_TIME_IN_HOURS = 5
 HARD_MAX_TIME_IN_SECONDS = HARD_MAX_TIME_IN_HOURS * 60 * 60
 MAX_DATA_DIMENSION = {
-    'linear': 50,
-    'pairwise': 9,
-    'quadratic': 8
+    'linear': 25,
+    'pairwise': 5,
+    'quadratic': 5
 }
 MAX_GP_N = 1000
