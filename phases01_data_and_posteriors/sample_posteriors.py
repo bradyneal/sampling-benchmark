@@ -5,6 +5,7 @@ conditioned on all of the specified datasts.
 import random
 from joblib import Parallel, delayed
 from functools import partial
+from traceback import print_exc
 
 from models.regression import REGRESSION_MODEL_NAMES, sample_regression_model
 from models.classification import CLASSIFICATION_MODEL_NAMES, sample_classification_model
@@ -73,13 +74,17 @@ def process_dataset(i_and_dataset_id, model_names, sample_model):
             print(name + ' samples file already exists... skipping')
             continue                
         print('Starting sampling ' + name)
-        samples = sample_model(model_name, X, y,
-                               num_non_categorical=num_non_categorical)
-        print('Finished sampling ' + name)
-        if samples is not None:
-            write_samples(samples, model_name, dataset_id, overwrite=False)
-        else:
-            print(name, 'exceeded hard time limit, so it was discarded')
+        try:
+            samples = sample_model(model_name, X, y,
+                                   num_non_categorical=num_non_categorical)
+            print('Finished sampling ' + name)
+            if samples is not None:
+                write_samples(samples, model_name, dataset_id, overwrite=False)
+            else:
+                print(name, 'exceeded hard time limit, so it was discarded')
+        except Exception:
+            print('Exception on {}:'.format(name))
+            print_exc()
 
 
 if __name__ == '__main__':
