@@ -37,8 +37,8 @@ def get_default_run_setup(config):
     return run_config
 
 
-def run_experiment(config, chain_name, standardize=True, debug_dump=False,
-                   setup=get_default_run_setup, shuffle=False):
+def run_experiment(config, chain_name, debug_dump=False, shuffle=False,
+                   setup=get_default_run_setup):
     '''Call this instead of main for scripted multiple runs within python.'''
     run_config = setup(config)
 
@@ -54,11 +54,16 @@ def run_experiment(config, chain_name, standardize=True, debug_dump=False,
         np.random.shuffle(MC_chain)
     X_train, X_test = MC_chain[:N_train, :], MC_chain[N_train:, :]
 
-    if standardize:
-        # We can go to robust scaler if we still have trouble
-        scaler = StandardScaler()
-        X_train = scaler.fit_transform(X_train)
-        X_test = scaler.transform(X_test)
+    # We can go to robust scaler if we still have trouble
+    scaler = StandardScaler()
+    X_train = scaler.fit_transform(X_train)
+    X_test = scaler.transform(X_test)
+    # I don't trust sklearn, so pull out values and validate to be sure.
+    mean_, scale_ = scaler.mean_, scaler.scale_
+    assert(np.allclose(X_train,
+        (MC_chain[:N_train, :] - mean_[None, :]) / scale_[None, :]))
+    assert(np.allclose(X_test,
+        (MC_chain[N_train:, :] - mean_[None, :]) / scale_[None, :]))
 
     best_loglik = -np.inf
     best_case = None
@@ -80,6 +85,7 @@ def run_experiment(config, chain_name, standardize=True, debug_dump=False,
             model = cv_model.best_estimator_  # Get original model back out
             print 'CV optimum'
             print cv_model.best_params_
+
         # Get the performance for this model
         params_obj = model.get_params_()
         # Using _chk function as the real b.c. that is what we use in phase 3
@@ -110,8 +116,8 @@ def run_experiment(config, chain_name, standardize=True, debug_dump=False,
     # Save the scale info to get back to the original data space too.
     assert(DATA_CENTER not in params_obj)
     assert(DATA_SCALE not in params_obj)
-    params_obj[DATA_CENTER] = scaler.mean_
-    params_obj[DATA_SCALE] = scaler.scale_
+    params_obj[DATA_CENTER] = mean_
+    params_obj[DATA_SCALE] = scale_
 
     # Now dump to finish the job
     dump_file = io.build_output_name(chain_name, model_name, config['pkl_ext'])
