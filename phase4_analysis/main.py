@@ -66,35 +66,46 @@ def load_meta(input_path, fname, meta_ext, n_grid):
     return sample_idx
 
 
-def save_metric_summary(perf, output_path, ext):
-    # TODO lookup best skipna policy
-    space = perf.coords['space'].values
-    assert(np.ndim(space) == 0)  # Already sliced
+def save_metric_summary(perf, ess_ref, output_path, ext):
+    # TODO still need to add efficiency
     examples = perf.coords['example'].values
     metrics = perf.coords['metric'].values
     n_grid = len(perf.coords['time'])
 
     for example in examples:
         # We could make this tighter with time=-1 in sep sel() call
-        df = perf.sel(time=n_grid - 1, example=example).to_pandas()
+        ex_perf = perf.sel(time=n_grid - 1, example=example)
+        df = ex_perf.to_pandas()
         assert(df.index.name == 'sampler')
         assert(df.columns.name == 'metric')
-        io.save_pd(df, output_path, '%s-%s' % (example, space), ext)
+        io.save_pd(df, output_path, '%s-%s' % (example, 'err'), ext)
+        # TODO figure out why .T needed
+        df = (ess_ref / ex_perf).T.to_pandas()
+        assert(df.index.name == 'sampler')
+        assert(df.columns.name == 'metric')
+        io.save_pd(df, output_path, '%s-%s' % (example, 'ess'), ext)
 
     for metric in metrics:
         perf_slice = perf.sel(metric=metric)
-        time_perf = perf_slice.mean(dim='example', skipna=True)
+        time_perf = perf_slice.mean(dim='example', skipna=False)
         df = time_perf.to_pandas()
         assert(df.index.name == 'time')
         assert(df.columns.name == 'sampler')
-        io.save_pd(df, output_path, 'time-%s-%s' % (metric, space), ext)
+        io.save_pd(df, output_path, 'time-%s-%s' % (metric, 'err'), ext)
+        df = (ess_ref.sel(metric=metric) / time_perf).to_pandas()
+        assert(df.index.name == 'time')
+        assert(df.columns.name == 'sampler')
+        io.save_pd(df, output_path, 'time-%s-%s' % (metric, 'ess'), ext)
 
-    final_perf = perf.isel(time=-1).mean(dim='example', skipna=True)
+    final_perf = perf.isel(time=-1).mean(dim='example', skipna=False)
     df = final_perf.to_pandas()
     assert(df.index.name == 'sampler')
     assert(df.columns.name == 'metric')
-    io.save_pd(df, output_path, 'final-%s' % space, ext)
-
+    io.save_pd(df, output_path, 'final-%s' % 'err', ext)
+    df = (ess_ref / final_perf).T.to_pandas()
+    assert(df.index.name == 'sampler')
+    assert(df.columns.name == 'metric')
+    io.save_pd(df, output_path, 'final-%s' % 'ess', ext)
 
 def main():
     assert(len(sys.argv) == 2)
@@ -123,13 +134,11 @@ def main():
     diag_df = pd.DataFrame(index=samplers, columns=cols, dtype=float)
     assert(np.all(diag_df.isnull().values))  # init at nan
 
-    spaces = ['err', 'ess', 'eff']
     metrics = STD_METRICS.keys()
 
     # Setup perf datastruct, easy to swap order in xr
-    coords = [('time', xrange(n_grid)),
-              ('sampler', samplers), ('example', examples),
-              ('metric', metrics), ('space', spaces)]
+    coords = [('time', xrange(n_grid)), ('sampler', samplers),
+              ('example', examples), ('metric', metrics)]
     perf = init_data_array(coords)
     # Final perf with synched scores, skip time
     perf_sync_final = init_data_array(coords[1:])
@@ -139,8 +148,8 @@ def main():
     for example in examples:
         fname, = file_lookup[(example, config['exact_name'])]  # singleton set
         exact_chain = io.load_np(config['input_path'], fname, ext='')
-        # Put all variables on same scale using the exact chain here, we can
-        # change this to robust scaler if it gives us trouble with outliers.
+        # In ESS calculations we assume that var=1, so we need standard scaler
+        # and not robust, but maybe we could add warning if the two diverge.
         scaler = StandardScaler()
         exact_chain = scaler.fit_transform(exact_chain)
         for sampler in samplers:
@@ -149,6 +158,7 @@ def main():
             print 'found %d / %d chains for %s x %s' % \
                 (len(file_list), n_chains, example, sampler)
 
+            # Iterate over chains into one big list data struct
             all_chains = []
             all_meta = np.zeros((n_grid, len(file_list)), dtype=int)
             for ii, fname in enumerate(file_list):
@@ -160,38 +170,32 @@ def main():
 
             # Do analyses that can be done with unequal length chains
             for metric in metrics:
-                R = eval_inc(exact_chain, all_chains, metric, all_meta)
-                assert(all(err.shape == (n_grid,) for err in R))
-
-                # Save all 3 views on how to scale the error.
-                perf.loc[:, sampler, example, metric, 'err'] = R[0]
-                perf.loc[:, sampler, example, metric, 'ess'] = R[1]
-                perf.loc[:, sampler, example, metric, 'eff'] = R[2]
+                err = eval_inc(exact_chain, all_chains, metric, all_meta)
+                assert(err.shape == (n_grid,))
+                perf.loc[:, sampler, example, metric] = err
 
             # Do analyses that can only be done @ end with equal len chains
             all_chains = combine_chains(all_chains)  # Now np array
+            min_n = all_chains.shape[1]
+            final_idx = min_n + np.zeros((1, all_chains.shape[0]), dtype=int)
             for metric, metric_f in STD_METRICS.iteritems():
-                # TODO fix this, this is garbage results for new metric_f
-                R = np.mean([metric_f(exact_chain, c) for c in all_chains],
-                            axis=0)
-
-                # Save all 3 views on how to scale the error.
-                perf_sync_final.loc[sampler, example, metric, 'err'] = R[0]
-                perf_sync_final.loc[sampler, example, metric, 'ess'] = R[1]
-                perf_sync_final.loc[sampler, example, metric, 'eff'] = R[2]
+                err, = eval_inc(exact_chain, all_chains, metric, final_idx)
+                assert(np.ndim(err) == 0)
+                perf_sync_final.loc[sampler, example, metric] = err
             for diag_name, diag_f in STD_DIAGNOSTICS.iteritems():
                 score = diag_f(all_chains)
                 diag_df.loc[sampler, (diag_name, example)] = score
 
-    # Save metrics in all spaces
-    for space in spaces:
-        save_metric_summary(perf.sel(space=space), config['output_path'],
-                            config['csv_ext'])
+    # Save metrics
+    # TODO get ess_ref out of metrics module
+    ess_ref = xr.DataArray([1.0, 2.0], coords=[('metric', ['mean', 'var'])])
+    save_metric_summary(perf, ess_ref, config['output_path'], config['csv_ext'])
+
     # Save diagnostics
     io.save_pd(diag_df, config['output_path'], 'diagnostic', config['csv_ext'])
 
     # TODO clean up, this is just to start
-    df = perf_sync_final.sel(metric='mean', space='ess').to_pandas()
+    df = perf_sync_final.sel(metric='mean').to_pandas()
     assert(df.index.name == 'sampler')
     assert(df.columns.name == 'example')
     io.save_pd(df, config['output_path'], 'ess', config['csv_ext'])
