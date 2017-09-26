@@ -15,6 +15,10 @@ from data.config import Preprocess
 from data.preprocessing.format import to_ndarray
 
 NUM_MODELS_PER_DATASET = 1
+NUM_CORES_PER_CPU = 2
+NUM_CPUS = 1
+NUM_CORES = NUM_CPUS * NUM_CORES_PER_CPU
+NUM_JOBS = int(NUM_CORES / 2)
 
 
 # For each different task (e.g. regression, classification, etc.),
@@ -35,7 +39,7 @@ def sample_and_save_posteriors(dids, task):
     
     process_dataset_task = partial(process_dataset, model_names=model_names,
                                    sample_model=sample_model)
-    Parallel(n_jobs=-1)(map(delayed(process_dataset_task), enumerate(dids)))
+    Parallel(n_jobs=NUM_JOBS)(map(delayed(process_dataset_task), enumerate(dids)))
 
 
 # def process_dataset(i, dataset_id):
@@ -72,7 +76,10 @@ def process_dataset(i_and_dataset_id, model_names, sample_model):
         samples = sample_model(model_name, X, y,
                                num_non_categorical=num_non_categorical)
         print('Finished sampling ' + name)
-        write_samples(samples, model_name, dataset_id, overwrite=False)
+        if samples is not None:
+            write_samples(samples, model_name, dataset_id, overwrite=False)
+        else:
+            print(name, 'exceeded hard time limit, so it was discarded')
 
 
 if __name__ == '__main__':

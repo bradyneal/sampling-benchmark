@@ -4,12 +4,15 @@ File for the IO operations used in the data package
 
 import os
 import pickle
+import numpy as np
 
 from .config import CONFIG, Preprocess
 
 PICKLE_EXT = '.pkl'
 OLD_PICKLE_EXT = '.pickle'
+CSV_EXT = '.csv'
 READING_ERRORS = EOFError
+CSV_DEFAULT = True      # only for samples
 
 
 def get_downloaded_dataset_ids(preprocess=Preprocess.RAW):
@@ -32,9 +35,13 @@ def read_task_dataset_ids(task):
     return read_file(get_task_filename(task))
 
 
-def read_samples(model_name, dataset_id):
+def read_samples(model_name, dataset_id, csv=CSV_DEFAULT):
     """Read model samples for specified dataset from disk"""
-    return read_file(get_samples_filename(model_name, dataset_id))
+    filename = get_samples_filename(model_name, dataset_id, csv=csv)
+    if csv:
+        return np.loadtxt(filename, delimiter=',')
+    else:
+        return read_file(filename)
     
 
 def read_file(filename):
@@ -93,9 +100,14 @@ def write_task_dataset_ids(task, dids, overwrite=True):
     write_file(get_task_filename(task), dids, overwrite)
 
 
-def write_samples(samples, model_name, dataset_id, overwrite=False):
+def write_samples(samples, model_name, dataset_id, csv=CSV_DEFAULT,
+                  overwrite=True):
     """Write model samples for specified dataset to disk"""
-    write_file(get_samples_filename(model_name, dataset_id), samples, overwrite)
+    filename = get_samples_filename(model_name, dataset_id, csv=csv)
+    if csv:
+        np.savetxt(filename, samples, delimiter=',')
+    else:
+        write_file(filename, samples, overwrite)
 
             
 def write_file(filename, contents, overwrite=True):
@@ -175,12 +187,12 @@ def is_task_file(task):
     return os.path.isfile(get_task_filename(task))
 
 
-def is_samples_file(model_name, dataset_id):
+def is_samples_file(model_name, dataset_id, csv=CSV_DEFAULT):
     """
     Return whether or not the samples file corresponding to the specified task
     model and dataset id is already on disk
     """
-    return os.path.isfile(get_samples_filename(model_name, dataset_id))
+    return os.path.isfile(get_samples_filename(model_name, dataset_id, csv=csv))
 
 
 def get_folder(preprocess=Preprocess.RAW):
@@ -198,9 +210,13 @@ def get_task_filename(task):
     return os.path.join(CONFIG['tasks_folder'], task + OLD_PICKLE_EXT)
 
 
-def get_samples_filename(model_name, dataset_id):
+def get_samples_filename(model_name, dataset_id, csv=CSV_DEFAULT):
     """Get location of samples from specified model with specified dataset"""
-    filename = '{}_{}'.format(dataset_id, model_name) + PICKLE_EXT
+    filename = '{}_{}'.format(dataset_id, model_name)
+    if csv:
+        filename = filename + CSV_EXT
+    else:
+        filename = filename + PICKLE_EXT
     return os.path.join(CONFIG['samples_folder'], filename)
    
 

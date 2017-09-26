@@ -11,7 +11,8 @@ from timeit import default_timer as timer
 
 from .utils import format_trace
 from .nn import sample_shallow_nn
-from . import MAX_NUM_SAMPLES, MAX_TIME_IN_SECONDS
+from . import MAX_NUM_SAMPLES, NUM_INIT_STEPS, SOFT_MAX_TIME_IN_SECONDS, \
+              HARD_MAX_TIME_IN_SECONDS
 from .utils import reduce_data_dimension, subsample
 
 # Arguably, build_pm_gp_cov should go in some 3rd file like util
@@ -23,7 +24,7 @@ CLASSIFICATION_MODEL_NAMES = \
 
 
 def sample_classification_model(model_name, X, y, num_samples=MAX_NUM_SAMPLES,
-                                num_non_categorical=None):
+                                step=None, num_non_categorical=None):
     """
     Sample from the posteriors of any of the supported models
 
@@ -73,14 +74,24 @@ def sample_classification_model(model_name, X, y, num_samples=MAX_NUM_SAMPLES,
     with model:
         pm._log.info('Auto-assigning NUTS sampler...')
         if step is None:
-            start_, step = pm.init_nuts(init='advi', njobs=1, n_init=200000,
-                                        random_seed=-1, progressbar=True)
+            start_, step = pm.init_nuts(init='advi', njobs=1, n_init=NUM_INIT_STEPS,
+                                        random_seed=-1, progressbar=False)
         
         for i, trace in enumerate(pm.iter_sample(MAX_NUM_SAMPLES, step)):
+            if i == 0:
+                min_num_samples = 10 * (len(trace[0]) ** 2)
             elapsed = timer() - start
-            if elapsed > MAX_TIME_IN_SECONDS:
-                print('exceeded max time... breaking')
-                break
+            if elapsed > SOFT_MAX_TIME_IN_SECONDS:
+                print('exceeded soft time limit...')
+                if i + 1 >= min_num_samples:
+                    print('collected enough samples; stopping')
+                    break
+                else:
+                    print('but only collected {} of {}; continuing...'
+                          .format(i + 1, min_num_samples))
+                    if elapsed > HARD_MAX_TIME_IN_SECONDS:
+                        print('exceeded HARD time limit; STOPPING')
+                        return None
     return format_trace(trace)
 
 

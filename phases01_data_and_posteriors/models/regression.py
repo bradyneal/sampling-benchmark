@@ -12,7 +12,8 @@ from data.preprocessing.format import numpy_to_dataframe
 from .utils import format_trace, get_pairwise_formula, get_quadratic_formula, \
                    get_linear_formula, join_nonempty
 from .nn import sample_shallow_nn
-from . import MAX_NUM_SAMPLES, MAX_TIME_IN_SECONDS
+from . import MAX_NUM_SAMPLES, NUM_INIT_STEPS, SOFT_MAX_TIME_IN_SECONDS, \
+              HARD_MAX_TIME_IN_SECONDS
 from .utils import reduce_data_dimension, subsample
 
 REGRESSION_MODEL_NAMES = \
@@ -26,8 +27,7 @@ REGRESSION_MODEL_NAMES = \
 
 
 def sample_regression_model(model_name, X, y, num_samples=MAX_NUM_SAMPLES,
-                            time=MAX_TIME_IN_SECONDS, step=None,
-                            num_non_categorical=None):
+                            step=None, num_non_categorical=None):
     """
     Sample from the posteriors of any of the supported models
 
@@ -88,14 +88,24 @@ def sample_regression_model(model_name, X, y, num_samples=MAX_NUM_SAMPLES,
     with model:
         pm._log.info('Auto-assigning NUTS sampler...')
         if step is None:
-            start_, step = pm.init_nuts(init='advi', njobs=1, n_init=200000,
-                                        random_seed=-1, progressbar=True)
+            start_, step = pm.init_nuts(init='advi', njobs=1, n_init=NUM_INIT_STEPS,
+                                        random_seed=-1, progressbar=False)
         
         for i, trace in enumerate(pm.iter_sample(MAX_NUM_SAMPLES, step)):
+            if i == 0:
+                min_num_samples = 10 * (len(trace[0]) ** 2)
             elapsed = timer() - start
-            if elapsed > MAX_TIME_IN_SECONDS:
-                print('exceeded max time... stopping')
-                break
+            if elapsed > SOFT_MAX_TIME_IN_SECONDS:
+                print('exceeded soft time limit...')
+                if i + 1 >= min_num_samples:
+                    print('collected enough samples; stopping')
+                    break
+                else:
+                    print('but only collected {} of {}; continuing...'
+                          .format(i + 1, min_num_samples))
+                    if elapsed > HARD_MAX_TIME_IN_SECONDS:
+                        print('exceeded HARD time limit; STOPPING')
+                        return None
     return format_trace(trace)
             
 
