@@ -66,7 +66,7 @@ def load_meta(input_path, fname, meta_ext, n_grid):
     return sample_idx
 
 
-def save_metric_summary(perf, ess_ref, output_path, ext):
+def save_metric_summary(perf, n_count, ess_ref, output_path, ext):
     # TODO still need to add efficiency
     examples = perf.coords['example'].values
     metrics = perf.coords['metric'].values
@@ -80,10 +80,15 @@ def save_metric_summary(perf, ess_ref, output_path, ext):
         assert(df.columns.name == 'metric')
         io.save_pd(df, output_path, '%s-%s' % (example, 'err'), ext)
         # TODO figure out why .T needed
-        df = (ess_ref / ex_perf).T.to_pandas()
+        ess = (ess_ref / ex_perf).T
+        df = ess.to_pandas()
         assert(df.index.name == 'sampler')
         assert(df.columns.name == 'metric')
         io.save_pd(df, output_path, '%s-%s' % (example, 'ess'), ext)
+        df = (ess / n_count.sel(time=n_grid - 1, example=example)).to_pandas()
+        assert(df.index.name == 'sampler')
+        assert(df.columns.name == 'metric')
+        io.save_pd(df, output_path, '%s-%s' % (example, 'eff'), ext)
 
     for metric in metrics:
         perf_slice = perf.sel(metric=metric)
@@ -92,20 +97,31 @@ def save_metric_summary(perf, ess_ref, output_path, ext):
         assert(df.index.name == 'time')
         assert(df.columns.name == 'sampler')
         io.save_pd(df, output_path, 'time-%s-%s' % (metric, 'err'), ext)
-        df = (ess_ref.sel(metric=metric) / time_perf).to_pandas()
+        ess = ess_ref.sel(metric=metric) / time_perf
+        df = ess.to_pandas()
         assert(df.index.name == 'time')
         assert(df.columns.name == 'sampler')
         io.save_pd(df, output_path, 'time-%s-%s' % (metric, 'ess'), ext)
+        df = (ess / n_count.sel(metric=metric).mean(dim='example', skipna=False)).to_pandas()
+        assert(df.index.name == 'time')
+        assert(df.columns.name == 'sampler')
+        io.save_pd(df, output_path, 'time-%s-%s' % (metric, 'eff'), ext)
 
     final_perf = perf.isel(time=-1).mean(dim='example', skipna=False)
     df = final_perf.to_pandas()
     assert(df.index.name == 'sampler')
     assert(df.columns.name == 'metric')
     io.save_pd(df, output_path, 'final-%s' % 'err', ext)
-    df = (ess_ref / final_perf).T.to_pandas()
+    ess = (ess_ref / final_perf).T
+    df = ess.to_pandas()
     assert(df.index.name == 'sampler')
     assert(df.columns.name == 'metric')
     io.save_pd(df, output_path, 'final-%s' % 'ess', ext)
+    df = (ess / n_count.isel(time=-1).mean(dim='example', skipna=False)).to_pandas()
+    assert(df.index.name == 'sampler')
+    assert(df.columns.name == 'metric')
+    io.save_pd(df, output_path, 'final-%s' % 'eff', ext)
+
 
 def main():
     assert(len(sys.argv) == 2)
@@ -140,6 +156,7 @@ def main():
     coords = [('time', xrange(n_grid)), ('sampler', samplers),
               ('example', examples), ('metric', metrics)]
     perf = init_data_array(coords)
+    n_count = init_data_array(coords)
     # Final perf with synched scores, skip time
     perf_sync_final = init_data_array(coords[1:])
 
@@ -173,6 +190,7 @@ def main():
                 err = eval_inc(exact_chain, all_chains, metric, all_meta)
                 assert(err.shape == (n_grid,))
                 perf.loc[:, sampler, example, metric] = err
+                n_count.loc[:, sampler, example, metric] = np.mean(all_meta, axis=1)
 
             # Do analyses that can only be done @ end with equal len chains
             all_chains = combine_chains(all_chains)  # Now np array
@@ -189,7 +207,7 @@ def main():
     # Save metrics
     # TODO get ess_ref out of metrics module
     ess_ref = xr.DataArray([1.0, 2.0], coords=[('metric', ['mean', 'var'])])
-    save_metric_summary(perf, ess_ref, config['output_path'], config['csv_ext'])
+    save_metric_summary(perf, n_count, ess_ref, config['output_path'], config['csv_ext'])
 
     # Save diagnostics
     io.save_pd(diag_df, config['output_path'], 'diagnostic', config['csv_ext'])
