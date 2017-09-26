@@ -1,12 +1,12 @@
 # Ryan Turner (turnerry@iro.umontreal.ca)
 import cPickle as pkl
-import ConfigParser
 import os
 import sys
 from tempfile import mkdtemp
 import numpy as np
 from sklearn.model_selection import GridSearchCV
 from sklearn.preprocessing import StandardScaler
+import fileio as io
 from model_wrappers import STD_BENCH_MODELS
 
 # Currently first requires:
@@ -14,65 +14,15 @@ from model_wrappers import STD_BENCH_MODELS
 # TODO fix, i don't like that, need to fix some garbage in __init__.py files
 
 PHASE3_MODELS = ('MoG', 'VBMoG', 'RNADE')  # Models implemented in phase 3
-DATA_EXT = '.csv'
 DATA_CENTER = 'data_center'
 DATA_SCALE = 'data_scale'
-
-# ============================================================================
-# TODO move everything here to general util file
-
-
-def abspath2(fname):
-    return os.path.abspath(os.path.expanduser(fname))
-
-
-def build_output_name(mc_chain_name, model_name, pkl_ext, sep='_'):
-    output_name = ''.join((mc_chain_name, sep, model_name, pkl_ext))
-    return output_name
-
-
-def is_safe_name(name_str, sep_chars='_-'):
-    safe = name_str.translate(None, sep_chars).isalnum()
-    return safe
-
-
-def load_np(input_path, fname):
-    fname = os.path.join(input_path, fname + DATA_EXT)
-    print 'loading %s' % fname
-    assert(os.path.isabs(fname))
-    X = np.genfromtxt(fname, dtype=float, delimiter=',', skip_header=0,
-                      loose=False, invalid_raise=True)
-    return X
-
-# ============================================================================
-
-
-def load_config(config_file):
-    config = ConfigParser.RawConfigParser()
-    assert(os.path.isabs(config_file))
-    config.read(config_file)
-
-    input_path = abspath2(config.get('phase1', 'output_path'))
-    output_path = abspath2(config.get('phase2', 'output_path'))
-    pkl_ext = config.get('common', 'pkl_ext')
-
-    csv_ext = config.get('common', 'csv_ext')
-    assert(csv_ext == DATA_EXT)  # For now just assert instead of pass
-
-    train_frac = config.getfloat('phase2', 'train_frac')
-    assert(0.0 <= train_frac and train_frac <= 1.0)
-
-    rnade_scratch = abspath2(config.get('phase2', 'rnade_scratch_dir'))
-    # This is kind of the limit before we need to change to a dict or something
-    return input_path, output_path, pkl_ext, train_frac, rnade_scratch
 
 
 def get_default_run_setup(config):
     max_mixtures = 25
 
-    input_path, output_path, pkl_ext, train_frac, rnade_scratch = config
     # Can run multiple instances in parallel with random subdir for scratch
-    rnade_scratch = mkdtemp(dir=rnade_scratch)
+    rnade_scratch = mkdtemp(dir=config['rnade_scratch'])
     print 'rnade scratch %s' % rnade_scratch
     assert(os.path.isabs(rnade_scratch))
 
@@ -82,21 +32,26 @@ def get_default_run_setup(config):
          'MoG': ('MoG', {}, {'n_components': range(2, max_mixtures + 1)}),
          'VBMoG': ('VBMoG', {'n_components': max_mixtures}, {}),
          'IGN': ('IGN', {'n_layers': 3, 'n_epochs': 2500, 'lr': 1e-4}, {}),
-         'RNADE': ('RNADE', {'n_components': 5, 'scratch_dir': rnade_scratch}, {})}
+         'RNADE': ('RNADE',
+                   {'n_components': 5, 'scratch_dir': rnade_scratch}, {})}
     return run_config
 
 
-def run_experiment(config, mc_chain_name, standardize=True, debug_dump=False,
-                   setup=get_default_run_setup):
+def run_experiment(config, chain_name, standardize=True, debug_dump=False,
+                   setup=get_default_run_setup, shuffle=False):
     '''Call this instead of main for scripted multiple runs within python.'''
     run_config = setup(config)
-    input_path, output_path, pkl_ext, train_frac, rnade_scratch = config
 
-    MC_chain = load_np(input_path, mc_chain_name)
+    MC_chain = io.load_np(config['input_path'], chain_name, config['csv_ext'])
     N, D = MC_chain.shape
     print 'size %d x %d' % (N, D)
-    N_train = int(np.ceil(train_frac * N))
+    N_train = int(np.ceil(config['train_frac'] * N))
 
+    # Shuffle to make train/test look alike since chain is not iid data. Maybe
+    # we should thin before a shuffle if the input chain is poorly mixing.
+    if shuffle:
+        print 'Doing shuffle! Consider thinning!'
+        np.random.shuffle(MC_chain)
     X_train, X_test = MC_chain[:N_train, :], MC_chain[N_train:, :]
 
     if standardize:
@@ -158,13 +113,9 @@ def run_experiment(config, mc_chain_name, standardize=True, debug_dump=False,
     params_obj[DATA_CENTER] = scaler.mean_
     params_obj[DATA_SCALE] = scaler.scale_
 
-    # TODO sample data here and do sanity check against original
-    # Might make more sense just ot sample example here
-    # on each time print: moments, test stat (t or U, BF, KS), p-val for test
-
     # Now dump to finish the job
-    dump_file = build_output_name(mc_chain_name, model_name, pkl_ext)
-    dump_file = os.path.join(output_path, dump_file)
+    dump_file = io.build_output_name(chain_name, model_name, config['pkl_ext'])
+    dump_file = os.path.join(config['output_path'], dump_file)
     print 'saving %s' % dump_file
     assert(os.path.isabs(dump_file))
     with open(dump_file, 'wb') as f:
@@ -172,7 +123,8 @@ def run_experiment(config, mc_chain_name, standardize=True, debug_dump=False,
 
     # Also dump everything in another pkl file for debug purposes
     if debug_dump:
-        dump_file = os.path.join(output_path, 'all_model_dump') + pkl_ext
+        dump_file = 'all_model_dump' + config['pkl_ext']
+        dump_file = os.path.join(config['output_path'], dump_file)
         print 'saving %s' % dump_file
         assert(os.path.isabs(dump_file))
         with open(dump_file, 'wb') as f:
@@ -185,12 +137,12 @@ def main():
     indep. This is a top level routine so I am not worried about needing a
     verbosity setting.'''
     assert(len(sys.argv) == 3)  # Print usage error instead to be user friendly
-    config_file = abspath2(sys.argv[1])
+    config_file = io.abspath2(sys.argv[1])
     mc_chain_name = sys.argv[2]
-    assert(is_safe_name(mc_chain_name))
+    assert(io.is_safe_name(mc_chain_name))
 
     print 'config %s' % config_file
-    config = load_config(config_file)
+    config = io.load_config(config_file)
 
     run_experiment(config, mc_chain_name)
     print 'done'

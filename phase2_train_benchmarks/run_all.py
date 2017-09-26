@@ -1,34 +1,23 @@
 # Ryan Turner (turnerry@iro.umontreal.ca)
-import os
 import sys
-import main as m
-
-
-def chomp(ss, ext):
-    L = len(ext)
-    assert(ss[-L:] == ext)
-    return ss[:-L]
-
-
-def get_chains(input_path, ext=m.DATA_EXT):
-    chains = sorted(chomp(fname, ext) for fname in os.listdir(input_path))
-    return chains
+import fileio as io
+from main import run_experiment
 
 
 def main():
-    assert(len(sys.argv) == 2)  # Print usage error instead to be user friendly
-    config_file = m.abspath2(sys.argv[1])
+    # We would print usage error instead if we wanted to be user friendly
+    assert(len(sys.argv) == 2)
+    config_file = io.abspath2(sys.argv[1])
 
     print 'config %s' % config_file
-    config = m.load_config(config_file)
+    config = io.load_config(config_file)
 
-    input_path = config[0]
-    chains = get_chains(input_path)
+    chains = io.get_chains(config['input_path'], config['csv_ext'])
     print 'inputs chains:'
     print chains
 
     for mc_chain_name in chains:
-        m.run_experiment(config, mc_chain_name)
+        run_experiment(config, mc_chain_name)
     print 'done'
 
 if __name__ == '__main__':
