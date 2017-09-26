@@ -59,7 +59,7 @@ def eval_inc(exact_chain, all_chains, metric, all_idx):
     assert(err.shape == (n_grid, D))
 
     err_agg = np.mean(err, axis=1)
-    ess = np.mean(ref_num[None, :] / err, axis=1)
+    ess = np.median(ref_num[None, :] / err, axis=1)
     # TODO consider best denominator for N, make so exact has E[eff]=1
     eff = ess / n_ave
     return err_agg, ess, eff

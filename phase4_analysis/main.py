@@ -12,7 +12,6 @@ from metrics import STD_METRICS
 from metrics import eval_inc
 
 SAMPLE_INDEX_COL = 'sample'
-DATA_EXT = '.csv'
 
 
 def init_data_array(coords, value=np.nan):
@@ -40,17 +39,18 @@ def load_config(config_file):
     assert(os.path.isabs(config_file))
     config.read(config_file)
 
-    input_path = io.abspath2(config.get('phase3', 'output_path'))
-    output_path = io.abspath2(config.get('phase4', 'output_path'))
-    n_grid = config.getint('phase3', 'n_grid')
+    D = {}
+    D['input_path'] = io.abspath2(config.get('phase3', 'output_path'))
+    D['output_path'] = io.abspath2(config.get('phase4', 'output_path'))
 
-    meta_ext = config.get('common', 'meta_ext')
-    exact_name = config.get('common', 'exact_name')
+    D['n_grid'] = config.getint('phase3', 'n_grid')
+    D['n_chains'] = config.getint('phase3', 'n_chains')
 
-    csv_ext = config.get('common', 'csv_ext')
-    assert(csv_ext == DATA_EXT)  # For now just assert instead of pass
+    D['csv_ext'] = config.get('common', 'csv_ext')
+    D['meta_ext'] = config.get('common', 'meta_ext')
+    D['exact_name'] = config.get('common', 'exact_name')
 
-    return input_path, output_path, meta_ext, exact_name, n_grid
+    return D
 
 
 def load_meta(input_path, fname, meta_ext, n_grid):
@@ -66,7 +66,7 @@ def load_meta(input_path, fname, meta_ext, n_grid):
     return sample_idx
 
 
-def save_metric_summary(perf, output_path):
+def save_metric_summary(perf, output_path, ext):
     # TODO lookup best skipna policy
     space = perf.coords['space'].values
     assert(np.ndim(space) == 0)  # Already sliced
@@ -79,7 +79,7 @@ def save_metric_summary(perf, output_path):
         df = perf.sel(time=n_grid - 1, example=example).to_pandas()
         assert(df.index.name == 'sampler')
         assert(df.columns.name == 'metric')
-        io.save_pd(df, output_path, '%s-%s' % (example, space), DATA_EXT)
+        io.save_pd(df, output_path, '%s-%s' % (example, space), ext)
 
     for metric in metrics:
         perf_slice = perf.sel(metric=metric)
@@ -87,34 +87,32 @@ def save_metric_summary(perf, output_path):
         df = time_perf.to_pandas()
         assert(df.index.name == 'time')
         assert(df.columns.name == 'sampler')
-        io.save_pd(df, output_path, 'time-%s-%s' % (metric, space), DATA_EXT)
+        io.save_pd(df, output_path, 'time-%s-%s' % (metric, space), ext)
 
     final_perf = perf.isel(time=-1).mean(dim='example', skipna=True)
     df = final_perf.to_pandas()
     assert(df.index.name == 'sampler')
     assert(df.columns.name == 'metric')
-    io.save_pd(df, output_path, 'final-%s' % space, DATA_EXT)
+    io.save_pd(df, output_path, 'final-%s' % space, ext)
 
 
 def main():
     assert(len(sys.argv) == 2)
     config_file = io.abspath2(sys.argv[1])
 
-    # TODO move to dict rep
-    input_path, output_path, meta_ext, exact_name, n_grid = \
-        load_config(config_file)
+    config = load_config(config_file)
+
+    n_chains, n_grid = config['n_chains'], config['n_grid']
+    print 'expect %d chains per case' % n_chains
 
     samplers, examples, file_lookup = \
-        io.find_traces(input_path, exact_name, DATA_EXT)
+        io.find_traces(config['input_path'], config['exact_name'],
+                       config['csv_ext'])
     print 'found %d samplers and %d examples' % (len(samplers), len(examples))
     print '%d files in lookup table' % \
         sum(len(file_lookup[k]) for k in file_lookup)
-    # TODO lookup in config file
-    # Might be a better rule, should almost be constant across entries
-    n_chains = max(len(file_lookup[k]) for k in file_lookup)
-    print 'appears to be %d chains per case' % n_chains
 
-    # Will remove this later when the list gets large
+    # This could get big
     print samplers
     print examples
 
@@ -122,8 +120,8 @@ def main():
     # TODO eventually switch this to xr to for consistency
     cols = pd.MultiIndex.from_product([STD_DIAGNOSTICS.keys(), examples],
                                       names=['diagnostic', 'example'])
-    diagnostic_df = pd.DataFrame(index=samplers, columns=cols, dtype=float)
-    assert(np.all(diagnostic_df.isnull().values))  # init at nan
+    diag_df = pd.DataFrame(index=samplers, columns=cols, dtype=float)
+    assert(np.all(diag_df.isnull().values))  # init at nan
 
     spaces = ['err', 'ess', 'eff']
     metrics = STD_METRICS.keys()
@@ -139,8 +137,8 @@ def main():
     # Aggregate all the performance numbers into huge array
     # TODO pull out into function
     for example in examples:
-        fname, = file_lookup[(example, exact_name)]  # singleton set
-        exact_chain = io.load_np(input_path, fname, ext='')
+        fname, = file_lookup[(example, config['exact_name'])]  # singleton set
+        exact_chain = io.load_np(config['input_path'], fname, ext='')
         # Put all variables on same scale using the exact chain here, we can
         # change this to robust scaler if it gives us trouble with outliers.
         scaler = StandardScaler()
@@ -154,9 +152,10 @@ def main():
             all_chains = []
             all_meta = np.zeros((n_grid, len(file_list)), dtype=int)
             for ii, fname in enumerate(file_list):
-                curr_chain = io.load_np(input_path, fname, ext='')
+                curr_chain = io.load_np(config['input_path'], fname, ext='')
                 all_chains.append(scaler.transform(curr_chain))
-                idx = load_meta(input_path, fname, meta_ext, n_grid)
+                idx = load_meta(config['input_path'],
+                                fname, config['meta_ext'], n_grid)
                 all_meta[:, ii] = idx
 
             # Do analyses that can be done with unequal length chains
@@ -182,19 +181,20 @@ def main():
                 perf_sync_final.loc[sampler, example, metric, 'eff'] = R[2]
             for diag_name, diag_f in STD_DIAGNOSTICS.iteritems():
                 score = diag_f(all_chains)
-                diagnostic_df.loc[sampler, (diag_name, example)] = score
+                diag_df.loc[sampler, (diag_name, example)] = score
 
     # Save metrics in all spaces
     for space in spaces:
-        save_metric_summary(perf.sel(space=space), output_path)
+        save_metric_summary(perf.sel(space=space), config['output_path'],
+                            config['csv_ext'])
     # Save diagnostics
-    io.save_pd(diagnostic_df, output_path, 'diagnostic', DATA_EXT)
+    io.save_pd(diag_df, config['output_path'], 'diagnostic', config['csv_ext'])
 
     # TODO clean up, this is just to start
     df = perf_sync_final.sel(metric='mean', space='ess').to_pandas()
     assert(df.index.name == 'sampler')
     assert(df.columns.name == 'example')
-    io.save_pd(df, output_path, 'ess', DATA_EXT)
+    io.save_pd(df, config['output_path'], 'ess', config['csv_ext'])
 
     # Could also include option to dump everything in netCDF if we want
     print 'done'
