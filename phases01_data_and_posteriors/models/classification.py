@@ -6,6 +6,7 @@ CLASSIFICATION_MODEL_NAMES constant.
 
 import pymc3 as pm
 import numpy as np
+import theano
 import theano.tensor as tt
 from timeit import default_timer as timer
 
@@ -21,7 +22,7 @@ from .regression import build_pm_gp_cov
 CLASSIFICATION_MODEL_NAMES = \
     [
      'softmax-linear-class', 'shallow-nn-class',
-     'gp-ExpQuad-class', 'gp-Exponential-class', 'gp-Matern32-class', 'gp-Matern52-class',
+     # 'gp-ExpQuad-class', 'gp-Exponential-class', 'gp-Matern32-class', 'gp-Matern52-class',
      # 'gp-RatQuad-class'
      ]
 
@@ -98,7 +99,7 @@ def sample_classification_model(model_name, X, y, num_samples=MAX_NUM_SAMPLES,
     return format_trace(trace)
 
 
-def model_softmax_linear(X, y):
+def build_softmax_linear(X, y):
     """
     Sample from Bayesian Softmax Linear Regression
     """
