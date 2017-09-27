@@ -44,7 +44,7 @@ def moments_report(X):
     max_kurt = np.max(ss.kurtosis(X, axis=0))
 
     print 'N = %d' % X.shape[0]
-    print 'log10 var ratio %f, cond numer %f' % (std_ratio, cond_number)
+    print 'log10 std ratio %f, cond number %f' % (std_ratio, cond_number)
     print 'min corr %f, max corr %f' % (np.min(corr), np.max(corr))
     print 'max skew %f, max kurt %f' % (max_skew, max_kurt)
 
@@ -88,10 +88,11 @@ def controller(model_setup, sampler, time_grid_ms, n_grid):
     assert(params_dict[DATA_SCALE].shape == (D,))
 
     # TODO remove debug only
-    # params_dict[DATA_SCALE] = np.ones_like(params_dict[DATA_SCALE])
+    #params_dict[DATA_SCALE] = np.ones_like(params_dict[DATA_SCALE])
     # params_dict[DATA_CENTER] = np.zeros_like(params_dict[DATA_CENTER])
     # params_dict[DATA_SCALE] = np.minimum(10.0 * np.min(params_dict[DATA_SCALE]), params_dict[DATA_SCALE])
     # params_dict[DATA_SCALE] = np.logspace(-3, 3, D)
+    print params_dict[DATA_CENTER]
     print params_dict[DATA_SCALE]
 
     # TODO test only remove
@@ -121,11 +122,11 @@ def controller(model_setup, sampler, time_grid_ms, n_grid):
 
     reset_counters()
     with pm.Model():
-        pm.DensityDist('x', logpdf, shape=D, testval=np.zeros(D))
+        pm.DensityDist('x', logpdf, shape=D)
         steps = BUILD_STEP[sampler]()
 
         print 'doing init'
-        init_trace = pm.sample(1, steps, init='advi')
+        init_trace = pm.sample(1, steps, init='advi', start={'x': params_dict[DATA_CENTER]})
         sample_generator = pm.sampling.iter_sample(MAX_N, steps, start=init_trace[0])
 
         time_grid_s = 1e-3 * time_grid_ms
@@ -145,10 +146,11 @@ def controller(model_setup, sampler, time_grid_ms, n_grid):
     # TODO remove test only
     reset_counters()
     with pm.Model():
-        pm.DensityDist('x', logpdf, shape=D, testval=np.zeros(D))
+        pm.DensityDist('x', logpdf, shape=D)
         steps = BUILD_STEP[sampler]()
         print 'doing offline run'
-        trace_offline = pm.sample(len(trace), steps, init='advi')
+        trace_offline = pm.sample(len(trace), steps, init='advi',
+                                  start={'x': params_dict[DATA_CENTER]})
 
     # TODO test only remove
     X_offline = format_trace(trace_offline)
