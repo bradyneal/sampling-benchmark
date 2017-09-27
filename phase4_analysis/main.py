@@ -21,6 +21,18 @@ def init_data_array(coords, value=np.nan):
     return X
 
 
+def resample(X, N):
+    idx = np.random.choice(X.shape[0], size=N, replace=True)
+    XS = X[idx, :]
+    return XS
+
+
+def hmean(X, axis=None):
+    '''Because the scipy gives an error on zero.'''
+    hm = 1.0 / np.mean(1.0 / X, axis=axis)
+    return hm
+
+
 def combine_chains(chains):
     assert(len(chains) >= 1)
     D = chains[0].shape[1]
@@ -127,6 +139,8 @@ def main():
     assert(len(sys.argv) == 2)
     config_file = io.abspath2(sys.argv[1])
 
+    bootstrap_test = True
+
     config = load_config(config_file)
 
     n_chains, n_grid = config['n_chains'], config['n_grid']
@@ -171,26 +185,34 @@ def main():
         exact_chain = scaler.fit_transform(exact_chain)
         for sampler in samplers:
             # Go in sorted order to keep it reproducible
-            file_list = sorted(file_lookup[(example, sampler)])
+            file_list = sorted(file_lookup.get((example, sampler), []))
             print 'found %d / %d chains for %s x %s' % \
                 (len(file_list), n_chains, example, sampler)
+            if len(file_list) == 0:  # Nothing to do
+                continue
 
             # Iterate over chains into one big list data struct
             all_chains = []
             all_meta = np.zeros((n_grid, len(file_list)), dtype=int)
             for ii, fname in enumerate(file_list):
-                curr_chain = io.load_np(config['input_path'], fname, ext='')
-                all_chains.append(scaler.transform(curr_chain))
-                idx = load_meta(config['input_path'],
-                                fname, config['meta_ext'], n_grid)
-                all_meta[:, ii] = idx
+                all_meta[:, ii] = load_meta(config['input_path'], fname,
+                                            config['meta_ext'], n_grid)
+                if bootstrap_test:
+                    curr_chain = resample(exact_chain, all_meta[-1, ii])
+                    #curr_chain = np.random.randn(all_meta[-1, ii], exact_chain.shape[1])
+                else:  # Load actual data
+                    assert(False)
+                    curr_chain = io.load_np(config['input_path'], fname, '')
+                    curr_chain = scaler.transform(curr_chain)
+                all_chains.append(curr_chain)
 
             # Do analyses that can be done with unequal length chains
             for metric in metrics:
                 err = eval_inc(exact_chain, all_chains, metric, all_meta)
                 assert(err.shape == (n_grid,))
                 perf.loc[:, sampler, example, metric] = err
-                n_count.loc[:, sampler, example, metric] = np.mean(all_meta, axis=1)
+                # TODO can remove metric coord
+                n_count.loc[:, sampler, example, metric] = hmean(all_meta, axis=1)
 
             # Do analyses that can only be done @ end with equal len chains
             all_chains = combine_chains(all_chains)  # Now np array
@@ -220,7 +242,7 @@ def main():
 
     # Could also include option to dump everything in netCDF if we want
     print 'done'
-    return perf
+    return perf, n_count
 
 if __name__ == '__main__':
-    perf = main()
+    perf, n_count = main()

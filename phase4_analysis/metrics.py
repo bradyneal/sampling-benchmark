@@ -19,7 +19,7 @@ STD_METRICS = {'mean': mean, 'var': var}
 
 def rectified_sq_error(exact, approx, clip=DEFAULT_CLIP):
     # Debatable if rectifier (min) should be before or after sum
-    err = np.sum(np.minimum(clip, (exact - approx) ** 2))
+    err = np.mean(np.minimum(clip, (exact - approx) ** 2))
     return err
 
 
