@@ -67,7 +67,7 @@ def get_counters():
 # ============================================================================
 
 
-def controller(model_setup, sampler, time_grid_ms, n_grid):
+def controller(model_setup, sampler, time_grid_ms, n_grid, init_exact=True):
     assert(sampler in BUILD_STEP)
     assert(time_grid_ms > 0)
 
@@ -87,10 +87,10 @@ def controller(model_setup, sampler, time_grid_ms, n_grid):
     assert(params_dict[DATA_CENTER].shape == (D,))
     assert(params_dict[DATA_SCALE].shape == (D,))
 
-    # TODO test only remove
-    X_exact = sample_exact(model_name, D, params_dict, N=10000)
-    print 'exact'
-    moments_report(X_exact)
+    start = None
+    if init_exact:
+        start = sample_exact(model_name, D, params_dict, N=1)[0, :]
+        assert(start.shape == (D,))
 
     # Use default arg trick to get params to bind to model now
     def logpdf(x, p=params_dict):
@@ -118,8 +118,7 @@ def controller(model_setup, sampler, time_grid_ms, n_grid):
         steps = BUILD_STEP[sampler]()
 
         print 'doing init'
-        init_trace = pm.sample(1, steps, init='advi', start={'x': X_exact[0, :]})
-        sample_generator = pm.sampling.iter_sample(MAX_N, steps, start=init_trace[0])
+        sample_generator = pm.sampling.iter_sample(MAX_N, steps, start={'x': start})
 
         time_grid_s = 1e-3 * time_grid_ms
         TC = time_chunker(sample_generator, time_grid_s, timers, n_grid=n_grid)
@@ -134,29 +133,7 @@ def controller(model_setup, sampler, time_grid_ms, n_grid):
             assert(cum_size == len(trace) - 1)
     # Build rep for trace data
     trace = format_trace(trace)
-
-    # TODO remove test only
-    reset_counters()
-    with pm.Model():
-        pm.DensityDist('x', logpdf, shape=D)
-        steps = BUILD_STEP[sampler]()
-        print 'doing offline run'
-        trace_offline = pm.sample(len(trace), steps, init='advi',
-                                  start={'x': X_exact[0, :]})
-
-    # TODO test only remove
-    X_offline = format_trace(trace_offline)
-    X_online = trace
-    print 'offline'
-    moments_report(X_offline)
-    print 'online'
-    moments_report(X_online)
-    scaler = StandardScaler()
-    X_exact = scaler.fit_transform(X_exact)
-    X_offline = scaler.transform(X_offline)
-    X_online = scaler.transform(X_online)
-    print 'offline %f' % np.mean((np.mean(X_exact, axis=0) - np.mean(X_offline, axis=0)) ** 2)
-    print 'online %f' % np.mean((np.mean(X_exact, axis=0) - np.mean(X_online, axis=0)) ** 2)
+    moments_report(trace)
 
     # Build a meta-data df
     meta = pd.DataFrame(meta)
