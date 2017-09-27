@@ -12,9 +12,14 @@ config = ConfigParser.RawConfigParser()
 #assert(os.path.isabs(config_file))
 config.read(config_file)
 input_path = io.abspath2(config.get('phase1', 'output_path'))
+data_ext = config.get('common', 'csv_ext')
 sep = '_'
 
-chain_files = sorted(os.listdir(input_path))
+print 'searching for input data in'
+print input_path
+chain_files = sorted(f for f in os.listdir(input_path) if f.endswith(data_ext))
+print 'found %d files' % len(chain_files)
+
 for chain in chain_files:
     print '-' * 20
     X = io.load_np(input_path, chain, '')
