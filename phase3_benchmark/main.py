@@ -26,12 +26,24 @@ MAX_N = 1000000  # Some value to prevent blowing out HDD space with samples.
 
 
 def format_trace(trace):
-    # TODO I don't think we need to import extra function to get df from trace
     df = trace_to_dataframe(trace)
     return df.values
 
 
-def moments_report(X):
+def moments_report(X, epsilon=1e-12):
+    # TODO eliminate  repetition with phase 2 here
+    N, D = X.shape
+
+    finite = np.all(np.isfinite(X))
+
+    acc = np.abs(np.diff(X, axis=0)) > epsilon
+    acc_valid = np.all(np.any(acc, 1) == np.all(acc, 1))
+    acc_rate = np.mean(acc[:, 0])
+
+    print 'N = %d, D = %d' % (N, D)
+    print 'finite %d, accept %d' % (finite, acc_valid)
+    print 'acc rate %f' % acc_rate
+
     V = np.std(X, axis=0)
     std_ratio = np.log10(np.max(V) / np.min(V))
 
@@ -43,7 +55,6 @@ def moments_report(X):
     max_skew = np.max(np.abs(ss.skew(X, axis=0)))
     max_kurt = np.max(ss.kurtosis(X, axis=0))
 
-    print 'N = %d' % X.shape[0]
     print 'log10 std ratio %f, cond number %f' % (std_ratio, cond_number)
     print 'min corr %f, max corr %f' % (np.min(corr), np.max(corr))
     print 'max skew %f, max kurt %f' % (max_skew, max_kurt)
@@ -117,10 +128,10 @@ def controller(model_setup, sampler, time_grid_ms, n_grid,
         steps = BUILD_STEP[sampler]()
 
         print 'doing init'
-        sample_generator = pm.sampling.iter_sample(MAX_N, steps, start={'x': start})
+        sample_gen = pm.sampling.iter_sample(MAX_N, steps, start={'x': start})
 
         time_grid_s = 1e-3 * time_grid_ms
-        TC = time_chunker(sample_generator, time_grid_s, timers, n_grid=n_grid)
+        TC = time_chunker(sample_gen, time_grid_s, timers, n_grid=n_grid)
 
         print 'starting to sample'
         # This could all go in a list comp if we get rid of the assert check
