@@ -126,7 +126,7 @@ def controller(model_setup, sampler, time_grid_ms, n_grid):
         steps = BUILD_STEP[sampler]()
 
         print 'doing init'
-        init_trace = pm.sample(1, steps, init='advi', start={'x': params_dict[DATA_CENTER]})
+        init_trace = pm.sample(1, steps, init='advi', start={'x': X_exact[0, :]})
         sample_generator = pm.sampling.iter_sample(MAX_N, steps, start=init_trace[0])
 
         time_grid_s = 1e-3 * time_grid_ms
@@ -150,7 +150,7 @@ def controller(model_setup, sampler, time_grid_ms, n_grid):
         steps = BUILD_STEP[sampler]()
         print 'doing offline run'
         trace_offline = pm.sample(len(trace), steps, init='advi',
-                                  start={'x': params_dict[DATA_CENTER]})
+                                  start={'x': X_exact[0, :]})
 
     # TODO test only remove
     X_offline = format_trace(trace_offline)
