@@ -19,8 +19,11 @@ from .utils import reduce_data_dimension, subsample
 from .regression import build_pm_gp_cov
 
 CLASSIFICATION_MODEL_NAMES = \
-    ['softmax-linear-class', 'shallow-nn-class',
-     'gp-ExpQuad-class', 'gp-Exponential-class', 'gp-Matern32-class', 'gp-Matern52-class', 'gp-RatQuad-class']
+    [
+     'softmax-linear-class', 'shallow-nn-class',
+     'gp-ExpQuad-class', 'gp-Exponential-class', 'gp-Matern32-class', 'gp-Matern52-class',
+     # 'gp-RatQuad-class'
+     ]
 
 
 def sample_classification_model(model_name, X, y, num_samples=MAX_NUM_SAMPLES,
@@ -119,7 +122,7 @@ def sample_shallow_nn_class(X, y, num_samples=MAX_NUM_SAMPLES):
     return sample_shallow_nn(X, y, 'classification')
 
 
-def model_gpc(X, y, cov_f='ExpQuad'):
+def build_gpc(X, y, cov_f='ExpQuad'):
     """Sample from Gaussian Process"""
     # TODO also implement version that uses Elliptical slice sampling
     N, D = X.shape
