@@ -8,7 +8,7 @@ from sklearn.preprocessing import StandardScaler
 import xarray as xr
 from diagnostics import STD_DIAGNOSTICS
 import fileio as io
-from metrics import STD_METRICS
+from metrics import STD_METRICS, STD_METRICS_REF
 from metrics import eval_inc
 
 SAMPLE_INDEX_COL = 'sample'
@@ -232,9 +232,12 @@ def main():
     R = build_metrics_array(samplers, examples, metrics, file_lookup, config)
     perf, n_count, perf_sync_final, diag_df = R
 
+    ess_ref = xr.DataArray(data=STD_METRICS_REF.values(),
+                           coords=[('metric', STD_METRICS_REF.keys())])
+    print 'using reference values'
+    print ess_ref.to_pandas().to_string()
+
     # Save metrics
-    # TODO get ess_ref out of metrics module
-    ess_ref = xr.DataArray([1.0, 2.0], coords=[('metric', ['mean', 'var'])])
     save_metric_summary(perf, n_count, ess_ref,
                         config['output_path'], config['csv_ext'])
 

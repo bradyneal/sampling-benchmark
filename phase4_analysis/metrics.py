@@ -15,6 +15,8 @@ def var(chain):
     return np.var(chain, axis=0, ddof=1)
 
 STD_METRICS = {'mean': mean, 'var': var}
+# Defined as expected loss for N(0,1) * n_samples
+STD_METRICS_REF = {'mean': 1.0, 'var': 2.0}
 
 
 def rectified_sq_error(exact, approx, clip=DEFAULT_CLIP):
