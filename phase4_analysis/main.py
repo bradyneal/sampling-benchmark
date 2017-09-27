@@ -33,6 +33,12 @@ def hmean(X, axis=None):
     return hm
 
 
+def xr_hmean(X, dim=None, skipna=False):
+    '''Note this departs from xarray default for skipna.'''
+    hm = 1.0 / ((1.0 / X).mean(dim=dim, skipna=skipna))
+    return hm
+
+
 def combine_chains(chains):
     assert(len(chains) >= 1)
     D = chains[0].shape[1]
@@ -79,25 +85,24 @@ def load_meta(input_path, fname, meta_ext, n_grid):
 
 
 def save_metric_summary(perf, n_count, ess_ref, output_path, ext):
-    # TODO still need to add efficiency
     examples = perf.coords['example'].values
     metrics = perf.coords['metric'].values
-    n_grid = len(perf.coords['time'])
+
+    hm_n_count = xr_hmean(n_count, dim='example')
 
     for example in examples:
-        # We could make this tighter with time=-1 in sep sel() call
-        ex_perf = perf.sel(time=n_grid - 1, example=example)
+        ex_perf = perf.isel(time=-1).sel(example=example)
         df = ex_perf.to_pandas()
         assert(df.index.name == 'sampler')
         assert(df.columns.name == 'metric')
         io.save_pd(df, output_path, '%s-%s' % (example, 'err'), ext)
-        # TODO figure out why .T needed
+        # ess_ref is of dim (metrics,) => metric becomes first dim => need .T
         ess = (ess_ref / ex_perf).T
         df = ess.to_pandas()
         assert(df.index.name == 'sampler')
         assert(df.columns.name == 'metric')
         io.save_pd(df, output_path, '%s-%s' % (example, 'ess'), ext)
-        df = (ess / n_count.sel(time=n_grid - 1, example=example)).to_pandas()
+        df = (ess / n_count.isel(time=-1).sel(example=example)).to_pandas()
         assert(df.index.name == 'sampler')
         assert(df.columns.name == 'metric')
         io.save_pd(df, output_path, '%s-%s' % (example, 'eff'), ext)
@@ -114,7 +119,7 @@ def save_metric_summary(perf, n_count, ess_ref, output_path, ext):
         assert(df.index.name == 'time')
         assert(df.columns.name == 'sampler')
         io.save_pd(df, output_path, 'time-%s-%s' % (metric, 'ess'), ext)
-        df = (ess / n_count.sel(metric=metric).mean(dim='example', skipna=False)).to_pandas()
+        df = (ess / hm_n_count).to_pandas()
         assert(df.index.name == 'time')
         assert(df.columns.name == 'sampler')
         io.save_pd(df, output_path, 'time-%s-%s' % (metric, 'eff'), ext)
@@ -129,7 +134,7 @@ def save_metric_summary(perf, n_count, ess_ref, output_path, ext):
     assert(df.index.name == 'sampler')
     assert(df.columns.name == 'metric')
     io.save_pd(df, output_path, 'final-%s' % 'ess', ext)
-    df = (ess / n_count.isel(time=-1).mean(dim='example', skipna=False)).to_pandas()
+    df = (ess / hm_n_count.isel(time=-1)).to_pandas()
     assert(df.index.name == 'sampler')
     assert(df.columns.name == 'metric')
     io.save_pd(df, output_path, 'final-%s' % 'eff', ext)
@@ -166,11 +171,11 @@ def main():
 
     metrics = STD_METRICS.keys()
 
-    # Setup perf datastruct, easy to swap order in xr
     coords = [('time', xrange(n_grid)), ('sampler', samplers),
               ('example', examples), ('metric', metrics)]
     perf = init_data_array(coords)
-    n_count = init_data_array(coords)
+    # Skip metric for n_count
+    n_count = init_data_array(coords[:-1])
     # Final perf with synched scores, skip time
     perf_sync_final = init_data_array(coords[1:])
 
@@ -199,7 +204,6 @@ def main():
                                             config['meta_ext'], n_grid)
                 if bootstrap_test:
                     curr_chain = resample(exact_chain, all_meta[-1, ii])
-                    #curr_chain = np.random.randn(all_meta[-1, ii], exact_chain.shape[1])
                 else:  # Load actual data
                     assert(False)
                     curr_chain = io.load_np(config['input_path'], fname, '')
@@ -211,8 +215,7 @@ def main():
                 err = eval_inc(exact_chain, all_chains, metric, all_meta)
                 assert(err.shape == (n_grid,))
                 perf.loc[:, sampler, example, metric] = err
-                # TODO can remove metric coord
-                n_count.loc[:, sampler, example, metric] = hmean(all_meta, axis=1)
+            n_count.loc[:, sampler, example] = hmean(all_meta, axis=1)
 
             # Do analyses that can only be done @ end with equal len chains
             all_chains = combine_chains(all_chains)  # Now np array
@@ -229,7 +232,8 @@ def main():
     # Save metrics
     # TODO get ess_ref out of metrics module
     ess_ref = xr.DataArray([1.0, 2.0], coords=[('metric', ['mean', 'var'])])
-    save_metric_summary(perf, n_count, ess_ref, config['output_path'], config['csv_ext'])
+    save_metric_summary(perf, n_count, ess_ref,
+                        config['output_path'], config['csv_ext'])
 
     # Save diagnostics
     io.save_pd(diag_df, config['output_path'], 'diagnostic', config['csv_ext'])
