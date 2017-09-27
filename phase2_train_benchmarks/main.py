@@ -8,6 +8,7 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.preprocessing import StandardScaler
 import fileio as io
 from model_wrappers import STD_BENCH_MODELS
+from validate_input_data import moments_report
 
 # Currently first requires:
 # export PYTHONPATH=./bench_models/nade/:$PYTHONPATH
@@ -26,12 +27,13 @@ def get_default_run_setup(config):
     print 'rnade scratch %s' % rnade_scratch
     assert(os.path.isabs(rnade_scratch))
 
+    # 'IGN': ('IGN', {'n_layers': 3, 'n_epochs': 2500, 'lr': 1e-4}, {}),
+
     run_config = \
         {'norm_diag': ('Gaussian', {'diag': True}, {}),
          'norm_full': ('Gaussian', {'diag': False}, {}),
          'MoG': ('MoG', {}, {'n_components': range(2, max_mixtures + 1)}),
          'VBMoG': ('VBMoG', {'n_components': max_mixtures}, {}),
-         'IGN': ('IGN', {'n_layers': 3, 'n_epochs': 2500, 'lr': 1e-4}, {}),
          'RNADE': ('RNADE',
                    {'n_components': 5, 'scratch_dir': rnade_scratch}, {})}
     return run_config
@@ -41,8 +43,16 @@ def run_experiment(config, chain_name, debug_dump=False, shuffle=False,
                    setup=get_default_run_setup):
     '''Call this instead of main for scripted multiple runs within python.'''
     run_config = setup(config)
+    burn_in_frac = 0.05  # TODO put in config
 
     MC_chain = io.load_np(config['input_path'], chain_name, config['csv_ext'])
+    print 'full'
+    moments_report(MC_chain)
+
+    MC_chain = MC_chain[int(burn_in_frac * MC_chain.shape[0]):, :]
+    print 'post burn-in'
+    moments_report(MC_chain)
+
     N, D = MC_chain.shape
     print 'size %d x %d' % (N, D)
     N_train = int(np.ceil(config['train_frac'] * N))
