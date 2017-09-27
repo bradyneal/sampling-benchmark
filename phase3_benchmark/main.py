@@ -67,7 +67,8 @@ def get_counters():
 # ============================================================================
 
 
-def controller(model_setup, sampler, time_grid_ms, n_grid, init_exact=True):
+def controller(model_setup, sampler, time_grid_ms, n_grid,
+               init_exact=True, n_ref_exact=0):
     assert(sampler in BUILD_STEP)
     assert(time_grid_ms > 0)
 
@@ -110,8 +111,6 @@ def controller(model_setup, sampler, time_grid_ms, n_grid, init_exact=True):
         ll = ll - np.sum(np.log(p[DATA_SCALE]))
         return ll + s * 0
 
-    # TODO insert validation test here
-
     reset_counters()
     with pm.Model():
         pm.DensityDist('x', logpdf, shape=D)
@@ -135,6 +134,14 @@ def controller(model_setup, sampler, time_grid_ms, n_grid, init_exact=True):
     trace = format_trace(trace)
     moments_report(trace)
 
+    if n_ref_exact > 0:
+        X_exact = sample_exact(model_name, D, params_dict, N=n_ref_exact)
+        scaler = StandardScaler()
+        X_exact = scaler.fit_transform(X_exact)
+        X_std = scaler.transform(trace)
+        err = np.mean((np.mean(X_exact, axis=0) - np.mean(X_std, axis=0)) ** 2)
+        print 'sq err %f' % err
+
     # Build a meta-data df
     meta = pd.DataFrame(meta)
     meta.set_index(GRID_INDEX, drop=True, inplace=True)
@@ -152,7 +159,7 @@ def sample_exact(model_name, D, params_dict, N=1):
     assert(X.shape == (N, D))
     # Benchmark model trained on standardized data, move back to original.
     X = params_dict[DATA_SCALE][None, :] * X + \
-            params_dict[DATA_CENTER][None, :]
+        params_dict[DATA_CENTER][None, :]
     return X
 
 
