@@ -140,36 +140,11 @@ def save_metric_summary(perf, n_count, ess_ref, output_path, ext):
     io.save_pd(df, output_path, 'final-%s' % 'eff', ext)
 
 
-def main():
-    assert(len(sys.argv) == 2)
-    config_file = io.abspath2(sys.argv[1])
-
-    bootstrap_test = True
-
-    config = load_config(config_file)
-
+def build_metrics_array(samplers, examples, metrics, file_lookup, config,
+                        bootstrap_test=False):
+    '''Aggregate all the performance numbers into huge array'''
     n_chains, n_grid = config['n_chains'], config['n_grid']
     print 'expect %d chains per case' % n_chains
-
-    samplers, examples, file_lookup = \
-        io.find_traces(config['input_path'], config['exact_name'],
-                       config['csv_ext'])
-    print 'found %d samplers and %d examples' % (len(samplers), len(examples))
-    print '%d files in lookup table' % \
-        sum(len(file_lookup[k]) for k in file_lookup)
-
-    # This could get big
-    print samplers
-    print examples
-
-    # Setup diagnostic datastruct
-    # TODO eventually switch this to xr to for consistency
-    cols = pd.MultiIndex.from_product([STD_DIAGNOSTICS.keys(), examples],
-                                      names=['diagnostic', 'example'])
-    diag_df = pd.DataFrame(index=samplers, columns=cols, dtype=float)
-    assert(np.all(diag_df.isnull().values))  # init at nan
-
-    metrics = STD_METRICS.keys()
 
     coords = [('time', xrange(n_grid)), ('sampler', samplers),
               ('example', examples), ('metric', metrics)]
@@ -179,8 +154,14 @@ def main():
     # Final perf with synched scores, skip time
     perf_sync_final = init_data_array(coords[1:])
 
-    # Aggregate all the performance numbers into huge array
-    # TODO pull out into function
+    # Setup diagnostic datastruct
+    # TODO eventually switch this to xr to for consistency
+    # TODO take diagnostic names as inputs for consistency??
+    cols = pd.MultiIndex.from_product([STD_DIAGNOSTICS.keys(), examples],
+                                      names=['diagnostic', 'example'])
+    diag_df = pd.DataFrame(index=samplers, columns=cols, dtype=float)
+    assert(np.all(diag_df.isnull().values))  # init at nan
+
     for example in examples:
         fname, = file_lookup[(example, config['exact_name'])]  # singleton set
         exact_chain = io.load_np(config['input_path'], fname, ext='')
@@ -205,7 +186,6 @@ def main():
                 if bootstrap_test:
                     curr_chain = resample(exact_chain, all_meta[-1, ii])
                 else:  # Load actual data
-                    assert(False)
                     curr_chain = io.load_np(config['input_path'], fname, '')
                     curr_chain = scaler.transform(curr_chain)
                 all_chains.append(curr_chain)
@@ -221,13 +201,36 @@ def main():
             all_chains = combine_chains(all_chains)  # Now np array
             min_n = all_chains.shape[1]
             final_idx = min_n + np.zeros((1, all_chains.shape[0]), dtype=int)
-            for metric, metric_f in STD_METRICS.iteritems():
+            for metric in metrics:
                 err, = eval_inc(exact_chain, all_chains, metric, final_idx)
                 assert(np.ndim(err) == 0)
                 perf_sync_final.loc[sampler, example, metric] = err
             for diag_name, diag_f in STD_DIAGNOSTICS.iteritems():
                 score = diag_f(all_chains)
                 diag_df.loc[sampler, (diag_name, example)] = score
+    return perf, n_count, perf_sync_final, diag_df
+
+
+def main():
+    assert(len(sys.argv) == 2)
+    config_file = io.abspath2(sys.argv[1])
+
+    config = load_config(config_file)
+
+    samplers, examples, file_lookup = \
+        io.find_traces(config['input_path'], config['exact_name'],
+                       config['csv_ext'])
+    print 'found %d samplers and %d examples' % (len(samplers), len(examples))
+    print '%d files in lookup table' % \
+        sum(len(file_lookup[k]) for k in file_lookup)
+
+    # This could get big
+    print samplers
+    print examples
+
+    metrics = STD_METRICS.keys()
+    R = build_metrics_array(samplers, examples, metrics, file_lookup, config)
+    perf, n_count, perf_sync_final, diag_df = R
 
     # Save metrics
     # TODO get ess_ref out of metrics module
@@ -238,8 +241,9 @@ def main():
     # Save diagnostics
     io.save_pd(diag_df, config['output_path'], 'diagnostic', config['csv_ext'])
 
-    # TODO clean up, this is just to start
-    df = perf_sync_final.sel(metric='mean').to_pandas()
+    # Just consider mean sync'd ESS now
+    ess = ess_ref.sel(metric='mean') / perf_sync_final.sel(metric='mean')
+    df = ess.to_pandas()
     assert(df.index.name == 'sampler')
     assert(df.columns.name == 'example')
     io.save_pd(df, config['output_path'], 'ess', config['csv_ext'])
