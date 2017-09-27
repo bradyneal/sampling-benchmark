@@ -16,6 +16,9 @@ import fileio as io
 from time import time as wall_time
 from time import clock as cpu_time
 
+from sklearn.preprocessing import StandardScaler
+import scipy.stats as ss
+
 SAMPLE_INDEX_COL = 'sample'
 DATA_CENTER = 'data_center'
 DATA_SCALE = 'data_scale'
@@ -26,6 +29,24 @@ def format_trace(trace):
     # TODO I don't think we need to import extra function to get df from trace
     df = trace_to_dataframe(trace)
     return df.values
+
+
+def moments_report(X):
+    V = np.std(X, axis=0)
+    std_ratio = np.log10(np.max(V) / np.min(V))
+
+    C = np.cov(X, rowvar=0)
+    cond_number = np.log10(np.linalg.cond(C))
+
+    corr = np.corrcoef(X, rowvar=0) - np.eye(X.shape[1])
+
+    max_skew = np.max(np.abs(ss.skew(X, axis=0)))
+    max_kurt = np.max(ss.kurtosis(X, axis=0))
+
+    print 'N = %d' % X.shape[0]
+    print 'log10 var ratio %f, cond numer %f' % (std_ratio, cond_number)
+    print 'min corr %f, max corr %f' % (np.min(corr), np.max(corr))
+    print 'max skew %f, max kurt %f' % (max_skew, max_kurt)
 
 # ============================================================================
 # Part of Fred's funky system to keep track of Theano function evals which
@@ -57,11 +78,26 @@ def controller(model_setup, sampler, time_grid_ms, n_grid):
               ('chunk_wall_time_s', wall_time),
               ('energy_calls', get_counters)]
 
+    print '-' * 20
     print 'starting experiment'
+    print model_name
+    print sampler
     print 'D=%d' % D
     assert(D >= 1)
     assert(params_dict[DATA_CENTER].shape == (D,))
-    assert(params_dict[DATA_CENTER].shape == (D,))
+    assert(params_dict[DATA_SCALE].shape == (D,))
+
+    # TODO remove debug only
+    # params_dict[DATA_SCALE] = np.ones_like(params_dict[DATA_SCALE])
+    # params_dict[DATA_CENTER] = np.zeros_like(params_dict[DATA_CENTER])
+    # params_dict[DATA_SCALE] = np.minimum(10.0 * np.min(params_dict[DATA_SCALE]), params_dict[DATA_SCALE])
+    # params_dict[DATA_SCALE] = np.logspace(-3, 3, D)
+    print params_dict[DATA_SCALE]
+
+    # TODO test only remove
+    X_exact = sample_exact(model_name, D, params_dict, N=10000)
+    print 'exact'
+    moments_report(X_exact)
 
     # Use default arg trick to get params to bind to model now
     def logpdf(x, p=params_dict):
@@ -81,11 +117,16 @@ def controller(model_setup, sampler, time_grid_ms, n_grid):
         ll = ll - np.sum(np.log(p[DATA_SCALE]))
         return ll + s * 0
 
+    # TODO insert validation test here
+
     reset_counters()
     with pm.Model():
         pm.DensityDist('x', logpdf, shape=D, testval=np.zeros(D))
         steps = BUILD_STEP[sampler]()
-        sample_generator = pm.sampling.iter_sample(MAX_N, steps)
+
+        print 'doing init'
+        init_trace = pm.sample(1, steps, init='advi')
+        sample_generator = pm.sampling.iter_sample(MAX_N, steps, start=init_trace[0])
 
         time_grid_s = 1e-3 * time_grid_ms
         TC = time_chunker(sample_generator, time_grid_s, timers, n_grid=n_grid)
@@ -101,6 +142,28 @@ def controller(model_setup, sampler, time_grid_ms, n_grid):
     # Build rep for trace data
     trace = format_trace(trace)
 
+    # TODO remove test only
+    reset_counters()
+    with pm.Model():
+        pm.DensityDist('x', logpdf, shape=D, testval=np.zeros(D))
+        steps = BUILD_STEP[sampler]()
+        print 'doing offline run'
+        trace_offline = pm.sample(len(trace), steps, init='advi')
+
+    # TODO test only remove
+    X_offline = format_trace(trace_offline)
+    X_online = trace
+    print 'offline'
+    moments_report(X_offline)
+    print 'online'
+    moments_report(X_online)
+    scaler = StandardScaler()
+    X_exact = scaler.fit_transform(X_exact)
+    X_offline = scaler.transform(X_offline)
+    X_online = scaler.transform(X_online)
+    print 'offline %f' % np.mean((np.mean(X_exact, axis=0) - np.mean(X_offline, axis=0)) ** 2)
+    print 'online %f' % np.mean((np.mean(X_exact, axis=0) - np.mean(X_online, axis=0)) ** 2)
+
     # Build a meta-data df
     meta = pd.DataFrame(meta)
     meta.set_index(GRID_INDEX, drop=True, inplace=True)
@@ -111,6 +174,15 @@ def controller(model_setup, sampler, time_grid_ms, n_grid):
     meta[SAMPLE_INDEX_COL] = meta[CHUNK_SIZE].cumsum()
     # Could assert iter and index dtype is int here to be really safe
     return trace, meta
+
+
+def sample_exact(model_name, D, params_dict, N=1):
+    X = SAMPLE_MODEL[model_name](params_dict, N=N)
+    assert(X.shape == (N, D))
+    # Benchmark model trained on standardized data, move back to original.
+    X = params_dict[DATA_SCALE][None, :] * X + \
+            params_dict[DATA_CENTER][None, :]
+    return X
 
 
 def run_experiment(config, param_name, sampler):
@@ -128,11 +200,7 @@ def run_experiment(config, param_name, sampler):
     # Now sample
     meta = None
     if sampler == config['exact_name']:
-        X = SAMPLE_MODEL[model_name](params_dict, N=config['n_exact'])
-        assert(X.shape == (config['n_exact'], D))
-        # Benchmark model trained on standardized data, move back to original.
-        X = params_dict[DATA_SCALE][None, :] * X + \
-            params_dict[DATA_CENTER][None, :]
+        X = sample_exact(model_name, D, params_dict, N=config['n_exact'])
     else:
         X, meta = controller(model_setup, sampler,
                              config['t_grid_ms'], config['n_grid'])
