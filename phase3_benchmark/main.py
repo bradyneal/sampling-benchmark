@@ -87,14 +87,6 @@ def controller(model_setup, sampler, time_grid_ms, n_grid):
     assert(params_dict[DATA_CENTER].shape == (D,))
     assert(params_dict[DATA_SCALE].shape == (D,))
 
-    # TODO remove debug only
-    #params_dict[DATA_SCALE] = np.ones_like(params_dict[DATA_SCALE])
-    # params_dict[DATA_CENTER] = np.zeros_like(params_dict[DATA_CENTER])
-    # params_dict[DATA_SCALE] = np.minimum(10.0 * np.min(params_dict[DATA_SCALE]), params_dict[DATA_SCALE])
-    # params_dict[DATA_SCALE] = np.logspace(-3, 3, D)
-    print params_dict[DATA_CENTER]
-    print params_dict[DATA_SCALE]
-
     # TODO test only remove
     X_exact = sample_exact(model_name, D, params_dict, N=10000)
     print 'exact'
