@@ -88,7 +88,7 @@ def process_dataset(i_and_dataset_id, model_names, sample_model):
 
 
 if __name__ == '__main__':
-    regression_dids = get_downloaded_dataset_ids_by_task('Supervised Regression')
-    sample_and_save_posteriors(regression_dids, 'regression')
-    # classification_dids = get_downloaded_dataset_ids_by_task('Supervised Classification')
-    # sample_and_save_posteriors(classification_dids, 'classification')
+    # regression_dids = get_downloaded_dataset_ids_by_task('Supervised Regression')
+    # sample_and_save_posteriors(regression_dids, 'regression')
+    classification_dids = get_downloaded_dataset_ids_by_task('Supervised Classification')
+    sample_and_save_posteriors(classification_dids, 'classification')

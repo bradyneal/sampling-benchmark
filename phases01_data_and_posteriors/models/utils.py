@@ -25,7 +25,8 @@ def format_trace(trace):
 
 def subsample(X, y, model_name):
     """Subsample X if the model is a Gaussian process"""
-    if 'gp' in model_name and X.shape[0] > MAX_GP_N:
+    n = X.shape[0]
+    if 'gp' in model_name and n > MAX_GP_N:
         idx = np.random.randint(n, size=MAX_GP_N)
         return X[idx, :], y[idx]
     else:
