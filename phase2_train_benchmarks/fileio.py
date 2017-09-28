@@ -33,14 +33,17 @@ def load_np(input_path, fname, ext):
 
 def chomp(ss, ext):
     L = len(ext)
-    assert(ss[-L:] == ext)
+    if ss[-L:] != ext:
+        raise Exception('string %s with extension %s when %s was expected' %
+                        (ss, ss[-L:], ext))
     return ss[:-L]
 
 # ============================================================================
 
 
 def get_chains(input_path, ext):
-    chains = sorted(chomp(fname, ext) for fname in os.listdir(input_path))
+    chains = sorted(chomp(fname, ext) for fname in os.listdir(input_path)
+                    if ext in fname)
     return chains
 
 
