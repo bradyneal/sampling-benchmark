@@ -6,7 +6,7 @@ HARD_MAX_TIME_IN_HOURS = 5
 HARD_MAX_TIME_IN_SECONDS = HARD_MAX_TIME_IN_HOURS * 60 * 60
 MAX_DATA_DIMENSION = {
     'linear': 25,
-    'pairwise': 5,
-    'quadratic': 5
+    'pairwise': 7,
+    'quadratic': 6
 }
 MAX_GP_N = 1000
