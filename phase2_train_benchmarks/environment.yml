@@ -12,6 +12,7 @@ dependencies:
 - glib=2.50.2=1
 - gst-plugins-base=1.8.0=0
 - gstreamer=1.8.0=0
+- h5py
 - icu=54.1=0
 - jpeg=9b=0
 - libffi=3.2.1=1
@@ -61,7 +62,6 @@ dependencies:
   - docutils==0.13.1
   - entrypoints==0.2.2
   - enum34==1.1.6
-  - h5py==2.7.1
   - html5lib==0.9999999
   - imagesize==0.7.1
   - ipython-genutils==0.1.0
@@ -83,7 +83,6 @@ dependencies:
   - requests==2.13.0
   - snowballstemmer==1.2.1
   - sphinx==1.5.2
-  - tensorflow-gpu==1.0.1
   - testpath==0.3
   - tqdm==4.11.2
   - traitlets==4.3.1
