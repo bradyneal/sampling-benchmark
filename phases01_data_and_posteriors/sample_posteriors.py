@@ -24,7 +24,7 @@ NUM_JOBS = int(NUM_CORES / 2)
 
 # For each different task (e.g. regression, classification, etc.),
 # run outer loop that loops over datasets and inner loop that loops over models.
-def sample_and_save_posteriors(dids, task):
+def sample_and_save_posteriors(dids, task, seed=None):
     if task == 'regression':
         model_names = REGRESSION_MODEL_NAMES
         sample_model = sample_regression_model
@@ -35,7 +35,8 @@ def sample_and_save_posteriors(dids, task):
         raise ValueError('Invalid task: ' + task)
     
     num_datasets = len(dids)
-    random.seed(12)
+    if seed is not None:
+        random.seed(seed)
     random.shuffle(dids)
     
     process_dataset_task = partial(process_dataset, model_names=model_names,
