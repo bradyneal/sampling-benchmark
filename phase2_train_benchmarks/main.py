@@ -26,6 +26,13 @@ DATA_SCALE = 'data_scale'
 def get_default_run_setup(config):
     max_mixtures = 25
 
+    # Make rnade_scratch dir if doesn't already exist
+    try: 
+        os.makedirs(config['rnade_scratch'])
+    except OSError:
+        if not os.path.isdir(config['rnade_scratch']):
+            raise
+        
     # Can run multiple instances in parallel with random subdir for scratch
     rnade_scratch = mkdtemp(dir=config['rnade_scratch'])
     print 'rnade scratch %s' % rnade_scratch
