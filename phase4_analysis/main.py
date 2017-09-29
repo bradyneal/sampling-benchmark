@@ -12,6 +12,7 @@ from metrics import STD_METRICS, STD_METRICS_REF
 from metrics import eval_inc
 
 SAMPLE_INDEX_COL = 'sample'
+SKIPNA = True
 
 
 def init_data_array(coords, value=np.nan):
@@ -33,7 +34,7 @@ def hmean(X, axis=None):
     return hm
 
 
-def xr_hmean(X, dim=None, skipna=False):
+def xr_hmean(X, dim=None, skipna=SKIPNA):
     '''Note this departs from xarray default for skipna.'''
     hm = 1.0 / ((1.0 / X).mean(dim=dim, skipna=skipna))
     return hm
@@ -109,7 +110,7 @@ def save_metric_summary(perf, n_count, ess_ref, output_path, ext):
 
     for metric in metrics:
         perf_slice = perf.sel(metric=metric)
-        time_perf = perf_slice.mean(dim='example', skipna=False)
+        time_perf = perf_slice.mean(dim='example', skipna=SKIPNA)
         df = time_perf.to_pandas()
         assert(df.index.name == 'time')
         assert(df.columns.name == 'sampler')
@@ -124,7 +125,7 @@ def save_metric_summary(perf, n_count, ess_ref, output_path, ext):
         assert(df.columns.name == 'sampler')
         io.save_pd(df, output_path, 'time-%s-%s' % (metric, 'eff'), ext)
 
-    final_perf = perf.isel(time=-1).mean(dim='example', skipna=False)
+    final_perf = perf.isel(time=-1).mean(dim='example', skipna=SKIPNA)
     df = final_perf.to_pandas()
     assert(df.index.name == 'sampler')
     assert(df.columns.name == 'metric')
