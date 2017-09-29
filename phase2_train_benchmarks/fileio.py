@@ -57,6 +57,19 @@ def load_config(config_file):
 
     D['csv_ext'] = config.get('common', 'csv_ext')
     D['pkl_ext'] = config.get('common', 'pkl_ext')
+    
+    njobs = config.get('compute', 'njobs')
+    calc_njobs = njobs in ['', 'None', 'none', 'calculated', 'calculate']
+    if calc_njobs:
+        num_cores_per_cpu = config.getint('compute', 'num_cores_per_cpu')
+        num_cpus = config.getint('compute', 'num_cpus')
+        num_cores_per_job = config.getint('compute', 'num_cores_per_job')
+        D['njobs'] = num_cores_per_cpu * num_cpus / num_cores_per_job
+    else:
+        try:
+            D['njobs'] = int(njobs)
+        except ValueError:
+            raise ValueError('invalid value given for njobs: %s' % njobs)
 
     D['train_frac'] = config.getfloat('phase2', 'train_frac')
     assert(0.0 <= D['train_frac'] and D['train_frac'] <= 1.0)

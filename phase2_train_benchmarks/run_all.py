@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # Ryan Turner (turnerry@iro.umontreal.ca)
 import sys
+from joblib import Parallel, delayed
+from functools import partial
 import fileio as io
 from main import run_experiment
 
@@ -23,12 +25,25 @@ def main():
     print 'inputs chains:'
     print chains
 
-    for mc_chain_name in chains:
-        try:
-            run_experiment(config, mc_chain_name)
-        except:
-            print '%s failed' % mc_chain_name
+    print 'Running njobs=%d in parallel' % config['njobs']
+    try_run_experiment_with_config = partial(try_run_experiment, config)
+    Parallel(n_jobs=config['njobs'])(
+        map(delayed(try_run_experiment_with_config), chains))
     print 'done'
+    
+    
+def try_run_experiment(config, mc_chain_name):
+    """
+    Put run_experiment inside a try-except so that one failed experiment
+    doesn't kill them all when many are running in parallel.
+    """
+    try:
+        run_experiment(config, mc_chain_name)
+    except (KeyboardInterrupt, SystemExit):
+        raise
+    except:
+        print '%s failed' % mc_chain_name
+
 
 if __name__ == '__main__':
     main()
