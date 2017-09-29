@@ -50,6 +50,19 @@ def load_config(config_file):
     config = ConfigParser.RawConfigParser()
     assert(os.path.isabs(config_file))
     config.read(config_file)
+    
+    njobs = config.get('compute', 'njobs')
+    calc_njobs = njobs in ['', 'None', 'none', 'calculated', 'calculate']
+    if calc_njobs:
+        num_cores_per_cpu = config.getint('compute', 'num_cores_per_cpu')
+        num_cpus = config.getint('compute', 'num_cpus')
+        num_cores_per_job = config.getint('compute', 'num_cores_per_job')
+        D['njobs'] = num_cores_per_cpu * num_cpus / num_cores_per_job
+    else:
+        try:
+            D['njobs'] = int(njobs)
+        except ValueError:
+            raise ValueError('invalid value given for njobs: %s' % njobs)
 
     D = {}
     D['input_path'] = abspath2(config.get('phase2', 'output_path'))
