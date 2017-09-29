@@ -1,5 +1,6 @@
 # Ryan Turner (turnerry@iro.umontreal.ca)
 import os
+import sys
 import numpy as np
 import scipy.stats as ss
 import ConfigParser
@@ -46,9 +47,10 @@ def moments_report_w_burn(X, burn_frac=0.05):
 
 
 def main():
-    config_file = '../config.ini'
+    assert(len(sys.argv) == 2)  # Print usage error instead to be user friendly
+    config_file = io.abspath2(sys.argv[1])
+
     config = ConfigParser.RawConfigParser()
-    #assert(os.path.isabs(config_file))
     config.read(config_file)
     input_path = io.abspath2(config.get('phase1', 'output_path'))
     data_ext = config.get('common', 'csv_ext')
@@ -57,6 +59,7 @@ def main():
     print input_path
     chain_files = sorted(f for f in os.listdir(input_path)
                          if f.endswith(data_ext))
+    np.random.shuffle(chain_files)
     print 'found %d files' % len(chain_files)
 
     for chain in chain_files:
