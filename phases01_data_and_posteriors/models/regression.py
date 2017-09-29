@@ -13,7 +13,7 @@ from .utils import format_trace, get_pairwise_formula, get_quadratic_formula, \
                    get_linear_formula, join_nonempty
 from .nn import sample_shallow_nn
 from . import MAX_NUM_SAMPLES, NUM_INIT_STEPS, SOFT_MAX_TIME_IN_SECONDS, \
-              HARD_MAX_TIME_IN_SECONDS
+              HARD_MAX_TIME_IN_SECONDS, MIN_SAMPLES_CONSTANT
 from .utils import reduce_data_dimension, subsample
 
 REGRESSION_MODEL_NAMES = \
@@ -93,7 +93,7 @@ def sample_regression_model(model_name, X, y, num_samples=MAX_NUM_SAMPLES,
         
         for i, trace in enumerate(pm.iter_sample(MAX_NUM_SAMPLES, step)):
             if i == 0:
-                min_num_samples = 10 * (len(trace[0]) ** 2)
+                min_num_samples = MIN_SAMPLES_CONSTANT * (len(trace[0]) ** 2)
             elapsed = timer() - start
             if elapsed > SOFT_MAX_TIME_IN_SECONDS:
                 print('exceeded soft time limit...')

@@ -6,12 +6,18 @@ from main import run_experiment
 
 
 def main():
-    # We would print usage error instead if we wanted to be user friendly
-    assert(len(sys.argv) == 2)
-    config_file = io.abspath2(sys.argv[1])
+    num_args = len(sys.argv) - 1
+    if num_args < 1:
+        config_path = '../config.ini'
+    elif len(sys.argv) > 1:
+        raise Exception('too many arguments: %d. %d expected' % (num_args, 1))
+    else:
+        config_path = sys.argv[1]
+    config_file = io.abspath2(config_path)
 
     print 'config %s' % config_file
     config = io.load_config(config_file)
+    print(config['input_path'])
 
     chains = io.get_chains(config['input_path'], config['csv_ext'])
     print 'inputs chains:'

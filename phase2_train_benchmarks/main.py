@@ -1,4 +1,11 @@
 # Ryan Turner (turnerry@iro.umontreal.ca)
+# Currently first requires:
+# Either
+# export PYTHONPATH=./bench_models/nade/:$PYTHONPATH
+# or import __init__ (done)
+# TODO fix, i don't like that, need to fix some garbage in __init__.py files
+
+import __init__
 import cPickle as pkl
 import os
 import sys
@@ -10,9 +17,6 @@ import fileio as io
 from model_wrappers import STD_BENCH_MODELS
 from validate_input_data import moments_report
 
-# Currently first requires:
-# export PYTHONPATH=./bench_models/nade/:$PYTHONPATH
-# TODO fix, i don't like that, need to fix some garbage in __init__.py files
 
 PHASE3_MODELS = ('MoG', 'VBMoG', 'RNADE')  # Models implemented in phase 3
 DATA_CENTER = 'data_center'
@@ -21,6 +25,13 @@ DATA_SCALE = 'data_scale'
 
 def get_default_run_setup(config):
     max_mixtures = 25
+
+    # Make rnade_scratch dir if doesn't already exist
+    try:
+        os.makedirs(config['rnade_scratch'])
+    except OSError:
+        if not os.path.isdir(config['rnade_scratch']):
+            raise
 
     # Can run multiple instances in parallel with random subdir for scratch
     rnade_scratch = mkdtemp(dir=config['rnade_scratch'])

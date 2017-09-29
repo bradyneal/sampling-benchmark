@@ -13,7 +13,7 @@ from timeit import default_timer as timer
 from .utils import format_trace
 from .nn import sample_shallow_nn
 from . import MAX_NUM_SAMPLES, NUM_INIT_STEPS, SOFT_MAX_TIME_IN_SECONDS, \
-              HARD_MAX_TIME_IN_SECONDS
+              HARD_MAX_TIME_IN_SECONDS, MIN_SAMPLES_CONSTANT
 from .utils import reduce_data_dimension, subsample
 
 # Arguably, build_pm_gp_cov should go in some 3rd file like util
@@ -83,7 +83,7 @@ def sample_classification_model(model_name, X, y, num_samples=MAX_NUM_SAMPLES,
         
         for i, trace in enumerate(pm.iter_sample(MAX_NUM_SAMPLES, step)):
             if i == 0:
-                min_num_samples = 10 * (len(trace[0]) ** 2)
+                min_num_samples = MIN_SAMPLES_CONSTANT * (len(trace[0]) ** 2)
             elapsed = timer() - start
             if elapsed > SOFT_MAX_TIME_IN_SECONDS:
                 print('exceeded soft time limit...')
