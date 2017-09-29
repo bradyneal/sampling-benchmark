@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # Ryan Turner (turnerry@iro.umontreal.ca)
 import sys
 import fileio as io
@@ -17,7 +18,10 @@ def main():
     print chains
 
     for mc_chain_name in chains:
-        run_experiment(config, mc_chain_name)
+        try:
+            run_experiment(config, mc_chain_name)
+        except:
+            print '%s failed' % mc_chain_name
     print 'done'
 
 if __name__ == '__main__':

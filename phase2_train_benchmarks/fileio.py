@@ -40,7 +40,7 @@ def chomp(ss, ext):
 
 
 def get_chains(input_path, ext):
-    chains = sorted(chomp(fname, ext) for fname in os.listdir(input_path))
+    chains = sorted(chomp(fname, ext) for fname in os.listdir(input_path) if fname.endswith(ext))
     return chains
 
 

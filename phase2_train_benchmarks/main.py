@@ -39,6 +39,29 @@ def get_default_run_setup(config):
     return run_config
 
 
+def use_model(model_name, args, cv_args, X_train, X_test):
+    '''Anything that uses the model obj goes here to be in try-catch.'''
+    model = STD_BENCH_MODELS[model_name](**args)
+    if len(cv_args) == 0:
+        model.fit(X_train)
+    else:
+        # If the optimization require a larger space we can switch to skopt
+        cv_model = GridSearchCV(model, cv_args)
+        cv_model.fit(X_train)
+        model = cv_model.best_estimator_  # Get original model back out
+        print 'CV optimum'
+        print cv_model.best_params_
+
+    # Get the performance for this model
+    params_obj = model.get_params_()
+
+    # Using _chk function as the real b.c. that is what we use in phase 3
+    loglik_vec = model.loglik_chk(X_test, params_obj)
+    # Check we get same answer as sklearn built in score
+    loglik_vec_chk = model.score_samples(X_test)
+    return model, params_obj, loglik_vec, loglik_vec_chk
+
+
 def run_experiment(config, chain_name, debug_dump=False, shuffle=False,
                    setup=get_default_run_setup):
     '''Call this instead of main for scripted multiple runs within python.'''
@@ -84,30 +107,20 @@ def run_experiment(config, chain_name, debug_dump=False, shuffle=False,
         print 'grid searching over parameters'
         print cv_args.keys()
 
-        # Do the training
-        model = STD_BENCH_MODELS[model_name](**args)
-        if len(cv_args) == 0:
-            model.fit(X_train)
-        else:
-            # If the optimization require a larger space we can switch to skopt
-            cv_model = GridSearchCV(model, cv_args)
-            cv_model.fit(X_train)
-            model = cv_model.best_estimator_  # Get original model back out
-            print 'CV optimum'
-            print cv_model.best_params_
+        try:
+            R = use_model(model_name, args, cv_args, X_train, X_test)
+        except:
+            print '%s/%s failed' % (run_name, model_name)
+            continue
+        model, params_obj, loglik_vec, loglik_vec_chk = R
 
-        # Get the performance for this model
-        params_obj = model.get_params_()
-        # Using _chk function as the real b.c. that is what we use in phase 3
-        loglik_vec = model.loglik_chk(X_test, params_obj)
-        test_loglik = np.mean(loglik_vec)
-        print 'loglik %s: %f' % (run_name, test_loglik)
-
-        # Check we get same answer as sklearn built in score
-        loglik_vec_chk = model.score_samples(X_test)
         err = np.max(np.abs(loglik_vec - loglik_vec_chk))
         print 'loglik chk %s log10 err: %f' % (run_name, np.log10(err))
+
         print 'loglik chk %s: %f' % (run_name, np.mean(loglik_vec_chk))
+
+        test_loglik = np.mean(loglik_vec)
+        print 'loglik %s: %f' % (run_name, test_loglik)
 
         # Update which is best so far
         if model_name in PHASE3_MODELS and test_loglik > best_loglik:
