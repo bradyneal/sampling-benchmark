@@ -118,6 +118,7 @@ def sample_emcee(logpdf_tt, sampler, start, timers, time_grid_ms, n_grid,
     # version if that is less overhead, but not that is not clear. So, just
     # compile the theano version.
     x_tt = T.vector('x')
+    x_tt.tag.test_value = np.zeros(D)
     logpdf_val = logpdf_tt(x_tt)
     logpdf_f = theano.function([x_tt], logpdf_val)
 

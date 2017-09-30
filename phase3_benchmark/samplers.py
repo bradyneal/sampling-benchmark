@@ -18,12 +18,14 @@ def laplace():
     return pm.Metropolis(proposal_dist=pm.LaplaceProposal)
 
 
+#                 'HMC-default': pm.HamiltonianMC,
+#                 'Cauchy-proposal': cauchy,
+#                 'Laplace-proposal': laplace,
+
+
 BUILD_STEP_PM = {'NUTS-default': pm.NUTS,
                  'Metro-default': pm.Metropolis,
                  'slice-default': pm.Slice,
-                 'HMC-default': pm.HamiltonianMC,
-                 'Cauchy-proposal': cauchy,
-                 'Laplace-proposal': laplace,
                  'mix': test_case_mix}
 
 BUILD_STEP_MC = {'emcee': EnsembleSampler}

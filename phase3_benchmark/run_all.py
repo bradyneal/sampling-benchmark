@@ -1,5 +1,6 @@
 # Ryan Turner (turnerry@iro.umontreal.ca)
 import sys
+from time import time
 import fileio as io
 from main import run_experiment
 # This will import pymc3 which is not needed if the experiments are run in a
@@ -33,7 +34,9 @@ def main():
     for _ in xrange(config['n_chains']):
         for model_name in model_list:
             for sampler in sampler_list:
+                t = time()
                 run_experiment(config, model_name, sampler)
+                print 'wall time %fs' % (time() - t)
     print 'done'
 
 if __name__ == '__main__':
