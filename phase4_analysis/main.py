@@ -8,7 +8,7 @@ from sklearn.preprocessing import StandardScaler
 import xarray as xr
 from diagnostics import STD_DIAGNOSTICS, ESS
 import fileio as io
-from metrics import STD_METRICS, STD_METRICS_REF
+from metrics import MOMENT_METRICS, OTHER_METRICS, METRICS_REF
 from metrics import eval_inc
 
 SAMPLE_INDEX_COL = 'sample'
@@ -241,12 +241,12 @@ def main():
     print samplers
     print examples
 
-    metrics = STD_METRICS.keys()
+    metrics = MOMENT_METRICS.keys() + OTHER_METRICS.keys()
     R = build_metrics_array(samplers, examples, metrics, file_lookup, config)
     perf, n_count, perf_sync, n_count_sync = R
 
-    ess_ref = xr.DataArray(data=STD_METRICS_REF.values(),
-                           coords=[('metric', STD_METRICS_REF.keys())])
+    ess_ref = xr.DataArray(data=METRICS_REF.values(),
+                           coords=[('metric', METRICS_REF.keys())])
     print 'using reference values'
     print ess_ref.to_pandas().to_string()
 
@@ -259,7 +259,7 @@ def main():
     # Report on ESS measures
     D = {ESS: perf_sync[ESS]}
     for metric in metrics:
-        D[metric] = STD_METRICS_REF[metric] / perf_sync[metric]
+        D[metric] = METRICS_REF[metric] / perf_sync[metric]
         assert(D[metric].index.name == 'sampler')
         assert(D[metric].columns.name == 'example')
     df = pd.concat(D, axis=1)
