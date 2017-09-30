@@ -53,13 +53,11 @@ def process_dataset(i_and_dataset_id, model_names, sample_model):
     """
     i, dataset_id = i_and_dataset_id
     # Partition datasets based on preprocessing
-    if i % 4 == 0:
-        preprocess = Preprocess.ONEHOT
-    elif i % 4 == 1:
+    if i % 3 == 0:
         preprocess = Preprocess.STANDARDIZED
-    elif i % 4 == 2:
+    elif i % 3 == 1:
         preprocess = Preprocess.ROBUST
-    elif i % 4 == 3:
+    elif i % 3 == 2:
         preprocess = Preprocess.WHITENED
         
     # Suboptimal: this information could be moved
