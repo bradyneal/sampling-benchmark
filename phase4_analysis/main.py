@@ -6,20 +6,13 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
 import xarray as xr
-from diagnostics import STD_DIAGNOSTICS
+from diagnostics import STD_DIAGNOSTICS, ESS
 import fileio as io
 from metrics import STD_METRICS, STD_METRICS_REF
 from metrics import eval_inc
 
 SAMPLE_INDEX_COL = 'sample'
 SKIPNA = True
-
-
-def init_data_array(coords, value=np.nan):
-    '''Why is this not built into to xarray?'''
-    shape = [len(grid) for _, grid in coords]
-    X = xr.DataArray(value + np.zeros(shape), coords=coords)
-    return X
 
 
 def resample(X, N):
@@ -34,10 +27,36 @@ def hmean(X, axis=None):
     return hm
 
 
+def init_data_array(coords, value=np.nan):
+    '''Why is this not built into to xarray?'''
+    shape = [len(grid) for _, grid in coords]
+    X = xr.DataArray(value + np.zeros(shape), coords=coords)
+    return X
+
+
 def xr_hmean(X, dim=None, skipna=SKIPNA):
     '''Note this departs from xarray default for skipna.'''
     hm = 1.0 / ((1.0 / X).mean(dim=dim, skipna=skipna))
     return hm
+
+
+def xr_to_df_hier(da, index, column, sub_column):
+    '''This could be done generally with xr.to_dataframe() and then unstack.'''
+    D = {}
+    for col_val in da.coords[column].values:
+        df = da.loc[{column: col_val}].to_pandas()
+        # xr.to_pandas() doesn't let us specify the way we want it:
+        if df.index.name != index:
+            df = df.T
+        assert(df.index.name == index)
+        assert(df.columns.name == sub_column)
+        D[col_val] = df
+    df = pd.concat(D, axis=1)
+    assert(df.columns.names == [None, sub_column])
+    df.columns.names = [column, sub_column]
+    assert(df.index.name == index)
+    assert(df.columns.names == [column, sub_column])
+    return df
 
 
 def combine_chains(chains):
@@ -85,57 +104,40 @@ def load_meta(input_path, fname, meta_ext, n_grid):
     return sample_idx
 
 
-def save_metric_summary(perf, n_count, ess_ref, output_path, ext):
-    examples = perf.coords['example'].values
-    metrics = perf.coords['metric'].values
+def save_metric_summary(err_xr, n_count_xr, ess_ref_xr, output_path, ext):
+    examples = err_xr.coords['example'].values
+    samplers = err_xr.coords['sampler'].values
+    metrics = err_xr.coords['metric'].values
 
-    hm_n_count = xr_hmean(n_count, dim='example')
+    D = {'err': err_xr}
+    # Note: coordinate ordering may change
+    D['ess'] = ess_ref_xr / D['err']
+    D['eff'] = D['ess'] / n_count_xr
 
-    for example in examples:
-        ex_perf = perf.isel(time=-1).sel(example=example)
-        df = ex_perf.to_pandas()
-        assert(df.index.name == 'sampler')
-        assert(df.columns.name == 'metric')
-        io.save_pd(df, output_path, '%s-%s' % (example, 'err'), ext)
-        # ess_ref is of dim (metrics,) => metric becomes first dim => need .T
-        ess = (ess_ref / ex_perf).T
-        df = ess.to_pandas()
-        assert(df.index.name == 'sampler')
-        assert(df.columns.name == 'metric')
-        io.save_pd(df, output_path, '%s-%s' % (example, 'ess'), ext)
-        df = (ess / n_count.isel(time=-1).sel(example=example)).to_pandas()
-        assert(df.index.name == 'sampler')
-        assert(df.columns.name == 'metric')
-        io.save_pd(df, output_path, '%s-%s' % (example, 'eff'), ext)
+    for space, X in D.iteritems():
+        for ex in examples:
+            df = xr_to_df_hier(X.sel(example=ex), 'time', 'sampler', 'metric')
+            io.save_pd(df, output_path, 'ex-%s-%s' % (ex, space), ext)
+        for sam in samplers:
+            df = xr_to_df_hier(X.sel(sampler=sam), 'time', 'example', 'metric')
+            io.save_pd(df, output_path, 'sam-%s-%s' % (sam, space), ext)
+        for met in metrics:
+            df = xr_to_df_hier(X.sel(metric=met), 'time', 'sampler', 'example')
+            io.save_pd(df, output_path, 'met-%s-%s' % (met, space), ext)
 
-    for metric in metrics:
-        perf_slice = perf.sel(metric=metric)
-        time_perf = perf_slice.mean(dim='example', skipna=SKIPNA)
-        df = time_perf.to_pandas()
-        assert(df.index.name == 'time')
-        assert(df.columns.name == 'sampler')
-        io.save_pd(df, output_path, 'time-%s-%s' % (metric, 'err'), ext)
-        ess = ess_ref.sel(metric=metric) / time_perf
-        df = ess.to_pandas()
-        assert(df.index.name == 'time')
-        assert(df.columns.name == 'sampler')
-        io.save_pd(df, output_path, 'time-%s-%s' % (metric, 'ess'), ext)
-        df = (ess / hm_n_count).to_pandas()
-        assert(df.index.name == 'time')
-        assert(df.columns.name == 'sampler')
-        io.save_pd(df, output_path, 'time-%s-%s' % (metric, 'eff'), ext)
-
-    final_perf = perf.isel(time=-1).mean(dim='example', skipna=SKIPNA)
+    # Some averaging for a final summary score
+    hm_n_count = xr_hmean(n_count_xr.isel(time=-1), dim='example')
+    final_perf = err_xr.isel(time=-1).mean(dim='example', skipna=SKIPNA)
     df = final_perf.to_pandas()
     assert(df.index.name == 'sampler')
     assert(df.columns.name == 'metric')
     io.save_pd(df, output_path, 'final-%s' % 'err', ext)
-    ess = (ess_ref / final_perf).T
+    ess = (ess_ref_xr / final_perf).T
     df = ess.to_pandas()
     assert(df.index.name == 'sampler')
     assert(df.columns.name == 'metric')
     io.save_pd(df, output_path, 'final-%s' % 'ess', ext)
-    df = (ess / hm_n_count.isel(time=-1)).to_pandas()
+    df = (ess / hm_n_count).to_pandas()
     assert(df.index.name == 'sampler')
     assert(df.columns.name == 'metric')
     io.save_pd(df, output_path, 'final-%s' % 'eff', ext)
@@ -152,16 +154,20 @@ def build_metrics_array(samplers, examples, metrics, file_lookup, config,
     perf = init_data_array(coords)
     # Skip metric for n_count
     n_count = init_data_array(coords[:-1])
-    # Final perf with synched scores, skip time
-    perf_sync_final = init_data_array(coords[1:])
 
-    # Setup diagnostic datastruct
-    # TODO eventually switch this to xr to for consistency
-    # TODO take diagnostic names as inputs for consistency??
-    cols = pd.MultiIndex.from_product([STD_DIAGNOSTICS.keys(), examples],
-                                      names=['diagnostic', 'example'])
-    diag_df = pd.DataFrame(index=samplers, columns=cols, dtype=float)
-    assert(np.all(diag_df.isnull().values))  # init at nan
+    # Final perf with synched scores, skip time. Eventually we want to be more
+    # consistent on using either pandas or xarray once we know what is more
+    # appropriate.
+    assert(set(metrics).isdisjoint(STD_DIAGNOSTICS.keys()))
+    metrics_sync = STD_DIAGNOSTICS.keys() + metrics
+    cols = pd.MultiIndex.from_product([metrics_sync, examples],
+                                      names=['metric', 'example'])
+    perf_sync = pd.DataFrame(index=samplers, columns=cols, dtype=float)
+    perf_sync.index.name = 'sampler'
+    assert(np.all(perf_sync.isnull().values))  # init at nan
+    n_count_sync = pd.DataFrame(index=samplers, columns=examples, dtype=float)
+    n_count_sync.index.name = 'sampler'
+    assert(np.all(n_count_sync.isnull().values))  # init at nan
 
     for example in examples:
         fname, = file_lookup[(example, config['exact_name'])]  # singleton set
@@ -192,24 +198,30 @@ def build_metrics_array(samplers, examples, metrics, file_lookup, config,
                 all_chains.append(curr_chain)
 
             # Do analyses that can be done with unequal length chains
+            print 'async analysis'
             for metric in metrics:
                 err = eval_inc(exact_chain, all_chains, metric, all_meta)
                 assert(err.shape == (n_grid,))
                 perf.loc[:, sampler, example, metric] = err
             n_count.loc[:, sampler, example] = hmean(all_meta, axis=1)
 
+            print 'sync analysis'
             # Do analyses that can only be done @ end with equal len chains
             all_chains = combine_chains(all_chains)  # Now np array
             min_n = all_chains.shape[1]
             final_idx = min_n + np.zeros((1, all_chains.shape[0]), dtype=int)
+            n_count_sync.loc[sampler, example] = min_n
             for metric in metrics:
                 err, = eval_inc(exact_chain, all_chains, metric, final_idx)
                 assert(np.ndim(err) == 0)
-                perf_sync_final.loc[sampler, example, metric] = err
+                perf_sync.loc[sampler, (metric, example)] = err
+            print 'diagnostics'
             for diag_name, diag_f in STD_DIAGNOSTICS.iteritems():
+                print diag_name
                 score = diag_f(all_chains)
-                diag_df.loc[sampler, (diag_name, example)] = score
-    return perf, n_count, perf_sync_final, diag_df
+                assert(np.ndim(score) == 0)
+                perf_sync.loc[sampler, (diag_name, example)] = score
+    return perf, n_count, perf_sync, n_count_sync
 
 
 def main():
@@ -217,10 +229,10 @@ def main():
     config_file = io.abspath2(sys.argv[1])
 
     config = load_config(config_file)
+    ext = config['csv_ext']
 
     samplers, examples, file_lookup = \
-        io.find_traces(config['input_path'], config['exact_name'],
-                       config['csv_ext'])
+        io.find_traces(config['input_path'], config['exact_name'], ext)
     print 'found %d samplers and %d examples' % (len(samplers), len(examples))
     print '%d files in lookup table' % \
         sum(len(file_lookup[k]) for k in file_lookup)
@@ -231,7 +243,7 @@ def main():
 
     metrics = STD_METRICS.keys()
     R = build_metrics_array(samplers, examples, metrics, file_lookup, config)
-    perf, n_count, perf_sync_final, diag_df = R
+    perf, n_count, perf_sync, n_count_sync = R
 
     ess_ref = xr.DataArray(data=STD_METRICS_REF.values(),
                            coords=[('metric', STD_METRICS_REF.keys())])
@@ -239,18 +251,22 @@ def main():
     print ess_ref.to_pandas().to_string()
 
     # Save metrics
-    save_metric_summary(perf, n_count, ess_ref,
-                        config['output_path'], config['csv_ext'])
+    save_metric_summary(perf, n_count, ess_ref, config['output_path'], ext)
 
     # Save diagnostics
-    io.save_pd(diag_df, config['output_path'], 'diagnostic', config['csv_ext'])
+    io.save_pd(perf_sync, config['output_path'], 'perf_sync', ext)
 
-    # Just consider mean sync'd ESS now
-    ess = ess_ref.sel(metric='mean') / perf_sync_final.sel(metric='mean')
-    df = ess.to_pandas()
+    # Report on ESS measures
+    D = {ESS: perf_sync[ESS]}
+    for metric in metrics:
+        D[metric] = STD_METRICS_REF[metric] / perf_sync[metric]
+        assert(D[metric].index.name == 'sampler')
+        assert(D[metric].columns.name == 'example')
+    df = pd.concat(D, axis=1)
     assert(df.index.name == 'sampler')
-    assert(df.columns.name == 'example')
-    io.save_pd(df, config['output_path'], 'ess', config['csv_ext'])
+    assert(df.columns.names == [None, 'example'])
+    df.columns.names = ['metric', 'example']
+    io.save_pd(df, config['output_path'], 'ess', ext)
 
     # Could also include option to dump everything in netCDF if we want
     print 'done'

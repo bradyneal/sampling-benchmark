@@ -9,7 +9,7 @@ def geweke(chains):
     for nn in xrange(n_chains):
         for ii in xrange(D):
             # TODO way to automatically adjust intervals in case N too small
-            R = pm.diagnostics.geweke(chains[nn, :, ii])
+            R = pm.diagnostics.geweke(chains[nn, :, ii], intervals=5)
             scores.append(np.mean(R[:, 1]))
     # TODO look into what is best way to aggregate this into one score
     score = np.mean(scores)
@@ -53,20 +53,23 @@ def effective_n(chains):
 
         return Vhat
 
-    def get_neff(x, Vhat):
+    def get_neff(x, Vhat, inc_frac=1.05):
         num_chains, num_samples = x.shape
 
         negative_autocorr = False
         t = 1
 
         rho = np.ones(num_samples)
-        # Iterate until the sum of consecutive estimates of autocorrelation is
-        # negative
+        # Iterate until the sum of consecutive estimates of autocor is neg.
+        # TODO emcee uses FFT to estimate this for speed. Look into it.
         while not negative_autocorr and (t < num_samples):
             variogram = np.mean((x[:, t:] - x[:, :-t]) ** 2)
             rho[t] = 1.0 - variogram / (2.0 * Vhat)
             negative_autocorr = np.sum(rho[t - 1:t + 1]) < 0
-            t += 1
+            # original was t += 1, but that just gets too slow
+            t_new = int(np.ceil(t * inc_frac))
+            assert(t_new > t)  # prevent infinite loop
+            t = t_new
 
         # TODO comment
         if t % 2:
@@ -84,5 +87,6 @@ def effective_n(chains):
     return np.mean(n_eff)  # TODO look into other combos
 
 # TODO add more
+ESS = 'ESS'
 STD_DIAGNOSTICS = {'Geweke': geweke, 'Gelman_Rubin': gelman_rubin,
-                   'ESS': effective_n}
+                   ESS: effective_n}
