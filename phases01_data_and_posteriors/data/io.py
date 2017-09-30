@@ -4,7 +4,7 @@ File for the IO operations used in the data package
 
 import os
 import pickle
-import numpy as np
+import pandas as pd
 
 from .config import CONFIG, Preprocess
 
@@ -39,7 +39,7 @@ def read_samples(model_name, dataset_id, csv=CSV_DEFAULT):
     """Read model samples for specified dataset from disk"""
     filename = get_samples_filename(model_name, dataset_id, csv=csv)
     if csv:
-        return np.loadtxt(filename, delimiter=',')
+        return pd.DataFrame.from_csv(filename)
     else:
         return read_file(filename)
     
@@ -100,14 +100,14 @@ def write_task_dataset_ids(task, dids, overwrite=True):
     write_file(get_task_filename(task), dids, overwrite)
 
 
-def write_samples(samples, model_name, dataset_id, csv=CSV_DEFAULT,
+def write_samples(samples_df, model_name, dataset_id, csv=CSV_DEFAULT,
                   overwrite=True):
     """Write model samples for specified dataset to disk"""
     filename = get_samples_filename(model_name, dataset_id, csv=csv)
     if csv:
-        np.savetxt(filename, samples, delimiter=',')
+        samples_df.to_csv(filename)
     else:
-        write_file(filename, samples, overwrite)
+        samples_df.to_pickle(filename)
 
             
 def write_file(filename, contents, overwrite=True):
