@@ -107,11 +107,12 @@ def sample_pymc3(logpdf_tt, sampler, start, timers, time_grid_ms, n_grid):
 
 
 def sample_emcee(logpdf_tt, sampler, start, timers, time_grid_ms, n_grid,
-                 n_walkers=50):
+                 n_walkers_min=50):
     assert(start.ndim == 1)
     D, = start.shape
 
     # TODO Is this the best approach??
+    n_walkers = max(2 * D + 2, n_walkers_min)
     start = 1e-6 * np.random.randn(n_walkers, D) + start[None, :]
 
     # emcee does not need gradients so we could pass np only implemented
@@ -122,7 +123,8 @@ def sample_emcee(logpdf_tt, sampler, start, timers, time_grid_ms, n_grid,
     logpdf_val = logpdf_tt(x_tt)
     logpdf_f = theano.function([x_tt], logpdf_val)
 
-    sampler_obj = BUILD_STEP_MC[sampler](n_walkers, D, logpdf_f)
+    print 'running emcee with %d, %d' % (n_walkers, D)
+    sampler_obj = BUILD_STEP_MC[sampler](nwalkers=n_walkers, dim=D, lnpostfn=logpdf_f)
 
     print 'doing init'
     # Might want to consider putting save chain to false since emcee uses
