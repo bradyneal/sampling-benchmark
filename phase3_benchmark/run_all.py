@@ -5,7 +5,7 @@ from main import run_experiment
 # This will import pymc3 which is not needed if the experiments are run in a
 # separate process in the future. Loading pymc3 will be a bit of a waste just
 # to get the dictionary keys. We could re-work this, but prob not worth effort.
-from samplers import BUILD_STEP
+from samplers import BUILD_STEP_PM, BUILD_STEP_MC
 
 
 def main():
@@ -19,7 +19,8 @@ def main():
     print 'using models:'
     print model_list
 
-    sampler_list = sorted(BUILD_STEP.keys())  # Sort for reprodicibility
+    # Sort for reprodicibility
+    sampler_list = sorted(BUILD_STEP_PM.keys() + BUILD_STEP_MC.keys())
     print 'using samplers:'
     print sampler_list
 

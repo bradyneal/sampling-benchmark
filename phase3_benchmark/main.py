@@ -7,8 +7,9 @@ import pandas as pd
 import pymc3 as pm
 from pymc3.backends.tracetab import trace_to_dataframe
 import theano
+import theano.tensor as T
 from models import BUILD_MODEL, SAMPLE_MODEL
-from samplers import BUILD_STEP
+from samplers import BUILD_STEP_PM, BUILD_STEP_MC
 from chunker import time_chunker
 from chunker import CHUNK_SIZE, GRID_INDEX
 import fileio as io
@@ -22,7 +23,7 @@ import scipy.stats as ss
 SAMPLE_INDEX_COL = 'sample'
 DATA_CENTER = 'data_center'
 DATA_SCALE = 'data_scale'
-MAX_N = 1000000  # Some value to prevent blowing out HDD space with samples.
+MAX_N = 10 ** 5  # Some value to prevent blowing out HDD space with samples.
 
 
 def format_trace(trace):
@@ -31,7 +32,7 @@ def format_trace(trace):
 
 
 def moments_report(X, epsilon=1e-12):
-    # TODO eliminate  repetition with phase 2 here
+    # TODO eliminate repetition with phase 2 here
     N, D = X.shape
 
     finite = np.all(np.isfinite(X))
@@ -78,9 +79,78 @@ def get_counters():
 # ============================================================================
 
 
+def sample_pymc3(logpdf_tt, sampler, start, timers, time_grid_ms, n_grid):
+    assert(start.ndim == 1)
+    D, = start.shape
+
+    with pm.Model():
+        pm.DensityDist('x', logpdf_tt, shape=D)
+        steps = BUILD_STEP_PM[sampler]()
+
+        print 'doing init'
+        sample_gen = pm.sampling.iter_sample(MAX_N, steps, start={'x': start})
+
+        time_grid_s = 1e-3 * time_grid_ms
+        TC = time_chunker(sample_gen, time_grid_s, timers, n_grid=n_grid)
+
+        print 'starting to sample'
+        # This could all go in a list comp if we get rid of the assert check
+        cum_size = 0
+        meta = []
+        for trace, metarow in TC:
+            meta.append(metarow)
+            cum_size += metarow[CHUNK_SIZE]
+            assert(cum_size == len(trace) - 1)
+    # Build rep for trace data
+    trace = format_trace(trace)
+    return trace, meta
+
+
+def sample_emcee(logpdf_tt, sampler, start, timers, time_grid_ms, n_grid,
+                 n_walkers=50):
+    assert(start.ndim == 1)
+    D, = start.shape
+
+    # TODO Is this the best approach??
+    start = 1e-6 * np.random.randn(n_walkers, D) + start[None, :]
+
+    # emcee does not need gradients so we could pass np only implemented
+    # version if that is less overhead, but not that is not clear. So, just
+    # compile the theano version.
+    x_tt = T.vector('x')
+    logpdf_val = logpdf_tt(x_tt)
+    logpdf_f = theano.function([x_tt], logpdf_val)
+
+    sampler_obj = BUILD_STEP_MC[sampler](n_walkers, D, logpdf_f)
+
+    print 'doing init'
+    # Might want to consider putting save chain to false since emcee uses
+    # np.concat to grow chain. Might be less overhead to append to list in the
+    # loop below.
+    sample_gen = sampler_obj.sample(start, iterations=MAX_N, storechain=True)
+
+    time_grid_s = 1e-3 * time_grid_ms
+    TC = time_chunker(sample_gen, time_grid_s, timers, n_grid=n_grid)
+
+    print 'starting to sample'
+    # This could all go in a list comp if we get rid of the assert check
+    cum_size = 0
+    meta = []
+    for trace, metarow in TC:
+        meta.append(metarow)
+        cum_size += metarow[CHUNK_SIZE]
+        assert(sampler_obj.chain.shape == (n_walkers, MAX_N, D))
+    # Build rep for trace data
+    # Same as:
+    # np.concatenate([X[ii, :, :] for ii in xrange(X.shape[0])], axis=0)
+    # TODO compare to EnsembleSampler.flatchain
+    trace = np.reshape(sampler_obj.chain[:, :cum_size, :], (-1, D))
+    assert(trace.shape== (cum_size * n_walkers, D))
+    return trace, meta
+
+
 def controller(model_setup, sampler, time_grid_ms, n_grid,
                init_exact=True, n_ref_exact=0):
-    assert(sampler in BUILD_STEP)
     assert(time_grid_ms > 0)
 
     model_name, D, params_dict = model_setup
@@ -123,26 +193,14 @@ def controller(model_setup, sampler, time_grid_ms, n_grid,
         return ll + s * 0
 
     reset_counters()
-    with pm.Model():
-        pm.DensityDist('x', logpdf, shape=D)
-        steps = BUILD_STEP[sampler]()
-
-        print 'doing init'
-        sample_gen = pm.sampling.iter_sample(MAX_N, steps, start={'x': start})
-
-        time_grid_s = 1e-3 * time_grid_ms
-        TC = time_chunker(sample_gen, time_grid_s, timers, n_grid=n_grid)
-
-        print 'starting to sample'
-        # This could all go in a list comp if we get rid of the assert check
-        cum_size = 0
-        meta = []
-        for trace, metarow in TC:
-            meta.append(metarow)
-            cum_size += metarow[CHUNK_SIZE]
-            assert(cum_size == len(trace) - 1)
-    # Build rep for trace data
-    trace = format_trace(trace)
+    if sampler in BUILD_STEP_PM:
+        trace, meta = sample_pymc3(logpdf, sampler, start,
+                                   timers, time_grid_ms, n_grid)
+    elif sampler in BUILD_STEP_MC:
+        trace, meta = sample_emcee(logpdf, sampler, start,
+                                   timers, time_grid_ms, n_grid)
+    else:
+        assert(False)  # We could be friendly exception error here
     moments_report(trace)
 
     if n_ref_exact > 0:
@@ -175,7 +233,8 @@ def sample_exact(model_name, D, params_dict, N=1):
 
 
 def run_experiment(config, param_name, sampler):
-    assert(sampler == config['exact_name'] or sampler in BUILD_STEP)
+    assert(sampler == config['exact_name'] or
+           (sampler in BUILD_STEP_PM) or (sampler in BUILD_STEP_MC))
 
     model_file = param_name + config['pkl_ext']
     model_file = os.path.join(config['input_path'], model_file)
