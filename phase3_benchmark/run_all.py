@@ -36,7 +36,11 @@ def main():
         for model_name in model_list:
             for sampler in sampler_list:
                 t = time()
-                run_experiment(config, model_name, sampler)
+                try:
+                    run_experiment(config, model_name, sampler)
+                except Exception as err:
+                    print '%s/%s failed' % (model_name, sampler)
+                    print str(err)
                 print 'wall time %fs' % (time() - t)
     print 'done'
 

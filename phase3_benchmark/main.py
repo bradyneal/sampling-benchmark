@@ -2,6 +2,7 @@
 import cPickle as pkl
 import os
 import sys
+import warnings
 import numpy as np
 import pandas as pd
 import pymc3 as pm
@@ -72,14 +73,18 @@ def reset_counters():
 
 
 def get_counters():
-    assert(len(all_counters) == 1)  # For now, it seems this is way it goes
-    count = int(all_counters[0].get_value())
+    L = len(all_counters)
+    assert(L >= 1)
+    if L > 1:
+        warnings.warn('Usually there is only 1 counter, now there are %d' % L)
+    count = sum(int(c.get_value()) for c in all_counters)
     return count
 
 # ============================================================================
 
 
-def sample_pymc3(logpdf_tt, sampler, start, timers, time_grid_ms, n_grid):
+def sample_pymc3(logpdf_tt, sampler, start, timers, time_grid_ms, n_grid,
+                 data_scale=None):
     assert(start.ndim == 1)
     D, = start.shape
 
@@ -88,6 +93,12 @@ def sample_pymc3(logpdf_tt, sampler, start, timers, time_grid_ms, n_grid):
 
         print 'doing init'
         step_kwds = {}
+        if data_scale is not None:
+            # Allow method to cheat with access to true data scale
+            assert(data_scale.shape == (D,))
+            step_kwds['scaling'] = data_scale
+        print 'step arguments'
+        print step_kwds
 
         steps = BUILD_STEP_PM[sampler](step_kwds)
 
@@ -110,15 +121,17 @@ def sample_pymc3(logpdf_tt, sampler, start, timers, time_grid_ms, n_grid):
 
 
 def sample_emcee(logpdf_tt, sampler, start, timers, time_grid_ms, n_grid,
-                 n_walkers_min=50, thin=100):
+                 n_walkers_min=50, thin=100, data_scale=None, ball_size=1e-6):
     '''Use default thin of 100 since otherwise too fast and could blow out
     memory with samples on high time limit.'''
     assert(start.ndim == 1)
     D, = start.shape
+    data_scale = np.ones(D) if data_scale is None else data_scale
+    assert(data_scale.shape == (D,))
 
-    # TODO Is this the best approach??
     n_walkers = max(2 * D + 2, n_walkers_min)
-    start = 1e-6 * np.random.randn(n_walkers, D) + start[None, :]
+    ball = (ball_size * data_scale[None, :]) * np.random.randn(n_walkers, D)
+    start = ball + start[None, :]
 
     # emcee does not need gradients so we could pass np only implemented
     # version if that is less overhead, but not that is not clear. So, just
@@ -178,9 +191,6 @@ def controller(model_setup, sampler, time_grid_ms, n_grid,
     assert(params_dict[DATA_CENTER].shape == (D,))
     assert(params_dict[DATA_SCALE].shape == (D,))
 
-    # TODO remove test only
-    # params_dict[DATA_SCALE] = np.ones_like(params_dict[DATA_SCALE])
-
     start = None
     if init_exact:
         start = sample_exact(model_name, D, params_dict, N=1)[0, :]
@@ -207,12 +217,12 @@ def controller(model_setup, sampler, time_grid_ms, n_grid,
     reset_counters()
     if sampler in BUILD_STEP_PM:
         trace, meta = sample_pymc3(logpdf, sampler, start,
-                                   timers, time_grid_ms, n_grid)
-    elif sampler in BUILD_STEP_MC:
+                                   timers, time_grid_ms, n_grid,
+                                   params_dict[DATA_SCALE])
+    else:
+        assert(sampler in BUILD_STEP_MC)
         trace, meta = sample_emcee(logpdf, sampler, start,
                                    timers, time_grid_ms, n_grid)
-    else:
-        assert(False)  # We could be friendly exception error here
     moments_report(trace)
 
     if n_ref_exact > 0:
