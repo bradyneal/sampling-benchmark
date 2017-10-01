@@ -85,9 +85,24 @@ def sample_pymc3(logpdf_tt, sampler, start, timers, time_grid_ms, n_grid):
 
     with pm.Model():
         pm.DensityDist('x', logpdf_tt, shape=D)
-        steps = BUILD_STEP_PM[sampler]()
 
         print 'doing init'
+        step_kwds = {}
+        try:
+            _, step = pm.sampling.init_nuts(progressbar=False)
+        except Exception as err:
+            print 'fancy init failed'
+            print str(err)
+        else:
+            step_kwds['scaling'] = step.potential.s
+            print 'ADVI'
+            print step_kwds['scaling']
+            s_test = np.std([step.potential.random() for __ in xrange(100)], axis=0)
+            print 'potential std'
+            print s_test
+
+        steps = BUILD_STEP_PM[sampler](step_kwds)
+
         sample_gen = pm.sampling.iter_sample(MAX_N, steps, start={'x': start})
 
         time_grid_s = 1e-3 * time_grid_ms
@@ -107,7 +122,9 @@ def sample_pymc3(logpdf_tt, sampler, start, timers, time_grid_ms, n_grid):
 
 
 def sample_emcee(logpdf_tt, sampler, start, timers, time_grid_ms, n_grid,
-                 n_walkers_min=50):
+                 n_walkers_min=50, thin=100):
+    '''Use default thin of 100 since otherwise too fast and could blow out
+    memory with samples on high time limit.'''
     assert(start.ndim == 1)
     D, = start.shape
 
@@ -124,13 +141,14 @@ def sample_emcee(logpdf_tt, sampler, start, timers, time_grid_ms, n_grid,
     logpdf_f = theano.function([x_tt], logpdf_val)
 
     print 'running emcee with %d, %d' % (n_walkers, D)
-    sampler_obj = BUILD_STEP_MC[sampler](nwalkers=n_walkers, dim=D, lnpostfn=logpdf_f)
+    sampler_obj = BUILD_STEP_MC[sampler](n_walkers, D, logpdf_f)
 
     print 'doing init'
     # Might want to consider putting save chain to false since emcee uses
     # np.concat to grow chain. Might be less overhead to append to list in the
     # loop below.
-    sample_gen = sampler_obj.sample(start, iterations=MAX_N, storechain=True)
+    sample_gen = sampler_obj.sample(start, iterations=MAX_N * thin, thin=thin,
+                                    storechain=True)
 
     time_grid_s = 1e-3 * time_grid_ms
     TC = time_chunker(sample_gen, time_grid_s, timers, n_grid=n_grid)
@@ -153,7 +171,7 @@ def sample_emcee(logpdf_tt, sampler, start, timers, time_grid_ms, n_grid,
 
 
 def controller(model_setup, sampler, time_grid_ms, n_grid,
-               init_exact=True, n_ref_exact=0):
+               init_exact=True, n_ref_exact=1000):
     assert(time_grid_ms > 0)
 
     model_name, D, params_dict = model_setup
@@ -171,6 +189,9 @@ def controller(model_setup, sampler, time_grid_ms, n_grid,
     assert(D >= 1)
     assert(params_dict[DATA_CENTER].shape == (D,))
     assert(params_dict[DATA_SCALE].shape == (D,))
+
+    # TODO remove test only
+    # params_dict[DATA_SCALE] = np.ones_like(params_dict[DATA_SCALE])
 
     start = None
     if init_exact:
@@ -208,6 +229,9 @@ def controller(model_setup, sampler, time_grid_ms, n_grid,
 
     if n_ref_exact > 0:
         X_exact = sample_exact(model_name, D, params_dict, N=n_ref_exact)
+        print 'std exact'
+        print np.std(X_exact, axis=0)
+
         scaler = StandardScaler()
         X_exact = scaler.fit_transform(X_exact)
         X_std = scaler.transform(trace)
