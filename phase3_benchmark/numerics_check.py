@@ -33,9 +33,6 @@ def main():
     print model_list
 
     for param_name in model_list:
-        if not param_name.endswith('RNADE'):
-            continue
-
         model_file = param_name + config['pkl_ext']
         model_file = os.path.join(config['input_path'], model_file)
         print 'loading %s' % model_file
@@ -59,8 +56,6 @@ def main():
             x_test = w * x_test_m + (1.0 - w) * x_test_n
 
             lv, gv = logpdf_f(x_test)
-            print lv
-            print gv
             assert(np.isfinite(lv))
             assert(np.all(np.isfinite(gv)))
     print 'done'
