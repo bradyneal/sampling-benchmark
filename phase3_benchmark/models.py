@@ -24,7 +24,16 @@ def mvn_logpdf_from_chol(X, mu, inv_chol_U_cov):
 
 def logsumexp_tt(X, axis=None):
     # Supposedly theano is smart enough to convert this, way to force it??
+    #X_max = X.max(axis=axis)
+    #Y = X_max + T.log(T.sum(T.exp(X - X_max), axis=axis))
     Y = T.log(T.sum(T.exp(X), axis=axis))
+    return Y
+
+
+def logsumexp_0(x):
+    # Supposedly theano is smart enough to convert this, way to force it??
+    x_max = T.max(x)
+    Y = x_max + T.log(T.sum(T.exp(x - x_max)))
     return Y
 
 
@@ -50,6 +59,26 @@ def MoG(x, params):
     loglik_mix_T = T.log(w) + T.stack(loglik_mix, axis=0)
     logpdf = logsumexp_tt(loglik_mix_T, axis=0)
     return logpdf
+
+
+def MoG_(x, params):
+    assert(x.ndim == 1)  # Assuming x is theano vector here
+    assert(params['type'] == 'full')
+
+    w = params['weights']
+    w = w / np.sum(w)  # Just to be sure normalized
+    n_mixtures = len(w)
+
+    # Would this be an faster with scan??
+    loglik_mix = [None] * n_mixtures
+    for mm in xrange(n_mixtures):
+        mu = params['means'][mm, :]
+        PC = params['precisions_cholesky'][mm, :, :]
+        loglik_mix[mm] = mvn_logpdf_from_chol(T.shape_padleft(x), mu, PC)[0]
+    loglik_mix_pre_w = T.stack(loglik_mix, axis=0)
+    loglik_mix_T = T.log(w) + loglik_mix_pre_w
+    logpdf = logsumexp_0(loglik_mix_T)
+    return logpdf, loglik_mix_pre_w
 
 
 def _MoG_sample(w, mus, covs, N=1):

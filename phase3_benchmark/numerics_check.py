@@ -5,6 +5,7 @@ import sys
 import numpy as np
 import theano
 import theano.tensor as T
+import models
 from models import BUILD_MODEL, SAMPLE_MODEL
 import fileio as io
 
@@ -14,9 +15,10 @@ DATA_SCALE = 'data_scale'
 
 def logpdf(x, model_name, p):
     x_std = (x - p[DATA_CENTER]) / p[DATA_SCALE]
-    ll = BUILD_MODEL[model_name](x_std, p)
+    #ll = BUILD_MODEL[model_name](x_std, p)
+    ll, llc = models.MoG_(x_std, p)
     ll = ll - np.sum(np.log(p[DATA_SCALE]))
-    return ll
+    return ll, llc
 
 
 def main():
@@ -44,14 +46,18 @@ def main():
         x = T.vector('x')
         x.tag.test_value = np.zeros(D)
 
-        ll = logpdf(x, model_name, params_dict)
+        ll, llc = logpdf(x, model_name, params_dict)
         gg = T.grad(ll, x)
+        J = T.jacobian(llc, x)
 
-        logpdf_f = theano.function([x], [ll, gg])
+        logpdf_f = theano.function([x], [ll, gg, J])
 
         for ii in xrange(runs):
             x_test = np.random.randn(D)
-            lv, gv = logpdf_f(x_test)
+            lv, gv, Jv = logpdf_f(x_test)
+            print lv
+            print gv
+            print Jv
             assert(np.isfinite(lv))
             assert(np.all(np.isfinite(gv)))
     print 'done'
