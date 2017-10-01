@@ -88,18 +88,6 @@ def sample_pymc3(logpdf_tt, sampler, start, timers, time_grid_ms, n_grid):
 
         print 'doing init'
         step_kwds = {}
-        try:
-            _, step = pm.sampling.init_nuts(progressbar=False)
-        except Exception as err:
-            print 'fancy init failed'
-            print str(err)
-        else:
-            step_kwds['scaling'] = step.potential.s
-            print 'ADVI'
-            print step_kwds['scaling']
-            s_test = np.std([step.potential.random() for __ in xrange(100)], axis=0)
-            print 'potential std'
-            print s_test
 
         steps = BUILD_STEP_PM[sampler](step_kwds)
 
