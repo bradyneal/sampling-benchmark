@@ -5,7 +5,6 @@ import sys
 import numpy as np
 import theano
 import theano.tensor as T
-import models
 from models import BUILD_MODEL, SAMPLE_MODEL
 import fileio as io
 
@@ -36,7 +35,7 @@ def main():
     for param_name in model_list:
         if not param_name.endswith('RNADE'):
             continue
-        
+
         model_file = param_name + config['pkl_ext']
         model_file = os.path.join(config['input_path'], model_file)
         print 'loading %s' % model_file
@@ -54,7 +53,11 @@ def main():
         logpdf_f = theano.function([x], [ll, gg])
 
         for ii in xrange(runs):
-            x_test = np.random.randn(D)
+            x_test_m = SAMPLE_MODEL[model_name](params_dict, N=1)[0, :]
+            x_test_n = np.random.randn(D)
+            w = np.random.rand()
+            x_test = w * x_test_m + (1.0 - w) * x_test_n
+
             lv, gv = logpdf_f(x_test)
             print lv
             print gv
