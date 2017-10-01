@@ -15,12 +15,16 @@ from data.preprocessing.format import make_col_names
 
 # NOTE: Current converts to a DataFrame and then to a numpy array.
 # Consider doing it all in one go.
-def format_trace(trace):
+def format_trace(trace, to_df=True):
     """
     Convert the trace into the necessary format. The current format is a
     numpy array.
     """
-    return pd.DataFrame.as_matrix(trace_to_dataframe(trace))
+    df = trace_to_dataframe(trace)
+    if to_df:
+        return df
+    else:
+        return pd.DataFrame.as_matrix(df)
 
 
 def subsample(X, y, model_name):

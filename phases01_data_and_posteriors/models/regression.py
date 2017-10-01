@@ -54,7 +54,12 @@ def sample_regression_model(model_name, X, y, num_samples=MAX_NUM_SAMPLES,
     
     model_name = model_name.replace('-regres', '')
     
-    # Build model
+    model = build_model(model_name, X, y, num_non_categorical)
+    return sample_model(model, step)
+
+
+def build_model(model_name, X, y, num_samples, num_non_categorical):
+    """Build model for specified regression model name"""
     if 'ls-linear' == model_name:
         model = build_ls_linear(X, y)
     elif 'ls-pairwise-linear' == model_name:
@@ -82,8 +87,11 @@ def sample_regression_model(model_name, X, y, num_samples=MAX_NUM_SAMPLES,
     else:
         raise ValueError('Unsupported model: {}\nSupported models: {}'
                          .format(model_name, REGRESSION_MODEL_NAMES))
-    
-    # Sample from model
+    return model
+
+
+def sample_model(model, step=None):
+    """Sample from constructed Bayesian model"""
     start = timer()
     with model:
         pm._log.info('Auto-assigning NUTS sampler...')
@@ -108,7 +116,6 @@ def sample_regression_model(model_name, X, y, num_samples=MAX_NUM_SAMPLES,
                         return None
     return format_trace(trace)
             
-
 
 # GLM Defaults
 # intercept:  flat prior

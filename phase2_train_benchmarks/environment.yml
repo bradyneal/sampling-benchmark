@@ -14,6 +14,7 @@ dependencies:
 - gstreamer=1.8.0=0
 - h5py
 - icu=54.1=0
+- joblib
 - jpeg=9b=0
 - libffi=3.2.1=1
 - libgcc=5.2.0=0

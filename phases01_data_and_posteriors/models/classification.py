@@ -15,6 +15,7 @@ from .nn import sample_shallow_nn
 from . import MAX_NUM_SAMPLES, NUM_INIT_STEPS, SOFT_MAX_TIME_IN_SECONDS, \
               HARD_MAX_TIME_IN_SECONDS, MIN_SAMPLES_CONSTANT
 from .utils import reduce_data_dimension, subsample
+from .regression import sample_model
 
 # Arguably, build_pm_gp_cov should go in some 3rd file like util
 from .regression import build_pm_gp_cov
@@ -54,7 +55,12 @@ def sample_classification_model(model_name, X, y, num_samples=MAX_NUM_SAMPLES,
     
     model_name = model_name.replace('-class', '')
     
-    # Build model
+    model = build_model(model_name, X, y, num_non_categorical)
+    return sample_model(model, step)
+
+
+def build_model(model_name, X, y, num_samples, num_non_categorical):
+    """Build model for specified classificaiton model name"""
     if 'softmax-linear' == model_name:
         model = build_softmax_linear(X, y)
     elif 'shallow-nn' == model_name:
@@ -72,31 +78,7 @@ def sample_classification_model(model_name, X, y, num_samples=MAX_NUM_SAMPLES,
     else:
         raise ValueError('Unsupported model: {}\nSupported models: {}'
                          .format(model_name, CLASSIFICATION_MODEL_NAMES))
-    
-    # Sample from model
-    start = timer()
-    with model:
-        pm._log.info('Auto-assigning NUTS sampler...')
-        if step is None:
-            start_, step = pm.init_nuts(init='advi', njobs=1, n_init=NUM_INIT_STEPS,
-                                        random_seed=-1, progressbar=False)
-        
-        for i, trace in enumerate(pm.iter_sample(MAX_NUM_SAMPLES, step)):
-            if i == 0:
-                min_num_samples = MIN_SAMPLES_CONSTANT * (len(trace[0]) ** 2)
-            elapsed = timer() - start
-            if elapsed > SOFT_MAX_TIME_IN_SECONDS:
-                print('exceeded soft time limit...')
-                if i + 1 >= min_num_samples:
-                    print('collected enough samples; stopping')
-                    break
-                else:
-                    print('but only collected {} of {}; continuing...'
-                          .format(i + 1, min_num_samples))
-                    if elapsed > HARD_MAX_TIME_IN_SECONDS:
-                        print('exceeded HARD time limit; STOPPING')
-                        return None
-    return format_trace(trace)
+    return model
 
 
 def build_softmax_linear(X, y):
