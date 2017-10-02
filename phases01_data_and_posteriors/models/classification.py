@@ -12,10 +12,9 @@ from timeit import default_timer as timer
 
 from .utils import format_trace
 from .nn import sample_shallow_nn
-from . import MAX_NUM_SAMPLES, NUM_INIT_STEPS, SOFT_MAX_TIME_IN_SECONDS, \
-              HARD_MAX_TIME_IN_SECONDS, MIN_SAMPLES_CONSTANT
+from . import MAX_NUM_SAMPLES
 from .utils import reduce_data_dimension, subsample
-from .regression import sample_model
+from .sampling import sample_model
 
 # Arguably, build_pm_gp_cov should go in some 3rd file like util
 from .regression import build_pm_gp_cov
@@ -55,16 +54,17 @@ def sample_classification_model(model_name, X, y, num_samples=MAX_NUM_SAMPLES,
     
     model_name = model_name.replace('-class', '')
     
-    model = build_model(model_name, X, y, num_non_categorical)
-    return sample_model(model, step)
+    if 'nn' in model_name:  # haven't moved sampling out of nn file yet
+        return sample_shallow_nn_class(X, y, num_samples)
+    else:
+        model = build_model(model_name, X, y, num_non_categorical)
+        return sample_model(model, step)
 
 
 def build_model(model_name, X, y, num_samples, num_non_categorical):
     """Build model for specified classificaiton model name"""
     if 'softmax-linear' == model_name:
         model = build_softmax_linear(X, y)
-    elif 'shallow-nn' == model_name:
-        return sample_shallow_nn_class(X, y, num_samples)
     elif 'gp-ExpQuad' == model_name:
         model = build_gpc(X, y, 'ExpQuad')
     elif 'gp-Exponential' == model_name:

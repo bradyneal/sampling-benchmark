@@ -12,9 +12,9 @@ from data.preprocessing.format import numpy_to_dataframe
 from .utils import format_trace, get_pairwise_formula, get_quadratic_formula, \
                    get_linear_formula, join_nonempty
 from .nn import sample_shallow_nn
-from . import MAX_NUM_SAMPLES, NUM_INIT_STEPS, SOFT_MAX_TIME_IN_SECONDS, \
-              HARD_MAX_TIME_IN_SECONDS, MIN_SAMPLES_CONSTANT
+from . import MAX_NUM_SAMPLES
 from .utils import reduce_data_dimension, subsample
+from .sampling import sample_model
 
 REGRESSION_MODEL_NAMES = \
     [
@@ -54,8 +54,11 @@ def sample_regression_model(model_name, X, y, num_samples=MAX_NUM_SAMPLES,
     
     model_name = model_name.replace('-regres', '')
     
-    model = build_model(model_name, X, y, num_non_categorical)
-    return sample_model(model, step)
+    if 'nn' in model_name:  # haven't moved sampling out of nn file yet
+        return sample_shallow_nn_regres(X, y, num_samples)
+    else:
+        model = build_model(model_name, X, y, num_non_categorical)
+        return sample_model(model, step)
 
 
 def build_model(model_name, X, y, num_samples, num_non_categorical):
@@ -72,8 +75,6 @@ def build_model(model_name, X, y, num_samples, num_non_categorical):
         model = build_robust_pairwise(X, y, num_non_categorical)
     elif 'robust-quadratic-linear' == model_name:
         model = build_robust_quadratic(X, y, num_non_categorical)
-    elif 'shallow-nn' == model_name:
-        return sample_shallow_nn_regres(X, y, num_samples)
     elif 'gp-ExpQuad' == model_name:
         model = build_gp(X, y, 'ExpQuad')
     elif 'gp-Exponential' == model_name:
@@ -90,32 +91,32 @@ def build_model(model_name, X, y, num_samples, num_non_categorical):
     return model
 
 
-def sample_model(model, step=None):
-    """Sample from constructed Bayesian model"""
-    start = timer()
-    with model:
-        pm._log.info('Auto-assigning NUTS sampler...')
-        if step is None:
-            start_, step = pm.init_nuts(init='advi', njobs=1, n_init=NUM_INIT_STEPS,
-                                        random_seed=-1, progressbar=False)
-        
-        for i, trace in enumerate(pm.iter_sample(MAX_NUM_SAMPLES, step)):
-            if i == 0:
-                min_num_samples = MIN_SAMPLES_CONSTANT * (len(trace[0]) ** 2)
-            elapsed = timer() - start
-            if elapsed > SOFT_MAX_TIME_IN_SECONDS:
-                print('exceeded soft time limit...')
-                if i + 1 >= min_num_samples:
-                    print('collected enough samples; stopping')
-                    break
-                else:
-                    print('but only collected {} of {}; continuing...'
-                          .format(i + 1, min_num_samples))
-                    if elapsed > HARD_MAX_TIME_IN_SECONDS:
-                        print('exceeded HARD time limit; STOPPING')
-                        return None
-    return format_trace(trace)
-            
+# def sample_model(model, step=None):
+#     """Sample from constructed Bayesian model"""
+#     start = timer()
+#     with model:
+#         pm._log.info('Auto-assigning NUTS sampler...')
+#         if step is None:
+#             start_, step = pm.init_nuts(init='advi', njobs=1, n_init=NUM_INIT_STEPS,
+#                                         random_seed=-1, progressbar=False)
+#         
+#         for i, trace in enumerate(pm.iter_sample(MAX_NUM_SAMPLES, step)):
+#             if i == 0:
+#                 min_num_samples = MIN_SAMPLES_CONSTANT * (len(trace[0]) ** 2)
+#             elapsed = timer() - start
+#             if elapsed > SOFT_MAX_TIME_IN_SECONDS:
+#                 print('exceeded soft time limit...')
+#                 if i + 1 >= min_num_samples:
+#                     print('collected enough samples; stopping')
+#                     break
+#                 else:
+#                     print('but only collected {} of {}; continuing...'
+#                           .format(i + 1, min_num_samples))
+#                     if elapsed > HARD_MAX_TIME_IN_SECONDS:
+#                         print('exceeded HARD time limit; STOPPING')
+#                         return None
+#     return format_trace(trace)
+#             
 
 # GLM Defaults
 # intercept:  flat prior
