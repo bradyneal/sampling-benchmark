@@ -9,7 +9,7 @@ import xarray as xr
 from diagnostics import STD_DIAGNOSTICS, ESS
 import fileio as io
 from metrics import MOMENT_METRICS, OTHER_METRICS, METRICS_REF
-from metrics import eval_inc
+from metrics import eval_inc, eval_total
 
 SAMPLE_INDEX_COL = 'sample'
 SKIPNA = True
@@ -149,29 +149,21 @@ def build_metrics_array(samplers, examples, metrics, file_lookup, config,
     n_chains, n_grid = config['n_chains'], config['n_grid']
     print 'expect %d chains per case' % n_chains
 
+    # Will want to settle on all xr or all pd once we know what is easier.
     coords = [('time', xrange(n_grid)), ('sampler', samplers),
               ('example', examples), ('metric', metrics)]
     perf = init_data_array(coords)
     # Skip metric for n_count
     n_count = init_data_array(coords[:-1])
 
-    # Final perf with synched scores, skip time. Eventually we want to be more
-    # consistent on using either pandas or xarray once we know what is more
-    # appropriate.
+    # Assume later that these keys are distinct
     assert(set(metrics).isdisjoint(STD_DIAGNOSTICS.keys()))
     metrics_sync = STD_DIAGNOSTICS.keys() + metrics
-    cols = pd.MultiIndex.from_product([metrics_sync, examples],
-                                      names=['metric', 'example'])
-    perf_sync = pd.DataFrame(index=samplers, columns=cols, dtype=float)
-    perf_sync.index.name = 'sampler'
-    assert(np.all(perf_sync.isnull().values))  # init at nan
-    n_count_sync = pd.DataFrame(index=samplers, columns=examples, dtype=float)
-    n_count_sync.index.name = 'sampler'
-    assert(np.all(n_count_sync.isnull().values))  # init at nan
-
+    sync_perf = {}
     for example in examples:
         fname, = file_lookup[(example, config['exact_name'])]  # singleton set
         exact_chain = io.load_np(config['input_path'], fname, ext='')
+        D = exact_chain.shape[1]
         # In ESS calculations we assume that var=1, so we need standard scaler
         # and not robust, but maybe we could add warning if the two diverge.
         scaler = StandardScaler()
@@ -195,6 +187,7 @@ def build_metrics_array(samplers, examples, metrics, file_lookup, config,
                 else:  # Load actual data
                     curr_chain = io.load_np(config['input_path'], fname, '')
                     curr_chain = scaler.transform(curr_chain)
+                assert(curr_chain.shape[1] == D)
                 all_chains.append(curr_chain)
 
             # Do analyses that can be done with unequal length chains
@@ -208,20 +201,24 @@ def build_metrics_array(samplers, examples, metrics, file_lookup, config,
             print 'sync analysis'
             # Do analyses that can only be done @ end with equal len chains
             all_chains = combine_chains(all_chains)  # Now np array
-            min_n = all_chains.shape[1]
-            final_idx = min_n + np.zeros((1, all_chains.shape[0]), dtype=int)
-            n_count_sync.loc[sampler, example] = min_n
+            df = pd.DataFrame(index=xrange(D), columns=metrics_sync)
+            df.index.name = 'dim'
             for metric in metrics:
-                err, = eval_inc(exact_chain, all_chains, metric, final_idx)
-                assert(np.ndim(err) == 0)
-                perf_sync.loc[sampler, (metric, example)] = err
-            print 'diagnostics'
+                err = eval_total(exact_chain, all_chains, metric)
+                assert(err.shape == (D,))
+                df[metric] = err
             for diag_name, diag_f in STD_DIAGNOSTICS.iteritems():
-                print diag_name
                 score = diag_f(all_chains)
-                assert(np.ndim(score) == 0)
-                perf_sync.loc[sampler, (diag_name, example)] = score
-    return perf, n_count, perf_sync, n_count_sync
+                assert(score.shape == (D,))
+                df[diag_name] = score
+            df['D'] = D
+            df['N'] = all_chains.shape[1]
+            sync_perf[(sampler, example)] = df
+    sync_perf = pd.concat(sync_perf, axis=0)
+    assert(sync_perf.index.names == [None, None, 'dim'])
+    sync_perf.index.names = ['sampler', 'example', 'dim']
+    sync_perf.reset_index(drop=False, inplace=True)
+    return perf, n_count, sync_perf
 
 
 def main():
@@ -237,36 +234,27 @@ def main():
     print '%d files in lookup table' % \
         sum(len(file_lookup[k]) for k in file_lookup)
 
+    examples = examples[:3]  # TODO remove test only
+
     # This could get big
     print samplers
     print examples
 
     metrics = MOMENT_METRICS.keys() + OTHER_METRICS.keys()
     R = build_metrics_array(samplers, examples, metrics, file_lookup, config)
-    perf, n_count, perf_sync, n_count_sync = R
+    perf, n_count, sync_perf = R
 
     ess_ref = xr.DataArray(data=METRICS_REF.values(),
                            coords=[('metric', METRICS_REF.keys())])
+    ess_ref_pd = ess_ref.to_pandas()
     print 'using reference values'
-    print ess_ref.to_pandas().to_string()
+    print ess_ref_pd.to_string()
 
     # Save metrics
     save_metric_summary(perf, n_count, ess_ref, config['output_path'], ext)
 
-    # Save diagnostics
-    io.save_pd(perf_sync, config['output_path'], 'perf_sync', ext)
-
-    # Report on ESS measures
-    D = {ESS: perf_sync[ESS]}
-    for metric in metrics:
-        D[metric] = METRICS_REF[metric] / perf_sync[metric]
-        assert(D[metric].index.name == 'sampler')
-        assert(D[metric].columns.name == 'example')
-    df = pd.concat(D, axis=1)
-    assert(df.index.name == 'sampler')
-    assert(df.columns.names == [None, 'example'])
-    df.columns.names = ['metric', 'example']
-    io.save_pd(df, config['output_path'], 'ess', ext)
+    # Save diagnostics, make sure it has enough info to compute ess and eff
+    io.save_pd(sync_perf, config['output_path'], 'perf_sync', ext, index=False)
 
     # Could also include option to dump everything in netCDF if we want
     print 'done'

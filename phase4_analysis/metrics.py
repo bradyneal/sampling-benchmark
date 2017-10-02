@@ -1,6 +1,7 @@
 # Ryan Turner (turnerry@iro.umontreal.ca)
 import numpy as np
 import scipy.stats as ss
+from diagnostics import MIN_ESS
 
 DEFAULT_CLIP = 1.0
 
@@ -33,9 +34,8 @@ OTHER_METRICS = {'ks': ks}
 METRICS_REF = {'mean': 1.0, 'var': 2.0, 'ks': 0.822}
 
 
-def rectified_sq_error(exact, approx, clip=DEFAULT_CLIP):
-    # Debatable if rectifier (min) should be before or after sum
-    err = np.mean(np.minimum(clip, (exact - approx) ** 2))
+def rectified_sq_error(exact, approx, clip):
+    err = np.minimum(clip, (exact - approx) ** 2)
     return err
 
 
@@ -54,6 +54,8 @@ def eval_inc(exact_chain, all_chains, metric, all_idx):
         estimator = OTHER_METRICS[metric]
         moment_metric = False
 
+    clip = METRICS_REF[metric] / MIN_ESS
+
     err = np.zeros((n_grid, n_chains))
     for c_num, chain in enumerate(all_chains):
         assert(chain.ndim == 2 and chain.shape[1] == D)
@@ -61,10 +63,41 @@ def eval_inc(exact_chain, all_chains, metric, all_idx):
         for ii, n_samples in enumerate(all_idx[:, c_num]):
             if moment_metric:
                 approx = estimator(chain[:n_samples, :])
-                err[ii, c_num] = rectified_sq_error(exact, approx)
+                err[ii, c_num] = np.mean(rectified_sq_error(exact, approx, clip))
             else:
                 approx = estimator(exact_chain, chain[:n_samples, :])
-                err[ii, c_num] = rectified_sq_error(0.0, approx)
+                err[ii, c_num] = np.mean(rectified_sq_error(0.0, approx, clip))
     err = np.mean(err, axis=1)  # ave over chains
     assert(err.shape == (n_grid,))
+    return err
+
+
+def eval_total(exact_chain, all_chains, metric):
+    n_chains = len(all_chains)
+    assert(n_chains >= 1)
+    D = exact_chain.shape[1]
+    assert(exact_chain.ndim == 2)
+
+    if metric in MOMENT_METRICS:
+        estimator = MOMENT_METRICS[metric]
+        exact = estimator(exact_chain)
+        moment_metric = True
+    else:
+        assert(metric in OTHER_METRICS)
+        estimator = OTHER_METRICS[metric]
+        moment_metric = False
+
+    clip = METRICS_REF[metric] / MIN_ESS
+
+    err = np.zeros((D, n_chains))
+    for c_num, chain in enumerate(all_chains):
+        assert(chain.ndim == 2 and chain.shape[1] == D)
+        if moment_metric:
+            approx = estimator(chain)
+            err[:, c_num] = rectified_sq_error(exact, approx, clip)
+        else:
+            approx = estimator(exact_chain, chain)
+            err[:, c_num] = rectified_sq_error(0.0, approx, clip)
+    err = np.mean(err, axis=1)  # ave over chains
+    assert(err.shape == (D,))
     return err

@@ -27,11 +27,11 @@ def load_np(input_path, fname, ext):
     return X
 
 
-def save_pd(df, output_path, tbl_name, ext):
+def save_pd(df, output_path, tbl_name, ext, index=True):
     fname = os.path.join(output_path, tbl_name + ext)
     print 'saving %s' % fname
     assert(os.path.isabs(fname))
-    df.to_csv(fname, na_rep='', header=True, index=True)
+    df.to_csv(fname, na_rep='', header=True, index=index)
     return fname
 
 

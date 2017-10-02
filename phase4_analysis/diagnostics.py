@@ -1,19 +1,32 @@
 # Ryan Turner (turnerry@iro.umontreal.ca)
 import numpy as np
+import scipy.stats as ss
 import pymc3 as pm
 
+MIN_ESS = 1.0
 
-def geweke(chains):
+
+def summaries(x):
+    D = {'mean': np.mean(x), 'median': np.median(x),
+         'min': np.min(x), 'max': np.max(x),
+         'gmean': ss.gmean(x), 'hmean': ss.hmean(x)}
+    return D
+
+
+def geweke(chains, max_intervals=20):
     n_chains, N, D = chains.shape
-    scores = []
+    scores = np.zeros((n_chains, D))
     for nn in xrange(n_chains):
         for ii in xrange(D):
-            # TODO way to automatically adjust intervals in case N too small
-            R = pm.diagnostics.geweke(chains[nn, :, ii], intervals=5)
-            scores.append(np.mean(R[:, 1]))
-    # TODO look into what is best way to aggregate this into one score
-    score = np.mean(scores)
-    return score
+            # Will this formula never lead to too many intervals??
+            intervals = min(max_intervals, N // 10) + 1
+            R = pm.diagnostics.geweke(chains[nn, :, ii], intervals=intervals)
+            # assert(R.shape[0] == intervals)
+            # multiply by sqrt so expected to follow normal
+            # Could also try corrected min p-value
+            scores[nn, ii] = np.mean(R[:, 1]) * np.sqrt(intervals)
+    scores = np.mean(scores, axis=0) * np.sqrt(n_chains)
+    return scores
 
 
 def gelman_rubin(chains):
@@ -32,7 +45,7 @@ def gelman_rubin(chains):
         Vhat = W * (num_samples - 1) / num_samples + B / num_samples
 
         Rhat[ii] = np.sqrt(Vhat / W)
-    return np.mean(Rhat)  # TODO look into other combos
+    return Rhat
 
 
 def effective_n(chains):
@@ -84,9 +97,9 @@ def effective_n(chains):
 
         Vhat = get_vhat(x)
         n_eff[ii] = get_neff(x, Vhat)
-    return np.mean(n_eff)  # TODO look into other combos
+    n_eff = np.maximum(MIN_ESS, n_eff)
+    return n_eff
 
-# TODO add more
 ESS = 'ESS'
 STD_DIAGNOSTICS = {'Geweke': geweke, 'Gelman_Rubin': gelman_rubin,
                    ESS: effective_n}
