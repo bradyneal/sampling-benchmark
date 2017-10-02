@@ -18,7 +18,7 @@ from .sampling import sample_model
 
 REGRESSION_MODEL_NAMES = \
     [
-     'ls-linear-regres', 'ls-pairwise-linear-regres', 'ls-quadratic-linear-regres',
+     # 'ls-linear-regres', 'ls-pairwise-linear-regres', 'ls-quadratic-linear-regres',
      'robust-linear-regres', 'robust-pairwise-linear-regres', 'robust-quadratic-linear-regres',
      'shallow-nn-regres',
      'gp-ExpQuad-regres', 'gp-Exponential-regres', 'gp-Matern32-regres','gp-Matern52-regres',
