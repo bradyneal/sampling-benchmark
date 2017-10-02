@@ -6,9 +6,9 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
 import xarray as xr
-from diagnostics import STD_DIAGNOSTICS, ESS
+from diagnostics import STD_DIAGNOSTICS
 import fileio as io
-from metrics import MOMENT_METRICS, OTHER_METRICS, METRICS_REF
+from metrics import MOMENT_METRICS, OTHER_METRICS
 from metrics import eval_inc, eval_total
 
 SAMPLE_INDEX_COL = 'sample'
@@ -34,28 +34,15 @@ def init_data_array(coords, value=np.nan):
     return X
 
 
-def xr_hmean(X, dim=None, skipna=SKIPNA):
-    '''Note this departs from xarray default for skipna.'''
-    hm = 1.0 / ((1.0 / X).mean(dim=dim, skipna=skipna))
-    return hm
+def xr_unstack(da, index):
+    dims_list = list(da.coords.dims)
+    dims_list.remove(index)
 
-
-def xr_to_df_hier(da, index, column, sub_column):
-    '''This could be done generally with xr.to_dataframe() and then unstack.'''
-    D = {}
-    for col_val in da.coords[column].values:
-        df = da.loc[{column: col_val}].to_pandas()
-        # xr.to_pandas() doesn't let us specify the way we want it:
-        if df.index.name != index:
-            df = df.T
-        assert(df.index.name == index)
-        assert(df.columns.name == sub_column)
-        D[col_val] = df
-    df = pd.concat(D, axis=1)
-    assert(df.columns.names == [None, sub_column])
-    df.columns.names = [column, sub_column]
+    df = da.to_dataframe('foo').unstack(level=index)
+    df.columns = df.columns.droplevel(level=0)
+    df = df.T
     assert(df.index.name == index)
-    assert(df.columns.names == [column, sub_column])
+    assert(df.columns.names == dims_list)
     return df
 
 
@@ -104,45 +91,6 @@ def load_meta(input_path, fname, meta_ext, n_grid):
     return sample_idx
 
 
-def save_metric_summary(err_xr, n_count_xr, ess_ref_xr, output_path, ext):
-    examples = err_xr.coords['example'].values
-    samplers = err_xr.coords['sampler'].values
-    metrics = err_xr.coords['metric'].values
-
-    D = {'err': err_xr}
-    # Note: coordinate ordering may change
-    D['ess'] = ess_ref_xr / D['err']
-    D['eff'] = D['ess'] / n_count_xr
-
-    for space, X in D.iteritems():
-        for ex in examples:
-            df = xr_to_df_hier(X.sel(example=ex), 'time', 'sampler', 'metric')
-            io.save_pd(df, output_path, 'ex-%s-%s' % (ex, space), ext)
-        for sam in samplers:
-            df = xr_to_df_hier(X.sel(sampler=sam), 'time', 'example', 'metric')
-            io.save_pd(df, output_path, 'sam-%s-%s' % (sam, space), ext)
-        for met in metrics:
-            df = xr_to_df_hier(X.sel(metric=met), 'time', 'sampler', 'example')
-            io.save_pd(df, output_path, 'met-%s-%s' % (met, space), ext)
-
-    # Some averaging for a final summary score
-    hm_n_count = xr_hmean(n_count_xr.isel(time=-1), dim='example')
-    final_perf = err_xr.isel(time=-1).mean(dim='example', skipna=SKIPNA)
-    df = final_perf.to_pandas()
-    assert(df.index.name == 'sampler')
-    assert(df.columns.name == 'metric')
-    io.save_pd(df, output_path, 'final-%s' % 'err', ext)
-    ess = (ess_ref_xr / final_perf).T
-    df = ess.to_pandas()
-    assert(df.index.name == 'sampler')
-    assert(df.columns.name == 'metric')
-    io.save_pd(df, output_path, 'final-%s' % 'ess', ext)
-    df = (ess / hm_n_count).to_pandas()
-    assert(df.index.name == 'sampler')
-    assert(df.columns.name == 'metric')
-    io.save_pd(df, output_path, 'final-%s' % 'eff', ext)
-
-
 def build_metrics_array(samplers, examples, metrics, file_lookup, config,
                         bootstrap_test=False):
     '''Aggregate all the performance numbers into huge array'''
@@ -155,6 +103,11 @@ def build_metrics_array(samplers, examples, metrics, file_lookup, config,
     perf = init_data_array(coords)
     # Skip metric for n_count
     n_count = init_data_array(coords[:-1])
+
+    cols = pd.MultiIndex.from_product([samplers, examples, metrics + ['N']],
+                                      names=['sampler', 'example', 'metric'])
+    perf_df = pd.DataFrame(index=xrange(n_grid), columns=cols)
+    perf_df.index.name = 'time'
 
     # Assume later that these keys are distinct
     assert(set(metrics).isdisjoint(STD_DIAGNOSTICS.keys()))
@@ -196,7 +149,9 @@ def build_metrics_array(samplers, examples, metrics, file_lookup, config,
                 err = eval_inc(exact_chain, all_chains, metric, all_meta)
                 assert(err.shape == (n_grid,))
                 perf.loc[:, sampler, example, metric] = err
+                perf_df[(sampler, example, metric)] = err
             n_count.loc[:, sampler, example] = hmean(all_meta, axis=1)
+            perf_df[(sampler, example, 'N')] = hmean(all_meta, axis=1)
 
             print 'sync analysis'
             # Do analyses that can only be done @ end with equal len chains
@@ -213,12 +168,27 @@ def build_metrics_array(samplers, examples, metrics, file_lookup, config,
                 df[diag_name] = score
             df['D'] = D
             df['N'] = all_chains.shape[1]
+            # TODO log n-chains
+            # TODO log err averaging over chains and ave with each chain
             sync_perf[(sampler, example)] = df
     sync_perf = pd.concat(sync_perf, axis=0)
     assert(sync_perf.index.names == [None, None, 'dim'])
     sync_perf.index.names = ['sampler', 'example', 'dim']
     sync_perf.reset_index(drop=False, inplace=True)
-    return perf, n_count, sync_perf
+
+    # Compare aggregation with pandas vs xarray
+    perf_df2 = xr_unstack(perf, 'time')
+    for metric in metrics:
+        chk1 = perf_df.xs(metric, axis=1, level='metric')
+        chk2 = perf_df2.xs(metric, axis=1, level='metric')
+        assert(chk1.equals(chk2))
+    chk1 = xr_unstack(n_count, 'time')
+    chk2 = perf_df.xs('N', axis=1, level='metric')
+    assert(chk1.equals(chk2))
+
+    # TODO add average over examples
+
+    return perf_df, sync_perf
 
 
 def main():
@@ -234,7 +204,7 @@ def main():
     print '%d files in lookup table' % \
         sum(len(file_lookup[k]) for k in file_lookup)
 
-    examples = examples[:3]  # TODO remove test only
+    # examples = examples[:3]  # TODO remove
 
     # This could get big
     print samplers
@@ -242,23 +212,16 @@ def main():
 
     metrics = MOMENT_METRICS.keys() + OTHER_METRICS.keys()
     R = build_metrics_array(samplers, examples, metrics, file_lookup, config)
-    perf, n_count, sync_perf = R
+    perf_df, sync_perf = R
 
-    ess_ref = xr.DataArray(data=METRICS_REF.values(),
-                           coords=[('metric', METRICS_REF.keys())])
-    ess_ref_pd = ess_ref.to_pandas()
-    print 'using reference values'
-    print ess_ref_pd.to_string()
-
-    # Save metrics
-    save_metric_summary(perf, n_count, ess_ref, config['output_path'], ext)
+    # Save TS, make sure it has enough info to compute ess and eff
+    io.save_pd(perf_df, config['output_path'], 'perf', ext)
 
     # Save diagnostics, make sure it has enough info to compute ess and eff
     io.save_pd(sync_perf, config['output_path'], 'perf_sync', ext, index=False)
 
     # Could also include option to dump everything in netCDF if we want
     print 'done'
-    return perf, n_count
 
 if __name__ == '__main__':
-    perf, n_count = main()
+    main()
