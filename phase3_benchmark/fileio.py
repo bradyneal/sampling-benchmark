@@ -50,7 +50,9 @@ def load_config(config_file):
     config = ConfigParser.RawConfigParser()
     assert(os.path.isabs(config_file))
     config.read(config_file)
-    
+
+    D = {}
+
     njobs = config.get('compute', 'njobs')
     calc_njobs = njobs in ['', 'None', 'none', 'calculated', 'calculate']
     if calc_njobs:
@@ -64,7 +66,6 @@ def load_config(config_file):
         except ValueError:
             raise ValueError('invalid value given for njobs: %s' % njobs)
 
-    D = {}
     D['input_path'] = abspath2(config.get('phase2', 'output_path'))
     D['output_path'] = abspath2(config.get('phase3', 'output_path'))
 

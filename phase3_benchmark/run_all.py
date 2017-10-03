@@ -16,7 +16,7 @@ def main():
     config = io.load_config(config_file)
 
     model_list = io.get_model_list(config['input_path'], config['pkl_ext'])
-    model_list = model_list[:5]  # TODO remove, test only
+    # model_list = model_list[:5]  # TODO remove, test only
     assert(all(io.is_safe_name(ss) for ss in model_list))
     print 'using models:'
     print model_list
