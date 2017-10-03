@@ -9,7 +9,7 @@ import xarray as xr
 from diagnostics import STD_DIAGNOSTICS
 import fileio as io
 from metrics import MOMENT_METRICS, OTHER_METRICS
-from metrics import eval_inc, eval_total
+from metrics import eval_inc, eval_total, eval_pooled
 
 SAMPLE_INDEX_COL = 'sample'
 SKIPNA = True
@@ -162,14 +162,16 @@ def build_metrics_array(samplers, examples, metrics, file_lookup, config,
                 err = eval_total(exact_chain, all_chains, metric)
                 assert(err.shape == (D,))
                 df[metric] = err
+                err = eval_pooled(exact_chain, all_chains, metric)
+                assert(err.shape == (D,))
+                df[metric + '_pooled'] = err
             for diag_name, diag_f in STD_DIAGNOSTICS.iteritems():
                 score = diag_f(all_chains)
                 assert(score.shape == (D,))
                 df[diag_name] = score
             df['D'] = D
             df['N'] = all_chains.shape[1]
-            # TODO log n-chains
-            # TODO log err averaging over chains and ave with each chain
+            df['n_chains'] = all_chains.shape[0]
             sync_perf[(sampler, example)] = df
     sync_perf = pd.concat(sync_perf, axis=0)
     assert(sync_perf.index.names == [None, None, 'dim'])
@@ -186,8 +188,8 @@ def build_metrics_array(samplers, examples, metrics, file_lookup, config,
     chk2 = perf_df.xs('N', axis=1, level='metric')
     assert(chk1.equals(chk2))
 
-    # TODO add average over examples
-
+    # We could add an extra example which is average of all examples, or can
+    # do in next phase.
     return perf_df, sync_perf
 
 

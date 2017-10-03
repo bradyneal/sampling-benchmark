@@ -90,7 +90,7 @@ def effective_n(chains):
 
         n_eff = num_chains * num_samples / (1.0 + 2 * rho[1:t - 1].sum())
         # If we want to cap it:
-        # n_eff = min(num_chains * num_samples + 0.0, n_eff)
+        n_eff = min(num_chains * num_samples + 0.0, n_eff)
         return n_eff
 
     n_eff = np.zeros(D)

@@ -6,6 +6,22 @@ from diagnostics import MIN_ESS
 DEFAULT_CLIP = 1.0
 
 
+def stack_first(X):
+    assert(X.ndim == 3)
+    # Equivalent to:
+    # Y = np.concatenate([X[ii, :, :] for ii in xrange(X.shape[0])], axis=0)
+    Y = np.reshape(X, (-1, X.shape[2]))
+    return Y
+
+
+def interleave(X):
+    assert(X.ndim == 3)
+    # Equivalent to:
+    # np.concatenate([X[:, ii, :] for ii in xrange(X.shape[1])], axis=0)
+    Y = stack_first(X.transpose((1, 0, 2)))
+    return Y
+
+
 def mean(chain):
     assert(np.ndim(chain) == 2)
     return np.mean(chain, axis=0)
@@ -99,5 +115,33 @@ def eval_total(exact_chain, all_chains, metric):
             approx = estimator(exact_chain, chain)
             err[:, c_num] = rectified_sq_error(0.0, approx, clip)
     err = np.mean(err, axis=1)  # ave over chains
+    assert(err.shape == (D,))
+    return err
+
+
+def eval_pooled(exact_chain, all_chains, metric):
+    n_chains = len(all_chains)
+    assert(n_chains >= 1)
+    D = exact_chain.shape[1]
+    assert(exact_chain.ndim == 2)
+
+    if metric in MOMENT_METRICS:
+        estimator = MOMENT_METRICS[metric]
+        exact = estimator(exact_chain)
+        moment_metric = True
+    else:
+        assert(metric in OTHER_METRICS)
+        estimator = OTHER_METRICS[metric]
+        moment_metric = False
+
+    clip = METRICS_REF[metric] / MIN_ESS
+
+    all_chains = stack_first(np.asarray(all_chains))
+    if moment_metric:
+        approx = estimator(all_chains)
+        err = rectified_sq_error(exact, approx, clip)
+    else:
+        approx = estimator(exact_chain, all_chains)
+        err = rectified_sq_error(0.0, approx, clip)
     assert(err.shape == (D,))
     return err
