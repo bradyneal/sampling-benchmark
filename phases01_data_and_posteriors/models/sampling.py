@@ -7,6 +7,7 @@ from pymc3.backends.base import merge_traces
 import theano
 from timeit import default_timer as timer
 from functools import partial
+import pandas as pd
 
 from .utils import format_trace
 from . import MAX_NUM_SAMPLES, NUM_INIT_STEPS, SOFT_MAX_TIME_IN_SECONDS, \
@@ -23,13 +24,14 @@ def sample_model(model, step=None, num_samples=MAX_NUM_SAMPLES, advi=False,
         num_scale1_iters=num_scale1_iters, num_scale0_iters=num_scale0_iters)
   
     if advi:
-        return format_trace(sample_chain_with_args(model))
+        return format_trace(sample_chain_with_args(model), to_df=True)
     else:
         traces = []
         for i in range(n_chains):
             traces.append(sample_chain_with_args(model, i))
-        return(format_trace(merge_traces(traces)))
-
+        multitrace = merge_traces(traces)
+        df = format_trace(multitrace, to_df=True)
+        return augment_with_diagnostics(df, get_diagnostics(multitrace))
 
 
 def sample_chain(model, chain_i=0, step=None, num_samples=MAX_NUM_SAMPLES,
@@ -78,3 +80,22 @@ def sample_chain(model, chain_i=0, step=None, num_samples=MAX_NUM_SAMPLES,
 
 def get_min_samples_per_chain(dimension, min_samples_constant, n_chains):
     return int(min_samples_constant * (dimension ** 2) / n_chains)
+
+
+def augment_with_diagnostics(trace_df, diagnostics):
+    """Add diagnostics to trace DataFrame"""
+    d1, d2 = diagnostics
+    if d1.keys() != d2.keys():
+        raise ValueError('Diagnositics keys are not the same {} != {}'
+                         .format(d1.keys(), d2.keys()))
+    d1['diagnostic'] = 'Gelman-Rubin'
+    d2['diagnostic'] = 'ESS'
+    d_concat = {k: [d1[k], d2[k]] for k in d1.keys()}
+    diag_df = pd.DataFrame.from_dict(d_concat)
+    diag_df = df.set_index('diagnostic')
+    df_concat = pd.concat([diag_df, trace_df])
+    return df_concat
+
+
+def get_diagnostics(trace):
+    return pm.diagnostics.gelman_rubin(trace), pm.diagnostics.effective_n(trace)
