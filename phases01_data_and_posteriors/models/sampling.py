@@ -8,6 +8,7 @@ import theano
 from timeit import default_timer as timer
 from functools import partial
 import pandas as pd
+from copy import deepcopy
 
 from .utils import format_trace
 from . import MAX_NUM_SAMPLES, NUM_INIT_STEPS, SOFT_MAX_TIME_IN_SECONDS, \
@@ -28,10 +29,16 @@ def sample_model(model, step=None, num_samples=MAX_NUM_SAMPLES, advi=False,
     else:
         traces = []
         for i in range(n_chains):
-            traces.append(sample_chain_with_args(model, i))
-        multitrace = merge_traces(traces)
-        df = format_trace(multitrace, to_df=True)
-        return augment_with_diagnostics(df, get_diagnostics(multitrace))
+            traces.append(sample_chain_with_args(model, chain_i=i))
+        
+        # copy and rebuild traces list because merge_traces modifies
+        # the first trace in the list
+        trace0 = deepcopy(traces[0])
+        df = format_trace(merge_traces(traces), to_df=True)
+        traces = [trace0] + traces[1:]
+        
+        return augment_with_diagnostics(
+            df, get_diagnostics(merge_truncated_traces(traces)))
 
 
 def sample_chain(model, chain_i=0, step=None, num_samples=MAX_NUM_SAMPLES,
@@ -92,9 +99,18 @@ def augment_with_diagnostics(trace_df, diagnostics):
     d2['diagnostic'] = 'ESS'
     d_concat = {k: [d1[k], d2[k]] for k in d1.keys()}
     diag_df = pd.DataFrame.from_dict(d_concat)
-    diag_df = df.set_index('diagnostic')
+    diag_df = diag_df.set_index('diagnostic')
     df_concat = pd.concat([diag_df, trace_df])
     return df_concat
+
+
+def merge_truncated_traces(traces):
+    min_chain_length = min(map(len, traces))
+    truncated_traces = list(map(lambda trace: trace[:min_chain_length],
+                                traces))
+    for trace in truncated_traces:
+        print('chain num:', trace.chains)
+    return merge_traces(truncated_traces)
 
 
 def get_diagnostics(trace):
