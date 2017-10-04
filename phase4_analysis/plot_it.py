@@ -35,105 +35,18 @@ R['eff'] = R['real_ess'] / R['N']
 #   and show corr coef
 
 
-def plot_ess_normed(df, metric, pooled=False):
-    metric_ref = METRICS_REF[metric]
-    metric = metric + '_pooled' if pooled else metric
-
-    n_ref = df.groupby('example')['N'].median()
-
+def plot_by(df, x, y, by):
     plt.figure()
-    gdf = df.groupby('sampler')
+    gdf = df.groupby(by)
     for name, sdf in gdf:
-        ref_val = sdf['example'].map(n_ref).values
-        n_chains = sdf['n_chains'].values
-
-        real_ess = metric_ref / sdf[metric].values
-        estimated_ess = sdf['ESS'].values if pooled else \
-            sdf['ESS'].values / n_chains
-        plt.loglog(estimated_ess / ref_val, real_ess / ref_val, '.',
-                   label=name, alpha=0.5)
-    xgrid = np.logspace(-3.0, 3.0, 100)  # TODO automatic
+        plt.loglog(sdf[x].values, sdf[y].values, '.', label=name, alpha=0.5)
+    xgrid = np.logspace(np.log10(df[x].min()), np.log10(df[x].max()), 100)
     plt.loglog(xgrid, xgrid, 'k--')
     plt.legend(loc=3, ncol=4, fontsize=6,
                bbox_to_anchor=(0.0, 1.02, 1.0, 0.102))
     plt.grid()
-    plt.xlabel('normalized ESS')
-    plt.ylabel('real normalized ESS')
-    plt.title(metric)
-
-
-def plot_ess(df, groupby_col, metric, pooled=False):
-    metric_ref = METRICS_REF[metric]
-    metric = metric + '_pooled' if pooled else metric
-
-    plt.figure()
-    gdf = df.groupby(groupby_col)
-    for name, sub_df in gdf:
-        n_chains = sub_df['n_chains'].values
-
-        real_ess = metric_ref / sub_df[metric].values
-        estimated_ess = sub_df['ESS'].values if pooled else \
-            sub_df['ESS'].values / n_chains
-        plt.loglog(estimated_ess, real_ess, '.', label=name, alpha=0.5)
-    xgrid = np.logspace(0.0, 6.0, 100)  # TODO automatic
-    plt.loglog(xgrid, xgrid, 'k--')
-    plt.legend()
-    plt.grid('on')
-    plt.xlabel('ESS')
-    plt.ylabel('real ESS')
-    plt.title(metric)
-
-
-def plot_eff(df, groupby_col, metric, pooled=False):
-    metric_ref = METRICS_REF[metric]
-    metric = metric + '_pooled' if pooled else metric
-
-    plt.figure()
-    gdf = df.groupby(groupby_col)
-    for name, sub_df in gdf:
-        n_chains = sub_df['n_chains'].values
-        n_samples = sub_df['N'].values
-
-        real_ess = metric_ref / sub_df[metric].values
-        real_eff = real_ess / n_samples
-
-        estimated_ess = sub_df['ESS'].values if pooled else \
-            sub_df['ESS'].values / n_chains
-        estimated_eff = estimated_ess / n_samples
-
-        plt.loglog(estimated_eff, real_eff, '.', label=name, alpha=0.5)
-    xgrid = np.logspace(-6.0, 0.0, 100)  # TODO automatic
-    plt.loglog(xgrid, xgrid, 'k--')
-    plt.legend(loc=3, ncol=4, fontsize=6,
-               bbox_to_anchor=(0.0, 1.02, 1.0, 0.102))
-    plt.grid()
-    plt.xlabel('estimated efficiency')
-    plt.ylabel('real efficiency')
-    plt.title(metric)
-
-
-def plot_eff_vD(df, groupby_col, metric, pooled=False):
-    metric_ref = METRICS_REF[metric]
-    metric = metric + '_pooled' if pooled else metric
-
-    plt.figure()
-    gdf = df.groupby(groupby_col)
-    for name, sub_df in gdf:
-        n_samples = sub_df['N'].values
-
-        real_ess = metric_ref / sub_df[metric].values
-        real_eff = real_ess / n_samples
-
-        D = sub_df['D'].values
-        D = D + (np.random.rand(len(D)) - 0.5)
-
-        plt.semilogy(D, real_eff, '.', label=name, alpha=0.5)
-    plt.legend(loc=3, ncol=4, fontsize=6,
-               bbox_to_anchor=(0.0, 1.02, 1.0, 0.102))
-    plt.grid()
-    plt.xlabel('dimension')
-    plt.ylabel('real efficiency')
-    plt.title(metric)
+    plt.xlabel(x)
+    plt.ylabel(y)
 
 
 # TODO config
@@ -142,71 +55,28 @@ def plot_eff_vD(df, groupby_col, metric, pooled=False):
 fname = '../perf_sync.csv'
 df = pd.read_csv(fname, header=0, index_col=None)
 
-plot_ess_normed(df, 'mean')
+n_ref = df.groupby('example')['N'].median()
+df['n_ref'] = df['example'].map(n_ref)
 
+df['ESS_pooled'] = df['ESS']
+df['ESS'] = df['ESS_pooled'] / df['n_chains']
 
-'''
-examples = df['example'].unique()
-samplers = df['sampler'].unique()
+df['NESS_pooled'] = df['ESS_pooled'] / df['n_ref']
+df['NESS'] = df['ESS'] / df['n_ref']
 
-plt.figure()
-for ex in examples:
-    idx = df['example'] == ex
-    real_ess = 1.0 / df.loc[idx, 'mean'].values
-    plt.loglog(df.loc[idx, 'ESS'].values, real_ess, '.', label=ex)
+df['eff'] = df['ESS'] / df['N']
+df['eff_pooled'] = df['ESS_pooled'] / df['N']
 
+for metric in sorted(METRICS_REF.keys()):
+    metric_ref = METRICS_REF[metric]
+    df['real_ess_' + metric] = metric_ref / df[metric]
+    df['real_ness_' + metric] = df['real_ess_' + metric] / df['n_ref']
+    df['real_eff_' + metric] = df['real_ess_' + metric] / df['N']
 
-plt.figure()
-for sam in samplers:
-    idx = df['sampler'] == sam
-    df_sub = df.loc[idx, :]
+    metric = metric + '_pooled'
+    df['real_ess_' + metric] = metric_ref / df[metric]
+    df['real_ness_' + metric] = df['real_ess_' + metric] / df['n_ref']
+    total_samples = df['N'] * df['n_chains']
+    df['real_eff_' + metric] = df['real_ess_' + metric] / total_samples
 
-    real_ess = 1.0 / df_sub['mean'].values
-    n_samples = df_sub['N'].values
-    n_chains = df_sub['n_chains'].values
-    estimated_ess = df_sub['ESS'].values / n_chains
-    plt.loglog(estimated_ess, real_ess, '.', label=sam, alpha=0.5)
-xgrid = np.logspace(0.0, 6.0, 100)
-plt.loglog(xgrid, xgrid, 'k--')
-plt.legend()
-plt.xlabel('ESS')
-plt.ylabel('real ESS')
-plt.title('mean')
-
-
-plt.figure()
-for sam in samplers:
-    idx = df['sampler'] == sam
-    df_sub = df.loc[idx, :]
-
-    real_ess = 1.0 / df_sub['mean'].values
-    n_samples = df_sub['N'].values
-    n_chains = df_sub['n_chains'].values
-    eff = real_ess / n_samples
-    estimated_eff = df_sub['ESS'].values / (n_samples * n_chains)
-    plt.loglog(estimated_eff, eff, '.', label=sam, alpha=0.5)
-xgrid = np.logspace(-6.0, 0.0, 100)
-plt.loglog(xgrid, xgrid, 'k--')
-plt.legend()
-plt.xlabel('estimated efficiency')
-plt.ylabel('real efficiency')
-plt.title('mean')
-
-plt.figure()
-for sam in samplers:
-    idx = df['sampler'] == sam
-    df_sub = df.loc[idx, :]
-
-    real_ess = 1.0 / df_sub['mean_pooled'].values
-    n_samples = df_sub['N'].values
-    n_chains = df_sub['n_chains'].values
-    eff = real_ess / (n_samples * n_chains)
-    estimated_eff = df_sub['ESS'].values / (n_samples * n_chains)
-    plt.loglog(estimated_eff, eff, '.', label=sam, alpha=0.5)
-xgrid = np.logspace(-6.0, 0.0, 100)
-plt.loglog(xgrid, xgrid, 'k--')
-plt.legend()
-plt.xlabel('estimated efficiency')
-plt.ylabel('real efficiency')
-plt.title('mean pooled')
-'''
+plot_by(df, 'eff', 'real_eff_mean', 'sampler')
