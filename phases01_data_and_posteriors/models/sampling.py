@@ -23,18 +23,13 @@ def sample_model(model, step=None, num_samples=MAX_NUM_SAMPLES, advi=False,
         num_scale1_iters=num_scale1_iters, num_scale0_iters=num_scale0_iters)
   
     if advi:
-        return sample_chain_with_args(model)
+        return format_trace(sample_chain_with_args(model))
     else:
         traces = []
         for i in range(n_chains):
             traces.append(sample_chain_with_args(model, i))
-    
-        print('traces:')
-        print(traces)
-        merged = merge_traces(traces)
-        print('merged:')
-        print(merged)
-        return merged
+        return(format_trace(merge_traces(traces)))
+
 
 
 def sample_chain(model, chain_i=0, step=None, num_samples=MAX_NUM_SAMPLES,
