@@ -80,3 +80,9 @@ for metric in sorted(METRICS_REF.keys()):
     df['real_eff_' + metric] = df['real_ess_' + metric] / total_samples
 
 plot_by(df, 'eff', 'real_eff_mean', 'sampler')
+
+ax = df.boxplot('real_ness_mean', by='sampler', rot=90)
+ax.set_yscale('log')
+plt.xlabel('sampler')
+plt.ylabel('real_ness_mean')
+plt.show()
