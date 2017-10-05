@@ -25,10 +25,11 @@ def sample_model(model, step=None, num_samples=MAX_NUM_SAMPLES, advi=False,
         num_scale1_iters=num_scale1_iters, num_scale0_iters=num_scale0_iters)
   
     if advi:
-        return format_trace(sample_chain_with_args(model), to_df=True)
+        return format_trace(sample_chain_with_args(model), to_df=True), None
     else:
         traces = []
         for i in range(n_chains):
+            print('chain {} of {}'.format(i + 1, n_chains))
             traces.append(sample_chain_with_args(model, chain_i=i))
         
         # copy and rebuild traces list because merge_traces modifies
@@ -37,8 +38,11 @@ def sample_model(model, step=None, num_samples=MAX_NUM_SAMPLES, advi=False,
         df = format_trace(merge_traces(traces), to_df=True)
         traces = [trace0] + traces[1:]
         
-        return augment_with_diagnostics(
-            df, get_diagnostics(merge_truncated_traces(traces)))
+        diagnostics = get_diagnostics(merge_truncated_traces(traces))
+        print(type(augment_with_diagnostics(df, diagnostics)))
+        print(type(diagnostics))
+        print(len(diagnostics))
+        return augment_with_diagnostics(df, diagnostics), diagnostics
 
 
 def sample_chain(model, chain_i=0, step=None, num_samples=MAX_NUM_SAMPLES,
@@ -91,12 +95,11 @@ def get_min_samples_per_chain(dimension, min_samples_constant, n_chains):
 
 def augment_with_diagnostics(trace_df, diagnostics):
     """Add diagnostics to trace DataFrame"""
-    d1, d2 = diagnostics
+    d1 = diagnostics['Gelman-Rubin']
+    d2 = diagnostics['ESS']
     if d1.keys() != d2.keys():
         raise ValueError('Diagnositics keys are not the same {} != {}'
                          .format(d1.keys(), d2.keys()))
-    d1['diagnostic'] = 'Gelman-Rubin'
-    d2['diagnostic'] = 'ESS'
     d_concat = {k: [d1[k], d2[k]] for k in d1.keys()}
     diag_df = pd.DataFrame.from_dict(d_concat)
     diag_df = diag_df.set_index('diagnostic')
@@ -114,4 +117,9 @@ def merge_truncated_traces(traces):
 
 
 def get_diagnostics(trace):
-    return pm.diagnostics.gelman_rubin(trace), pm.diagnostics.effective_n(trace)
+    d1 = pm.diagnostics.gelman_rubin(trace)
+    d2 = pm.diagnostics.effective_n(trace)
+    d1['diagnostic'] = 'Gelman-Rubin'
+    d2['diagnostic'] = 'ESS'
+    return {'Gelman-Rubin': d1, 'ESS': d2}
+    

@@ -23,6 +23,7 @@ ERRORS_FOLDER = os.path.join(DATASETS_FOLDER, 'errors')
 TASKS_FOLDER = os.path.join(OPENML_FOLDER, 'tasks')
 EXP_FOLDER = path_from_unix_path(UNIX_EXP_PATH)
 SAMPLES_FOLDER = os.path.join(EXP_FOLDER, 'samples')
+DIAGNOSTICS = os.path.join(SAMPLES_FOLDER, 'diagnostics.pkl')
 
 # Folder name constants
 class Preprocess(Enum):
@@ -40,6 +41,7 @@ CONFIG = {
 CONFIG['errors_folder'] = ERRORS_FOLDER
 CONFIG['tasks_folder'] = TASKS_FOLDER
 CONFIG['samples_folder'] = SAMPLES_FOLDER
+CONFIG['diagnostics'] = DIAGNOSTICS
 
 # Prepare directories:
 if not os.path.exists(SAMPLES_FOLDER):

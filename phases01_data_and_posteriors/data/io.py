@@ -44,6 +44,27 @@ def read_samples(model_name, dataset_id, csv=CSV_DEFAULT):
         return read_file(filename)
     
 
+def read_sample_diagnostics():
+    """
+    Return the sample diagnostics as a list where each element corresponds to
+    the diagnostics of a single sampled posterior.
+    """
+    return list(read_next_sample_diagnostic())
+
+
+def read_next_sample_diagnostic():
+    """
+    Returns a generator that reads the diagnostics of one sampled posterior at
+    a time.
+    """
+    with open(CONFIG['diagnostics'], 'rb') as f:
+        while True:
+            try:
+                yield pickle.load(f, protocol=2)
+            except EOFError:
+                break
+    
+
 def read_file(filename):
     """Read and return contents of file"""
     with open(filename, 'rb') as f:
@@ -108,6 +129,15 @@ def write_samples(samples_df, model_name, dataset_id, csv=CSV_DEFAULT,
         samples_df.to_csv(filename)
     else:
         samples_df.to_pickle(filename)
+        
+        
+def append_sample_diagnostic(diagnostic):
+    """
+    Append object to diagnostics pickle file with protocol 2, so that it can be
+    read by python2.
+    """
+    with open(CONFIG['diagnostics'], 'ab') as f:
+        pickle.dump(diagnostic, f, protocol=2)
 
             
 def write_file(filename, contents, overwrite=True):
