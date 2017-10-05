@@ -3,9 +3,11 @@ import numpy as np
 import pandas as pd
 import scipy.stats as ss
 from sklearn.linear_model import BayesianRidge
+from sklearn.preprocessing import RobustScaler
 from metrics import METRICS_REF
 
 import bt.benchmark_tools_regr as btr
+from bt.benchmark_tools_regr import METRIC
 import bt.data_splitter as ds
 
 import matplotlib.pyplot as plt
@@ -103,41 +105,59 @@ def all_pos_finite(X):
     return R
 
 
+def all_finite(X):
+    R = np.all(np.isfinite(X))  # Will catch nan too
+    return R
+
+
 def try_models(df_train, df_test, metric, feature_list, target_list, methods):
     loss_dict = {'NLL': btr.log_loss}
 
     X_train = df_train[feature_list].values
-    assert(all_pos_finite(X_train))
     X_test = df_test[feature_list].values
-    assert(all_pos_finite(X_test))
     # TODO augment with log-scale, inv-scale??
+
+    assert(all_pos_finite(X_train))
+    assert(all_pos_finite(X_test))
+
+    scaler = RobustScaler()
+    X_train = scaler.fit_transform(X_train)
+    X_test = scaler.transform(X_test)
+    assert(all_finite(X_train))
+    assert(all_finite(X_test))
 
     summary = {}
     for target in target_list:
         assert(target.endswith(metric))
         y_train = df_train[target].values
-        assert(all_pos_finite(y_train))
         y_test = df_test[target].values
+        assert(all_pos_finite(y_train))
         assert(all_pos_finite(y_test))
 
-        jac = 1.0 if target == metric else df_test[target + '_jac'].values
+        scaler = RobustScaler()
+        y_train = scaler.fit_transform(y_train[:, None])[:, 0]
+        # Same as y_test = y_test / scaler.scale_
+        y_test = scaler.transform(y_test[:, None])[:, 0]
+        assert(all_finite(y_train))
+        assert(all_finite(y_test))
+        scale_, = scaler.scale_
+        assert(np.ndim(scale_) == 0)
 
-        # TODO robust standardize data, need to adjust jac
-        # TODO use const for metric
+        jac = 1.0 if target == metric else df_test[target + '_jac'].values
+        jac = jac / scale_
 
         pred_tbl = btr.get_gauss_pred(X_train, y_train, X_test, methods)
         loss_tbl = btr.loss_table(pred_tbl, y_test, loss_dict)
-        nll_tbl = loss_tbl.xs('NLL', axis=1, level='metric', drop_level=True)
+        nll_tbl = loss_tbl.xs('NLL', axis=1, level=METRIC, drop_level=True)
         nll_tbl = nll_tbl.add(-np.log(jac), axis='index')
         summary[target] = nll_tbl.mean(axis=0)
 
-        jac = jac / y_test  # For log scale
-        pred_tbl = btr.get_gauss_pred(X_train, np.log(y_train), X_test, methods)
-        loss_tbl = btr.loss_table(pred_tbl, np.log(y_test), loss_dict)
-        nll_tbl = loss_tbl.xs('NLL', axis=1, level='metric', drop_level=True)
-        nll_tbl = nll_tbl.add(-np.log(jac), axis='index')
-        summary['log_' + target] = nll_tbl.mean(axis=0)
-        # TODO get mean delta to ref_method
+        #jac = jac / y_test  # For log scale
+        #pred_tbl = btr.get_gauss_pred(X_train, np.log(y_train), X_test, methods)
+        #loss_tbl = btr.loss_table(pred_tbl, np.log(y_test), loss_dict)
+        #nll_tbl = loss_tbl.xs('NLL', axis=1, level=METRIC, drop_level=True)
+        #nll_tbl = nll_tbl.add(-np.log(jac), axis='index')
+        #summary['log_' + target] = nll_tbl.mean(axis=0)
     summary = pd.DataFrame(summary)
     return summary
 
