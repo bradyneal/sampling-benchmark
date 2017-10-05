@@ -17,11 +17,6 @@ DIAGS = ('Geweke', 'ESS', 'Gelman_Rubin')  # TODO import from elsewhere
 # TODO re-run with no clip in perf
 #   also adjust MIN_ESS to per chain
 
-# do regr analysis per dim and agg
-#   per dim first
-# TODO look at scatter and see which form is most gaussian
-#  log-scale, ess, eff, err, log-eff
-
 # TODO do cross scatter plot of all the metrics
 #   and show corr coef
 
@@ -71,14 +66,20 @@ def augment_df(df):
         metric_ref = METRICS_REF[metric]
         # TODO add jac factors to each of these for pred lik scores
         df['real_ess_' + metric] = metric_ref / df[metric]
+        df['real_ess_' + metric + '_jac'] = metric_ref / (df[metric] ** 2)
         df['real_ness_' + metric] = df['real_ess_' + metric] / df['n_ref']
+        df['real_ness_' + metric + '_jac'] = df['real_ess_' + metric + '_jac'] / df['n_ref']
         df['real_eff_' + metric] = df['real_ess_' + metric] / df['N']
+        df['real_eff_' + metric + '_jac'] = df['real_ess_' + metric + '_jac'] / df['N']
 
         metric = metric + '_pooled'
         df['real_ess_' + metric] = metric_ref / df[metric]
+        df['real_ess_' + metric + '_jac'] = metric_ref / (df[metric] ** 2)
         df['real_ness_' + metric] = df['real_ess_' + metric] / df['n_ref']
+        df['real_ness_' + metric + '_jac'] = df['real_ess_' + metric + '_jac'] / df['n_ref']
         total_samples = df['N'] * df['n_chains']
         df['real_eff_' + metric] = df['real_ess_' + metric] / total_samples
+        df['real_eff_' + metric + '_jac'] = df['real_ess_' + metric + '_jac'] / total_samples
     return df  # return anyway
 
 
@@ -110,7 +111,6 @@ def try_models(df_train, df_test, metric, feature_list, target_list, methods):
     X_test = df_test[feature_list].values
     assert(all_pos_finite(X_test))
     # TODO augment with log-scale, inv-scale??
-    # TODO remove lines with nan features
 
     summary = {}
     for target in target_list:
@@ -120,21 +120,24 @@ def try_models(df_train, df_test, metric, feature_list, target_list, methods):
         y_test = df_test[target].values
         assert(all_pos_finite(y_test))
 
+        jac = 1.0 if target == metric else df_test[target + '_jac'].values
+
         # TODO robust standardize data, need to adjust jac
         # TODO use const for metric
 
         pred_tbl = btr.get_gauss_pred(X_train, y_train, X_test, methods)
         loss_tbl = btr.loss_table(pred_tbl, y_test, loss_dict)
-        loss_tbl = loss_tbl.xs('NLL', axis=1, level='metric', drop_level=True)
-        summary[target] = loss_tbl.mean(axis=0)
+        nll_tbl = loss_tbl.xs('NLL', axis=1, level='metric', drop_level=True)
+        nll_tbl = nll_tbl.add(-np.log(jac), axis='index')
+        summary[target] = nll_tbl.mean(axis=0)
 
+        jac = jac / y_test  # For log scale
         pred_tbl = btr.get_gauss_pred(X_train, np.log(y_train), X_test, methods)
         loss_tbl = btr.loss_table(pred_tbl, np.log(y_test), loss_dict)
-        loss_tbl = loss_tbl.xs('NLL', axis=1, level='metric', drop_level=True)
-        summary['log_' + target] = loss_tbl.mean(axis=0)
-
+        nll_tbl = loss_tbl.xs('NLL', axis=1, level='metric', drop_level=True)
+        nll_tbl = nll_tbl.add(-np.log(jac), axis='index')
+        summary['log_' + target] = nll_tbl.mean(axis=0)
         # TODO get mean delta to ref_method
-        # TODO use jacobian to xform
     summary = pd.DataFrame(summary)
     return summary
 
@@ -211,10 +214,8 @@ methods = {'iid': btr.JustNoise(), 'linear': BayesianRidge()}
 ref_method = 'iid'
 
 summary = run_experiment(df, 'mean', methods, ref_method, split_dict)
+print summary['sampler']['all'].to_string()
 
-#   start with just mean metric, but check results don't change much with others
-#   try sklearn linear (L1+L2) models, and GPs/ANNs next
 #   could do MCMC hyper-params to be consistent
-#   add gaussian predictors to bt
 #   if linear models competetive, find top perf space and feed into stats models
 #   to get stat results
