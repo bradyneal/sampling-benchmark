@@ -24,9 +24,7 @@ def sample_model(model, step=None, num_samples=MAX_NUM_SAMPLES, advi=False,
         sample_chain, step=step, num_samples=num_samples, advi=advi,
         num_scale1_iters=num_scale1_iters, num_scale0_iters=num_scale0_iters)
   
-    if advi:
-        return format_trace(sample_chain_with_args(model), to_df=True), None
-    else:
+    if not advi:
         traces = []
         for i in range(n_chains):
             print('chain {} of {}'.format(i + 1, n_chains))
@@ -43,6 +41,8 @@ def sample_model(model, step=None, num_samples=MAX_NUM_SAMPLES, advi=False,
         print(type(diagnostics))
         print(len(diagnostics))
         return augment_with_diagnostics(df, diagnostics), diagnostics
+    else:
+        return format_trace(sample_chain_with_args(model), to_df=True), None
 
 
 def sample_chain(model, chain_i=0, step=None, num_samples=MAX_NUM_SAMPLES,
