@@ -11,7 +11,7 @@ from models.regression import REGRESSION_MODEL_NAMES, sample_regression_model
 from models.classification import CLASSIFICATION_MODEL_NAMES, sample_classification_model
 from data.repo_local import get_downloaded_dataset_ids_by_task
 from data.io import read_dataset_Xy, read_dataset_categorical, write_samples, \
-                    is_samples_file
+                    is_samples_file, append_sample_diagnostic
 from data.config import Preprocess
 from data.preprocessing.format import to_ndarray
 
@@ -74,11 +74,20 @@ def process_dataset(i_and_dataset_id, model_names, sample_model):
             continue                
         print('Starting sampling ' + name)
         try:
-            samples = sample_model(model_name, X, y,
-                                   num_non_categorical=num_non_categorical)
+            output = sample_model(
+                model_name, X, y, num_non_categorical=num_non_categorical)
+            print('len(output):', len(output))
+            samples, diagnostics = output
+            # samples, diagnostics = sample_model(
+            #     model_name, X, y, num_non_categorical=num_non_categorical)
             print('Finished sampling ' + name)
             if samples is not None:
                 write_samples(samples, model_name, dataset_id, overwrite=False)
+                if diagnostics is not None:
+                    diagnostics['name'] = name
+                    append_sample_diagnostic(diagnostics)
+                else:
+                    append_sample_diagnostic({'name': name, 'advi': True})
             else:
                 print(name, 'exceeded hard time limit, so it was discarded')
         except Exception:

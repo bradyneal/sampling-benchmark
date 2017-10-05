@@ -10,12 +10,10 @@ import theano
 import theano.tensor as tt
 
 from .utils import format_trace
-from . import MAX_NUM_SAMPLES
+from . import MAX_NUM_SAMPLES, NUM_SCALE1_ITERS, NUM_SCALE0_ITERS
 
 SUPPORTED_OUTPUTS = ['regression', 'classification']
 NUM_HIDDEN = 100
-NUM_SCALE1_ITERS = 20000
-NUM_SCALE0_ITERS = 30000
 WEIGHT_SD = 100
 LIKELIHOOD_SD = 1000
 
@@ -84,9 +82,11 @@ def build_shallow_nn(X, y, output='regression', num_hidden=NUM_HIDDEN):
     W2_init = np.random.randn(num_hidden, num_output_units).astype(floatX)
     with pm.Model() as model_nn:
         # priors
-        W1 = pm.Normal('W1', 0, sd=100, shape=W1_init.shape, testval=W1_init)
+        W1 = pm.Normal('W1', 0, sd=WEIGHT_SD, shape=W1_init.shape,
+                       testval=W1_init)
         b1 = pm.Flat('b1', shape=W1_init.shape[1])
-        W2 = pm.Normal('W2', 0, sd=100, shape=W2_init.shape, testval=W2_init)
+        W2 = pm.Normal('W2', 0, sd=WEIGHT_SD, shape=W2_init.shape,
+                       testval=W2_init)
         b2 = pm.Flat('b2', shape=W2_init.shape[1])
 
         # deterministic transformations
@@ -96,7 +96,7 @@ def build_shallow_nn(X, y, output='regression', num_hidden=NUM_HIDDEN):
         
         # format output and plug in data
         if 'regression' == output:
-            observed = pm.Normal('obs', mu=z2, sd=1000, observed=y)
+            observed = pm.Normal('obs', mu=z2, sd=LIKELIHOOD_SD, observed=y)
         elif 'classification' == output:
             p = tt.nnet.softmax(z2)
             observed = pm.Categorical('obs', p=p, observed=y)

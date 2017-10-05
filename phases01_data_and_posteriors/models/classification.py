@@ -11,18 +11,18 @@ import theano.tensor as tt
 from timeit import default_timer as timer
 
 from .utils import format_trace
-from .nn import sample_shallow_nn
-from . import MAX_NUM_SAMPLES, NUM_INIT_STEPS, SOFT_MAX_TIME_IN_SECONDS, \
-              HARD_MAX_TIME_IN_SECONDS, MIN_SAMPLES_CONSTANT
+from .nn import build_shallow_nn
+from . import MAX_NUM_SAMPLES
 from .utils import reduce_data_dimension, subsample
-from .regression import sample_model
+from .sampling import sample_model
 
 # Arguably, build_pm_gp_cov should go in some 3rd file like util
 from .regression import build_pm_gp_cov
 
 CLASSIFICATION_MODEL_NAMES = \
     [
-     'softmax-linear-class', 'shallow-nn-class',
+     # 'softmax-linear-class',
+     'shallow-nn-class',
      # 'gp-ExpQuad-class', 'gp-Exponential-class', 'gp-Matern32-class', 'gp-Matern52-class',
      # 'gp-RatQuad-class'
      ]
@@ -54,17 +54,21 @@ def sample_classification_model(model_name, X, y, num_samples=MAX_NUM_SAMPLES,
         num_non_categorical = reduced_d
     
     model_name = model_name.replace('-class', '')
+    print('X shape:', X.shape)
     
     model = build_model(model_name, X, y, num_non_categorical)
-    return sample_model(model, step)
+    if 'nn' in model_name:
+        return sample_model(model, step=step, advi=True)
+    else:
+        return sample_model(model, step=step, advi=False)
 
 
-def build_model(model_name, X, y, num_samples, num_non_categorical):
+def build_model(model_name, X, y, num_non_categorical):
     """Build model for specified classificaiton model name"""
     if 'softmax-linear' == model_name:
         model = build_softmax_linear(X, y)
     elif 'shallow-nn' == model_name:
-        return sample_shallow_nn_class(X, y, num_samples)
+        model = build_shallow_nn(X, y, output='classification')
     elif 'gp-ExpQuad' == model_name:
         model = build_gpc(X, y, 'ExpQuad')
     elif 'gp-Exponential' == model_name:

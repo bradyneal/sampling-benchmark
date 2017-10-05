@@ -9,7 +9,7 @@ import pandas as pd
 import numpy as np
 from sklearn.decomposition import PCA
 
-from . import MAX_DATA_DIMENSION, MAX_GP_N
+from . import MAX_DATA_DIMENSION, MAX_GP_N, MAX_N
 from data.preprocessing.format import make_col_names
 
 
@@ -28,10 +28,13 @@ def format_trace(trace, to_df=True):
 
 
 def subsample(X, y, model_name):
-    """Subsample X if the model is a Gaussian process"""
+    """Subsample X"""
     n = X.shape[0]
     if 'gp' in model_name and n > MAX_GP_N:
         idx = np.random.randint(n, size=MAX_GP_N)
+        return X[idx, :], y[idx]
+    elif n > MAX_N:
+        idx = np.random.randint(n, size=MAX_N)
         return X[idx, :], y[idx]
     else:
         return X, y
