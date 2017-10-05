@@ -63,7 +63,7 @@ def sample_chain(model, chain_i=0, step=None, num_samples=MAX_NUM_SAMPLES,
                     min_num_samples = get_min_samples_per_chain(
                         len(trace[0]), MIN_SAMPLES_CONSTANT, NUM_CHAINS)
                 elapsed = timer() - start
-                if elapsed > SOFT_MAX_TIME_IN_SECONDS:
+                if elapsed > SOFT_MAX_TIME_IN_SECONDS / NUM_CHAINS:
                     print('exceeded soft time limit...')
                     if i + 1 >= min_num_samples:
                         print('collected enough samples; stopping')
@@ -71,7 +71,7 @@ def sample_chain(model, chain_i=0, step=None, num_samples=MAX_NUM_SAMPLES,
                     else:
                         print('but only collected {} of {}; continuing...'
                               .format(i + 1, min_num_samples))
-                        if elapsed > HARD_MAX_TIME_IN_SECONDS:
+                        if elapsed > HARD_MAX_TIME_IN_SECONDS / NUM_CHAINS:
                             print('exceeded HARD time limit; STOPPING')
                             return None
         else:   # ADVI for neural networks
