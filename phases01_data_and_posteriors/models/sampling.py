@@ -19,7 +19,10 @@ from . import MAX_NUM_SAMPLES, NUM_INIT_STEPS, SOFT_MAX_TIME_IN_SECONDS, \
 def sample_model(model, step=None, num_samples=MAX_NUM_SAMPLES, advi=False,
                  n_chains=NUM_CHAINS, num_scale1_iters=NUM_SCALE1_ITERS,
                  num_scale0_iters=NUM_SCALE0_ITERS):
-    """Sample parallel chains from constructed Bayesian model"""
+    """
+    Sample parallel chains from constructed Bayesian model.
+    Returns tuple of Multitrace and diagnostics object.
+    """
     sample_chain_with_args = partial(
         sample_chain, step=step, num_samples=num_samples, advi=advi,
         num_scale1_iters=num_scale1_iters, num_scale0_iters=num_scale0_iters)
@@ -37,9 +40,6 @@ def sample_model(model, step=None, num_samples=MAX_NUM_SAMPLES, advi=False,
         traces = [trace0] + traces[1:]
         
         diagnostics = get_diagnostics(merge_truncated_traces(traces))
-        print(type(augment_with_diagnostics(df, diagnostics)))
-        print(type(diagnostics))
-        print(len(diagnostics))
         return augment_with_diagnostics(df, diagnostics), diagnostics
     else:
         return format_trace(sample_chain_with_args(model), to_df=True), None
@@ -111,8 +111,6 @@ def merge_truncated_traces(traces):
     min_chain_length = min(map(len, traces))
     truncated_traces = list(map(lambda trace: trace[:min_chain_length],
                                 traces))
-    for trace in truncated_traces:
-        print('chain num:', trace.chains)
     return merge_traces(truncated_traces)
 
 
