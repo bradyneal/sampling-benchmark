@@ -1,32 +1,17 @@
 # Ryan Turner (turnerry@iro.umontreal.ca)
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
+import scipy.stats as ss
 from metrics import METRICS_REF
 
+import matplotlib.pyplot as plt
 from matplotlib import rcParams
 c_cycle = rcParams['axes.color_cycle']
 
-
-'''
-gdf = df.groupby(['sampler', 'example'])
-R = gdf.agg({'ks': np.mean, 'ESS': np.median, 'N': mp.max})
-# TODO assert same as min
-R['real_ess'] = ref / R['ks']
-R['eff'] = R['real_ess'] / R['N']
-'''
-
-# TODO created augmented df for each metric that has all the quantities might want to plot
-# then new df with aggregated by dim results
+DIAGS = ('Geweke', 'ESS', 'Gelman_Rubin')  # TODO import from elsewhere
 
 # Then clean plots:
-#  ESS calib plots: ESS, ESS-N, EFF
-# work out 95% regions under gauss
 # add regression line
-
-# plots wrt dimension
-#  box plot for each ESS metric for dim x sampler
-#   might need to subsample samplers if too busy
 
 # do regr analysis per dim and agg
 #   per dim first
@@ -35,53 +20,101 @@ R['eff'] = R['real_ess'] / R['N']
 #   and show corr coef
 
 
-def plot_by(df, x, y, by):
+def ESS_EB_fac(n_estimates, conf=0.95):
+    P_ub = 0.5 * (1.0 + conf)
+    P_lb = 1.0 - P_ub
+
+    lb_fac = n_estimates / ss.chi2.ppf(P_ub, n_estimates)
+    ub_fac = n_estimates / ss.chi2.ppf(P_lb, n_estimates)
+    return lb_fac, ub_fac
+
+
+def aggregate_df(df, diag_agg=np.mean):
+    gdf = df.groupby(['sampler', 'example'])
+
+    aggf = {k: diag_agg for k in DIAGS}
+    for metric in METRICS_REF.keys():
+        aggf[metric] = np.mean
+        aggf[metric + '_pooled'] = np.mean
+    aggf['N'] = np.max
+    aggf['D'] = np.max
+    aggf['n_chains'] = np.max
+
+    R = gdf.agg(aggf)
+    # TODO assert size == D
+    assert((gdf['N'].min() == R['N']).all())  # double check
+    R.reset_index(drop=False, inplace=True)
+    return R
+
+
+def augment_df(df):
+    # Note: this is happening inplace!
+    n_ref = df.groupby('example')['N'].median()
+    df['n_ref'] = df['example'].map(n_ref)
+
+    df['ESS_pooled'] = df['ESS']
+    df['ESS'] = df['ESS_pooled'] / df['n_chains']
+
+    df['NESS_pooled'] = df['ESS_pooled'] / df['n_ref']
+    df['NESS'] = df['ESS'] / df['n_ref']
+
+    df['eff'] = df['ESS'] / df['N']
+    df['eff_pooled'] = df['ESS_pooled'] / df['N']
+
+    for metric in sorted(METRICS_REF.keys()):
+        metric_ref = METRICS_REF[metric]
+        df['real_ess_' + metric] = metric_ref / df[metric]
+        df['real_ness_' + metric] = df['real_ess_' + metric] / df['n_ref']
+        df['real_eff_' + metric] = df['real_ess_' + metric] / df['N']
+
+        metric = metric + '_pooled'
+        df['real_ess_' + metric] = metric_ref / df[metric]
+        df['real_ness_' + metric] = df['real_ess_' + metric] / df['n_ref']
+        total_samples = df['N'] * df['n_chains']
+        df['real_eff_' + metric] = df['real_ess_' + metric] / total_samples
+    return df  # return anyway
+
+
+def plot_by(df, x, y, by, fac_lines=(1.0,)):
     plt.figure()
     gdf = df.groupby(by)
     for name, sdf in gdf:
         plt.loglog(sdf[x].values, sdf[y].values, '.', label=name, alpha=0.5)
     xgrid = np.logspace(np.log10(df[x].min()), np.log10(df[x].max()), 100)
-    plt.loglog(xgrid, xgrid, 'k--')
+    for f in fac_lines:
+        plt.loglog(xgrid, f * xgrid, 'k--')
     plt.legend(loc=3, ncol=4, fontsize=6,
                bbox_to_anchor=(0.0, 1.02, 1.0, 0.102))
     plt.grid()
     plt.xlabel(x)
     plt.ylabel(y)
 
-
 # TODO config
 #fname = '../../sampler-local/full_size/phase4/perf_sync.csv'
+
+np.random.seed(56456)
 
 fname = '../perf_sync.csv'
 df = pd.read_csv(fname, header=0, index_col=None)
 
-n_ref = df.groupby('example')['N'].median()
-df['n_ref'] = df['example'].map(n_ref)
+n_chains = df['n_chains'].max()
+assert(n_chains == df['n_chains'].min())
 
-df['ESS_pooled'] = df['ESS']
-df['ESS'] = df['ESS_pooled'] / df['n_chains']
+agg_df = aggregate_df(df)
+df = augment_df(df)
 
-df['NESS_pooled'] = df['ESS_pooled'] / df['n_ref']
-df['NESS'] = df['ESS'] / df['n_ref']
-
-df['eff'] = df['ESS'] / df['N']
-df['eff_pooled'] = df['ESS_pooled'] / df['N']
-
-for metric in sorted(METRICS_REF.keys()):
-    metric_ref = METRICS_REF[metric]
-    df['real_ess_' + metric] = metric_ref / df[metric]
-    df['real_ness_' + metric] = df['real_ess_' + metric] / df['n_ref']
-    df['real_eff_' + metric] = df['real_ess_' + metric] / df['N']
-
-    metric = metric + '_pooled'
-    df['real_ess_' + metric] = metric_ref / df[metric]
-    df['real_ness_' + metric] = df['real_ess_' + metric] / df['n_ref']
-    total_samples = df['N'] * df['n_chains']
-    df['real_eff_' + metric] = df['real_ess_' + metric] / total_samples
+lb, ub = ESS_EB_fac(n_chains)
+plot_by(df, 'ESS', 'real_ess_mean', 'sampler', (lb, 1.0, ub))
 
 plot_by(df, 'eff', 'real_eff_mean', 'sampler')
 
 ax = df.boxplot('real_ness_mean', by='sampler', rot=90)
+ax.set_yscale('log')
+plt.xlabel('sampler')
+plt.ylabel('real_ness_mean')
+plt.show()
+
+ax = df.boxplot('real_eff_mean', by=['sampler', 'D'], rot=90)
 ax.set_yscale('log')
 plt.xlabel('sampler')
 plt.ylabel('real_ness_mean')
