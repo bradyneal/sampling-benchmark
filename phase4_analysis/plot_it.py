@@ -133,10 +133,12 @@ def run_target(X_train, y_train, X_test, y_test, jac, methods):
 def try_models(df_train, df_test, metric, feature_list, target_list, methods):
     X_train = df_train[feature_list].values
     X_test = df_test[feature_list].values
-    # TODO augment with log-scale, inv-scale??
-
     assert(all_pos_finite(X_train))
     assert(all_pos_finite(X_test))
+
+    # Add transformed features, this could be optional
+    X_train = np.concatenate((X_train, np.log(X_train), 1.0 / X_train), axis=1)
+    X_test = np.concatenate((X_test, np.log(X_test), 1.0 / X_test), axis=1)
 
     scaler = RobustScaler()
     X_train = scaler.fit_transform(X_train)
