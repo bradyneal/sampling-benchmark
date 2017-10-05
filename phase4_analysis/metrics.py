@@ -1,8 +1,9 @@
 # Ryan Turner (turnerry@iro.umontreal.ca)
 import numpy as np
 import scipy.stats as ss
-from diagnostics import MIN_ESS
+#from diagnostics import MIN_ESS
 
+MIN_ESS = 1.0  # TODO limit dupes
 DEFAULT_CLIP = 1.0
 
 

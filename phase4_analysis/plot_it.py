@@ -2,7 +2,11 @@
 import numpy as np
 import pandas as pd
 import scipy.stats as ss
+from sklearn.linear_model import BayesianRidge
 from metrics import METRICS_REF
+
+import bt.benchmark_tools_regr as btr
+import bt.data_splitter as ds
 
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
@@ -10,11 +14,13 @@ c_cycle = rcParams['axes.color_cycle']
 
 DIAGS = ('Geweke', 'ESS', 'Gelman_Rubin')  # TODO import from elsewhere
 
-# Then clean plots:
-# add regression line
+# TODO re-run with no clip in perf
+#   also adjust MIN_ESS to per chain
 
 # do regr analysis per dim and agg
 #   per dim first
+# TODO look at scatter and see which form is most gaussian
+#  log-scale, ess, eff, err, log-eff
 
 # TODO do cross scatter plot of all the metrics
 #   and show corr coef
@@ -63,6 +69,7 @@ def augment_df(df):
 
     for metric in sorted(METRICS_REF.keys()):
         metric_ref = METRICS_REF[metric]
+        # TODO add jac factors to each of these for pred lik scores
         df['real_ess_' + metric] = metric_ref / df[metric]
         df['real_ness_' + metric] = df['real_ess_' + metric] / df['n_ref']
         df['real_eff_' + metric] = df['real_ess_' + metric] / df['N']
@@ -89,12 +96,81 @@ def plot_by(df, x, y, by, fac_lines=(1.0,)):
     plt.xlabel(x)
     plt.ylabel(y)
 
+
+def all_pos_finite(X):
+    R = np.all((0.0 < X) & (X < np.inf))  # Will catch nan too
+    return R
+
+
+def try_models(df_train, df_test, metric, feature_list, target_list, methods):
+    loss_dict = {'NLL': btr.log_loss}
+
+    X_train = df_train[feature_list].values
+    assert(all_pos_finite(X_train))
+    X_test = df_test[feature_list].values
+    assert(all_pos_finite(X_test))
+    # TODO augment with log-scale, inv-scale??
+    # TODO remove lines with nan features
+
+    summary = {}
+    for target in target_list:
+        assert(target.endswith(metric))
+        y_train = df_train[target].values
+        assert(all_pos_finite(y_train))
+        y_test = df_test[target].values
+        assert(all_pos_finite(y_test))
+
+        # TODO robust standardize data, need to adjust jac
+        # TODO use const for metric
+
+        pred_tbl = btr.get_gauss_pred(X_train, y_train, X_test, methods)
+        loss_tbl = btr.loss_table(pred_tbl, y_test, loss_dict)
+        loss_tbl = loss_tbl.xs('NLL', axis=1, level='metric', drop_level=True)
+        summary[target] = loss_tbl.mean(axis=0)
+
+        pred_tbl = btr.get_gauss_pred(X_train, np.log(y_train), X_test, methods)
+        loss_tbl = btr.loss_table(pred_tbl, np.log(y_test), loss_dict)
+        loss_tbl = loss_tbl.xs('NLL', axis=1, level='metric', drop_level=True)
+        summary['log_' + target] = loss_tbl.mean(axis=0)
+
+        # TODO get mean delta to ref_method
+        # TODO use jacobian to xform
+    summary = pd.DataFrame(summary)
+    return summary
+
+
+def run_experiment(df, metric, methods, ref_method, split_dict):
+    common = ['D', 'N']
+    diag_list = ['TG', 'TGR', 'ESS']
+    target_list = [c for c in df.columns if c.endswith(metric)]
+
+    all_features = diag_list + common
+    # TODO figure out why some missing
+    missing = df[all_features].isnull().any(axis=1)
+    df = df[~missing]
+    assert(not df[all_features].isnull().any().any())
+
+    summary = {}
+    for split_name, splits in split_dict.iteritems():
+        df_train, df_test, _ = ds.split_df(df, splits=splits)
+
+        for diag in diag_list:
+            feature_list = [diag] + common
+            summary[(split_name, diag)] = try_models(df_train, df_test, metric, feature_list, target_list, methods)
+
+        # Now try all:
+        summary[(split_name, 'all')] = try_models(df_train, df_test, metric, all_features, target_list, methods)
+    summary = pd.concat(summary, axis=1)
+    return summary
+
+# TODO try after tossing out emcee
+
 # TODO config
-#fname = '../../sampler-local/full_size/phase4/perf_sync.csv'
+fname = '../../sampler-local/full_size/phase4/perf_sync.csv'
 
 np.random.seed(56456)
 
-fname = '../perf_sync.csv'
+#fname = '../perf_sync.csv'
 df = pd.read_csv(fname, header=0, index_col=None)
 
 n_chains = df['n_chains'].max()
@@ -103,6 +179,11 @@ assert(n_chains == df['n_chains'].min())
 agg_df = aggregate_df(df)
 df = augment_df(df)
 
+df['TG'] = df['Geweke'].abs()
+df['TGR'] = (df['Gelman_Rubin'] - 1.0).abs()
+
+
+'''
 lb, ub = ESS_EB_fac(n_chains)
 plot_by(df, 'ESS', 'real_ess_mean', 'sampler', (lb, 1.0, ub))
 
@@ -119,3 +200,21 @@ ax.set_yscale('log')
 plt.xlabel('sampler')
 plt.ylabel('real_ness_mean')
 plt.show()
+'''
+
+split_dict = {'sampler': {'sampler': (ds.RANDOM, 0.8)},
+              'example': {'example': (ds.RANDOM, 0.8)},
+              'joint': {'sampler': (ds.RANDOM, 0.8), 'example': (ds.RANDOM, 0.8)}}
+
+# TODO add GPR
+methods = {'iid': btr.JustNoise(), 'linear': BayesianRidge()}
+ref_method = 'iid'
+
+summary = run_experiment(df, 'mean', methods, ref_method, split_dict)
+
+#   start with just mean metric, but check results don't change much with others
+#   try sklearn linear (L1+L2) models, and GPs/ANNs next
+#   could do MCMC hyper-params to be consistent
+#   add gaussian predictors to bt
+#   if linear models competetive, find top perf space and feed into stats models
+#   to get stat results
