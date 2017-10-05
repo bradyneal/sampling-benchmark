@@ -60,7 +60,7 @@ def read_next_sample_diagnostic():
     with open(CONFIG['diagnostics'], 'rb') as f:
         while True:
             try:
-                yield pickle.load(f, protocol=2)
+                yield pickle.load(f)
             except EOFError:
                 break
     
