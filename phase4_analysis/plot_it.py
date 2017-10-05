@@ -66,7 +66,6 @@ def augment_df(df):
 
     for metric in sorted(METRICS_REF.keys()):
         metric_ref = METRICS_REF[metric]
-        # TODO add jac factors to each of these for pred lik scores
         df['real_ess_' + metric] = metric_ref / df[metric]
         df['real_ess_' + metric + '_jac'] = metric_ref / (df[metric] ** 2)
         df['real_ness_' + metric] = df['real_ess_' + metric] / df['n_ref']
@@ -110,9 +109,28 @@ def all_finite(X):
     return R
 
 
-def try_models(df_train, df_test, metric, feature_list, target_list, methods):
+def run_target(X_train, y_train, X_test, y_test, jac, methods):
     loss_dict = {'NLL': btr.log_loss}
 
+    scaler = RobustScaler()
+    y_train = scaler.fit_transform(y_train[:, None])[:, 0]
+    # Same as y_test = y_test / scaler.scale_
+    y_test = scaler.transform(y_test[:, None])[:, 0]
+    assert(all_finite(y_train))
+    assert(all_finite(y_test))
+    scale_, = scaler.scale_
+    assert(np.ndim(scale_) == 0)
+    jac_linear = jac / scale_
+
+    pred_tbl = btr.get_gauss_pred(X_train, y_train, X_test, methods)
+    loss_tbl = btr.loss_table(pred_tbl, y_test, loss_dict)
+    nll_tbl = loss_tbl.xs('NLL', axis=1, level=METRIC, drop_level=True)
+    nll_tbl = nll_tbl.add(-np.log(jac_linear), axis='index')
+    summary = nll_tbl.mean(axis=0)
+    return summary
+
+
+def try_models(df_train, df_test, metric, feature_list, target_list, methods):
     X_train = df_train[feature_list].values
     X_test = df_test[feature_list].values
     # TODO augment with log-scale, inv-scale??
@@ -131,33 +149,19 @@ def try_models(df_train, df_test, metric, feature_list, target_list, methods):
         assert(target.endswith(metric))
         y_train = df_train[target].values
         y_test = df_test[target].values
+        jac = 1.0 if target == metric else df_test[target + '_jac'].values
         assert(all_pos_finite(y_train))
         assert(all_pos_finite(y_test))
+        assert(all_pos_finite(jac))
 
-        scaler = RobustScaler()
-        y_train = scaler.fit_transform(y_train[:, None])[:, 0]
-        # Same as y_test = y_test / scaler.scale_
-        y_test = scaler.transform(y_test[:, None])[:, 0]
-        assert(all_finite(y_train))
-        assert(all_finite(y_test))
-        scale_, = scaler.scale_
-        assert(np.ndim(scale_) == 0)
+        summary[target] = run_target(X_train, y_train, X_test, y_test, jac,
+                                     methods)
 
-        jac = 1.0 if target == metric else df_test[target + '_jac'].values
-        jac = jac / scale_
-
-        pred_tbl = btr.get_gauss_pred(X_train, y_train, X_test, methods)
-        loss_tbl = btr.loss_table(pred_tbl, y_test, loss_dict)
-        nll_tbl = loss_tbl.xs('NLL', axis=1, level=METRIC, drop_level=True)
-        nll_tbl = nll_tbl.add(-np.log(jac), axis='index')
-        summary[target] = nll_tbl.mean(axis=0)
-
-        #jac = jac / y_test  # For log scale
-        #pred_tbl = btr.get_gauss_pred(X_train, np.log(y_train), X_test, methods)
-        #loss_tbl = btr.loss_table(pred_tbl, np.log(y_test), loss_dict)
-        #nll_tbl = loss_tbl.xs('NLL', axis=1, level=METRIC, drop_level=True)
-        #nll_tbl = nll_tbl.add(-np.log(jac), axis='index')
-        #summary['log_' + target] = nll_tbl.mean(axis=0)
+        y_train_log = np.log(y_train)
+        y_test_log = np.log(y_test)
+        jac = jac / y_test
+        summary['log_' + target] = \
+            run_target(X_train, y_train_log, X_test, y_test_log, jac, methods)
     summary = pd.DataFrame(summary)
     return summary
 
