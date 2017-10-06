@@ -109,7 +109,7 @@ def augment_with_diagnostics(trace_df, diagnostics):
 
 def merge_truncated_traces(traces):
     min_chain_length = min(map(len, traces))
-    truncated_traces = list(map(lambda trace: trace[:min_chain_length],
+    truncated_traces = list(map(lambda trace: trace[-min_chain_length:],
                                 traces))
     return merge_traces(truncated_traces)
 
