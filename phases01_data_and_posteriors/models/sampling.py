@@ -58,7 +58,7 @@ def sample_chain(model, chain_i=0, step=None, num_samples=MAX_NUM_SAMPLES,
                                             random_seed=-1, progressbar=False)
             
             for i, trace in enumerate(pm.iter_sample(
-                num_samples, step, chain=chain_i)):
+                num_samples, step, start=start_, chain=chain_i)):
                 if i == 0:
                     min_num_samples = get_min_samples_per_chain(
                         len(trace[0]), MIN_SAMPLES_CONSTANT, NUM_CHAINS)
