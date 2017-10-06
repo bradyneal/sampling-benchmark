@@ -71,6 +71,9 @@ def augment_df(df):
     df['eff'] = df['ESS'] / df['N']
     df['eff_pooled'] = df['ESS_pooled'] / df['N']
 
+    df['TG'] = df['Geweke'].abs()
+    df['TGR'] = (df['Gelman_Rubin'] - 1.0).abs()
+
     for metric in sorted(METRICS_REF.keys()):
         metric_ref = METRICS_REF[metric]
         df['real_ess_' + metric] = metric_ref / df[metric]
@@ -130,29 +133,10 @@ def all_finite(X):
     return R
 
 
-def run_target(X_train, y_train, X_test, y_test, jac, methods):
-    loss_dict = {'NLL': btr.log_loss}
-
-    scaler = RobustScaler()
-    y_train = scaler.fit_transform(y_train[:, None])[:, 0]
-    # Same as y_test = y_test / scaler.scale_
-    y_test = scaler.transform(y_test[:, None])[:, 0]
-    assert(all_finite(y_train))
-    assert(all_finite(y_test))
-    scale_, = scaler.scale_
-    assert(np.ndim(scale_) == 0)
-    jac_linear = jac / scale_
-
-    pred_tbl = btr.get_gauss_pred(X_train, y_train, X_test, methods)
-    loss_tbl = btr.loss_table(pred_tbl, y_test, loss_dict)
-    nll_tbl = loss_tbl.xs('NLL', axis=1, level=METRIC, drop_level=True)
-    nll_tbl = nll_tbl.add(-np.log(jac_linear), axis='index')
-    summary = nll_tbl.mean(axis=0)
-    return summary
-
-
-def try_models(df_train, df_test, metric, feature_list, target_list, methods,
+def try_models(df_train, df_test, metric, feature_list, target, methods,
                augment=True):
+    loss_dict = btr.STD_REGR_LOSS
+
     X_train = df_train[feature_list].values
     X_test = df_test[feature_list].values
     assert(all_pos_finite(X_train))
@@ -162,6 +146,9 @@ def try_models(df_train, df_test, metric, feature_list, target_list, methods,
     if augment:
         X_train = np.concatenate((X_train, np.log(X_train), 1.0 / X_train), axis=1)
         X_test = np.concatenate((X_test, np.log(X_test), 1.0 / X_test), axis=1)
+    else:
+        X_train = np.log(X_train)
+        X_test = np.log(X_test)
 
     scaler = RobustScaler()
     X_train = scaler.fit_transform(X_train)
@@ -169,49 +156,30 @@ def try_models(df_train, df_test, metric, feature_list, target_list, methods,
     assert(all_finite(X_train))
     assert(all_finite(X_test))
 
-    summary = {}
-    for target in target_list:
-        assert(target.endswith(metric))
-        y_train = df_train[target].values
-        y_test = df_test[target].values
-        jac = 1.0 if target == metric else df_test[target + '_jac'].values
-        assert(all_pos_finite(y_train))
-        assert(all_pos_finite(y_test))
-        assert(all_pos_finite(jac))
+    assert(target.endswith(metric))
+    y_train = df_train[target].values
+    y_test = df_test[target].values
+    assert(all_finite(y_train))
+    assert(all_finite(y_test))
 
-        summary[target] = run_target(X_train, y_train, X_test, y_test, jac,
-                                     methods)
-
-        y_train_log = np.log(y_train)
-        y_test_log = np.log(y_test)
-        jac = jac / y_test
-        summary['log_' + target] = \
-            run_target(X_train, y_train_log, X_test, y_test_log, jac, methods)
-    summary = pd.DataFrame(summary)
+    pred_tbl = btr.get_gauss_pred(X_train, y_train, X_test, methods)
+    loss_tbl = btr.loss_table(pred_tbl, y_test, loss_dict)
+    summary = loss_tbl.mean(axis=0)
     return summary
 
 
-def run_experiment(df, metric, methods, ref_method, split_dict):
-    common = ['D', 'N']
-    diag_list = ['TG', 'TGR', 'ESS']
-    target_list = [c for c in df.columns if c.endswith(metric)]
-
-    all_features = diag_list + common
-    # TODO figure out why some missing
-    missing = df[all_features].isnull().any(axis=1)
-    df = df[~missing]
-    assert(not df[all_features].isnull().any().any())
-
+def run_experiment(df, metric, methods, ref_method, split_dict, all_features, target):
     summary = {}
     for split_name, splits in split_dict.iteritems():
+        print split_name
         df_train, df_test, _ = ds.split_df(df, splits=splits)
 
-        for diag in diag_list:
-            feature_list = [diag] + common
-            summary[(split_name, diag)] = try_models(df_train, df_test, metric, feature_list, target_list, methods)
+        # Could also try just removing one
+        for feature in all_features:
+            summary[(split_name, feature)] = try_models(df_train, df_test, metric, [feature], target, methods)
 
         # Now try all:
-        summary[(split_name, 'all')] = try_models(df_train, df_test, metric, all_features, target_list, methods)
+        summary[(split_name, 'all')] = try_models(df_train, df_test, metric, all_features, target, methods)
     summary = pd.concat(summary, axis=1)
     return summary
 
@@ -219,8 +187,8 @@ def run_experiment(df, metric, methods, ref_method, split_dict):
 fname = '../../sampler-local/full_size/phase4/perf_sync.csv'
 
 np.random.seed(56456)
+do_plots = False
 
-#fname = '../perf_sync.csv'
 df = pd.read_csv(fname, header=0, index_col=None)
 
 n_chains = df['n_chains'].max()
@@ -229,76 +197,49 @@ assert(n_chains == df['n_chains'].min())
 agg_df = aggregate_df(df)
 df = augment_df(df)
 
-df['TG'] = df['Geweke'].abs()
-df['TGR'] = (df['Gelman_Rubin'] - 1.0).abs()
+if do_plots:
+    lb, ub = ESS_EB_fac(n_chains)
+    plot_by(df, 'ESS', 'real_ess_mean', 'sampler', (lb, 1.0, ub))
 
-lb, ub = ESS_EB_fac(n_chains)
-plot_by(df, 'ESS', 'real_ess_mean', 'sampler', (lb, 1.0, ub))
+    plot_by(df, 'eff', 'real_eff_mean', 'sampler')
 
-plot_by(df, 'eff', 'real_eff_mean', 'sampler')
+    ax = df.boxplot('real_ness_mean', by='sampler', rot=90)
+    ax.set_yscale('log')
+    plt.xlabel('sampler')
+    plt.ylabel('real_ness_mean')
+    plt.show()
 
-ax = df.boxplot('real_ness_mean', by='sampler', rot=90)
-ax.set_yscale('log')
-plt.xlabel('sampler')
-plt.ylabel('real_ness_mean')
-plt.show()
+    ax = df.boxplot('real_eff_mean', by=['sampler', 'D'], rot=90)
+    ax.set_yscale('log')
+    plt.xlabel('sampler')
+    plt.ylabel('real_ness_mean')
+    plt.show()
 
-ax = df.boxplot('real_eff_mean', by=['sampler', 'D'], rot=90)
-ax.set_yscale('log')
-plt.xlabel('sampler')
-plt.ylabel('real_ness_mean')
-plt.show()
+split_dict = {'random': {ds.INDEX: (ds.RANDOM, 0.8)},
+              'example': {'example': (ds.RANDOM, 0.8)}}
 
-split_dict = {'sampler': {'sampler': (ds.RANDOM, 0.8)},
-              'example': {'example': (ds.RANDOM, 0.8)},
-              'joint': {'sampler': (ds.RANDOM, 0.8), 'example': (ds.RANDOM, 0.8)}}
+metric = 'mean'
+target = 'real_essd_mean'
+all_features = ['TG', 'TGR', 'ESS', 'D']
+
+dumb_sampler = (df['sampler'] == 'emcee')
+print dumb_sampler.sum()
+small_ESS = (df['ESS'] <= 25)
+print small_ESS.sum()
+df_anal = df.loc[~(dumb_sampler | small_ESS), :]
+
+missing = df_anal[all_features + [target]].isnull().any(axis=1)
+df_anal = df_anal[~missing]
+assert(not df_anal.isnull().any().any())
 
 methods = {'iid': btr.JustNoise(), 'linear': BayesianRidge()}
 ref_method = 'iid'
 
-dumb_sampler = (df['sampler'] == 'emcee')
-print dumb_sampler.sum()
-df = df.loc[~dumb_sampler, :]
-
-summary = run_experiment(df, 'mean', methods, ref_method, split_dict)
-
-print 'sampler split'
-print summary['sampler']['all'].to_string()
-
-print 'example split'
-print summary['example']['all'].to_string()
-
-common = ['D', 'N']
-diag_list = ['TG', 'TGR', 'ESS']
-all_features = diag_list + common
-missing = df[all_features].isnull().any(axis=1)
-df = df[~missing]
-assert(not df[all_features].isnull().any().any())
-df_train, df_test, _ = ds.split_df(df, splits=split_dict['example'])
-target_list = ['real_eff_mean']
-
-summary = try_models(df_train, df_test, 'mean', all_features, target_list, methods)
-print summary.to_string()
-
-k = 1.0 * RBF(length_scale=np.ones(len(all_features))) + \
+# TODO also do ARD-GP and MLP
+k = 1.0 * RBF(length_scale=1.0) + \
     WhiteKernel(noise_level=0.1**2, noise_level_bounds=(1e-3, np.inf))
 methods = {'iid': btr.JustNoise(), 'linear': BayesianRidge(),
            'GPR': GaussianProcessRegressor(kernel=k)}
 
-summary = try_models(df_train, df_test, 'mean', all_features, target_list, methods, augment=False)
+summary = run_experiment(df_anal, metric, methods, ref_method, split_dict, all_features, target)
 print summary.to_string()
-
-# TODO use log10
-
-#formula = 'np.log(real_eff_mean) ~ np.log(TG) + np.log(TGR) + np.log(ESS) + np.log(D) + np.log(N)'
-formula = 'np.log(real_eff_mean) ~ np.log(TG) + np.log(TGR) + np.log(eff)'
-results = smf.ols(formula, data=df).fit()
-print(results.summary())
-
-formula = 'np.log(real_eff_mean) ~ TG + TGR + ESS + D + np.log(TG) + np.log(TGR) + np.log(ESS) + np.log(D)'
-results = smf.ols(formula, data=df).fit()
-print(results.summary())
-
-formula = 'np.log(real_eff_mean) ~ TG + TGR + ESS + D + N + np.log(TG) + np.log(TGR) + np.log(ESS) + np.log(D) + np.log(N)'
-results = smf.ols(formula, data=df).fit()
-print(results.summary())
