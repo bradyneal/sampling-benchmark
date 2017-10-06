@@ -4,11 +4,15 @@ import pandas as pd
 import scipy.stats as ss
 from sklearn.linear_model import BayesianRidge
 from sklearn.preprocessing import RobustScaler
+from sklearn.gaussian_process import GaussianProcessRegressor
+from sklearn.gaussian_process.kernels import RBF, WhiteKernel
 from metrics import METRICS_REF
 
 import bt.benchmark_tools_regr as btr
 from bt.benchmark_tools_regr import METRIC
 import bt.data_splitter as ds
+
+import statsmodels.formula.api as smf
 
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
@@ -19,9 +23,6 @@ DIAGS = ('Geweke', 'ESS', 'Gelman_Rubin')  # TODO import from elsewhere
 # TODO re-run with no clip in perf
 #   also adjust MIN_ESS to per chain
 
-# TODO do cross scatter plot of all the metrics
-#   and show corr coef
-
 
 def ESS_EB_fac(n_estimates, conf=0.95):
     P_ub = 0.5 * (1.0 + conf)
@@ -30,6 +31,12 @@ def ESS_EB_fac(n_estimates, conf=0.95):
     lb_fac = n_estimates / ss.chi2.ppf(P_ub, n_estimates)
     ub_fac = n_estimates / ss.chi2.ppf(P_lb, n_estimates)
     return lb_fac, ub_fac
+
+
+def ESS_deviation(err, ess, n_chains, ref=1.0):
+    C = (n_chains * ess) / ref
+    dev = -ss.norm.ppf(ss.chi2.sf(C * err, n_chains))
+    return dev
 
 
 def aggregate_df(df, diag_agg=np.mean):
@@ -72,6 +79,7 @@ def augment_df(df):
         df['real_ness_' + metric + '_jac'] = df['real_ess_' + metric + '_jac'] / df['n_ref']
         df['real_eff_' + metric] = df['real_ess_' + metric] / df['N']
         df['real_eff_' + metric + '_jac'] = df['real_ess_' + metric + '_jac'] / df['N']
+        df['real_essd_' + metric] = ESS_deviation(df[metric].values, df['ESS'].values, df['n_chains'].values, metric_ref)
 
         metric = metric + '_pooled'
         df['real_ess_' + metric] = metric_ref / df[metric]
@@ -81,6 +89,7 @@ def augment_df(df):
         total_samples = df['N'] * df['n_chains']
         df['real_eff_' + metric] = df['real_ess_' + metric] / total_samples
         df['real_eff_' + metric + '_jac'] = df['real_ess_' + metric + '_jac'] / total_samples
+        df['real_essd_' + metric] = ESS_deviation(df[metric].values, df['ESS_pooled'].values, 1.0, metric_ref)
     return df  # return anyway
 
 
@@ -92,6 +101,18 @@ def plot_by(df, x, y, by, fac_lines=(1.0,)):
     xgrid = np.logspace(np.log10(df[x].min()), np.log10(df[x].max()), 100)
     for f in fac_lines:
         plt.loglog(xgrid, f * xgrid, 'k--')
+    plt.legend(loc=3, ncol=4, fontsize=6,
+               bbox_to_anchor=(0.0, 1.02, 1.0, 0.102))
+    plt.grid()
+    plt.xlabel(x)
+    plt.ylabel(y)
+
+
+def plot_by_tmp(df, x, y, by, fac_lines=(1.0,)):
+    plt.figure()
+    gdf = df.groupby(by)
+    for name, sdf in gdf:
+        plt.semilogx(sdf[x].values, sdf[y].values, '.', label=name, alpha=0.5)
     plt.legend(loc=3, ncol=4, fontsize=6,
                bbox_to_anchor=(0.0, 1.02, 1.0, 0.102))
     plt.grid()
@@ -130,15 +151,17 @@ def run_target(X_train, y_train, X_test, y_test, jac, methods):
     return summary
 
 
-def try_models(df_train, df_test, metric, feature_list, target_list, methods):
+def try_models(df_train, df_test, metric, feature_list, target_list, methods,
+               augment=True):
     X_train = df_train[feature_list].values
     X_test = df_test[feature_list].values
     assert(all_pos_finite(X_train))
     assert(all_pos_finite(X_test))
 
-    # Add transformed features, this could be optional
-    X_train = np.concatenate((X_train, np.log(X_train), 1.0 / X_train), axis=1)
-    X_test = np.concatenate((X_test, np.log(X_test), 1.0 / X_test), axis=1)
+    # Add transformed features
+    if augment:
+        X_train = np.concatenate((X_train, np.log(X_train), 1.0 / X_train), axis=1)
+        X_test = np.concatenate((X_test, np.log(X_test), 1.0 / X_test), axis=1)
 
     scaler = RobustScaler()
     X_train = scaler.fit_transform(X_train)
@@ -192,8 +215,6 @@ def run_experiment(df, metric, methods, ref_method, split_dict):
     summary = pd.concat(summary, axis=1)
     return summary
 
-# TODO try after tossing out emcee
-
 # TODO config
 fname = '../../sampler-local/full_size/phase4/perf_sync.csv'
 
@@ -211,8 +232,6 @@ df = augment_df(df)
 df['TG'] = df['Geweke'].abs()
 df['TGR'] = (df['Gelman_Rubin'] - 1.0).abs()
 
-
-'''
 lb, ub = ESS_EB_fac(n_chains)
 plot_by(df, 'ESS', 'real_ess_mean', 'sampler', (lb, 1.0, ub))
 
@@ -229,19 +248,57 @@ ax.set_yscale('log')
 plt.xlabel('sampler')
 plt.ylabel('real_ness_mean')
 plt.show()
-'''
 
 split_dict = {'sampler': {'sampler': (ds.RANDOM, 0.8)},
               'example': {'example': (ds.RANDOM, 0.8)},
               'joint': {'sampler': (ds.RANDOM, 0.8), 'example': (ds.RANDOM, 0.8)}}
 
-# TODO add GPR
 methods = {'iid': btr.JustNoise(), 'linear': BayesianRidge()}
 ref_method = 'iid'
 
+dumb_sampler = (df['sampler'] == 'emcee')
+print dumb_sampler.sum()
+df = df.loc[~dumb_sampler, :]
+
 summary = run_experiment(df, 'mean', methods, ref_method, split_dict)
+
+print 'sampler split'
 print summary['sampler']['all'].to_string()
 
-#   could do MCMC hyper-params to be consistent
-#   if linear models competetive, find top perf space and feed into stats models
-#   to get stat results
+print 'example split'
+print summary['example']['all'].to_string()
+
+common = ['D', 'N']
+diag_list = ['TG', 'TGR', 'ESS']
+all_features = diag_list + common
+missing = df[all_features].isnull().any(axis=1)
+df = df[~missing]
+assert(not df[all_features].isnull().any().any())
+df_train, df_test, _ = ds.split_df(df, splits=split_dict['example'])
+target_list = ['real_eff_mean']
+
+summary = try_models(df_train, df_test, 'mean', all_features, target_list, methods)
+print summary.to_string()
+
+k = 1.0 * RBF(length_scale=np.ones(len(all_features))) + \
+    WhiteKernel(noise_level=0.1**2, noise_level_bounds=(1e-3, np.inf))
+methods = {'iid': btr.JustNoise(), 'linear': BayesianRidge(),
+           'GPR': GaussianProcessRegressor(kernel=k)}
+
+summary = try_models(df_train, df_test, 'mean', all_features, target_list, methods, augment=False)
+print summary.to_string()
+
+# TODO use log10
+
+#formula = 'np.log(real_eff_mean) ~ np.log(TG) + np.log(TGR) + np.log(ESS) + np.log(D) + np.log(N)'
+formula = 'np.log(real_eff_mean) ~ np.log(TG) + np.log(TGR) + np.log(eff)'
+results = smf.ols(formula, data=df).fit()
+print(results.summary())
+
+formula = 'np.log(real_eff_mean) ~ TG + TGR + ESS + D + np.log(TG) + np.log(TGR) + np.log(ESS) + np.log(D)'
+results = smf.ols(formula, data=df).fit()
+print(results.summary())
+
+formula = 'np.log(real_eff_mean) ~ TG + TGR + ESS + D + N + np.log(TG) + np.log(TGR) + np.log(ESS) + np.log(D) + np.log(N)'
+results = smf.ols(formula, data=df).fit()
+print(results.summary())
