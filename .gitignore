@@ -3,6 +3,7 @@
 *.pkl
 *.hdf5
 *.meta
+*.out
 
 # Project Specific
 openml-python/
