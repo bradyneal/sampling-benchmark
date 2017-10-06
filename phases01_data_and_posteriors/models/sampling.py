@@ -40,7 +40,7 @@ def sample_model(model, step=None, num_samples=MAX_NUM_SAMPLES, advi=False,
         traces = [trace0] + traces[1:]
         
         diagnostics = get_diagnostics(merge_truncated_traces(traces))
-        return augment_with_diagnostics(df, diagnostics), diagnostics
+        return df, diagnostics
     else:
         return format_trace(sample_chain_with_args(model), to_df=True), None
 
