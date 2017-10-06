@@ -46,7 +46,8 @@ def sample_model(model, step=None, num_samples=MAX_NUM_SAMPLES, advi=False,
 
 
 def sample_chain(model, chain_i=0, step=None, num_samples=MAX_NUM_SAMPLES,
-                 advi=False, num_scale1_iters=NUM_SCALE1_ITERS,
+                 advi=False, tune=500, discard_tuned_samples=True,
+                 num_scale1_iters=NUM_SCALE1_ITERS,
                  num_scale0_iters=NUM_SCALE0_ITERS):
     """Sample single chain from constructed Bayesian model"""
     start = timer()
@@ -57,15 +58,16 @@ def sample_chain(model, chain_i=0, step=None, num_samples=MAX_NUM_SAMPLES,
                 start_, step = pm.init_nuts(init='advi', njobs=1, n_init=NUM_INIT_STEPS,
                                             random_seed=-1, progressbar=False)
             
+            discard = tune if discard_tuned_samples else 0
             for i, trace in enumerate(pm.iter_sample(
-                num_samples, step, start=start_, chain=chain_i)):
+                num_samples + discard, step, start=start_, chain=chain_i)):
                 if i == 0:
                     min_num_samples = get_min_samples_per_chain(
                         len(trace[0]), MIN_SAMPLES_CONSTANT, NUM_CHAINS)
                 elapsed = timer() - start
                 if elapsed > SOFT_MAX_TIME_IN_SECONDS / NUM_CHAINS:
                     print('exceeded soft time limit...')
-                    if i + 1 >= min_num_samples:
+                    if i + 1 - discard >= min_num_samples:
                         print('collected enough samples; stopping')
                         break
                     else:
@@ -74,6 +76,7 @@ def sample_chain(model, chain_i=0, step=None, num_samples=MAX_NUM_SAMPLES,
                         if elapsed > HARD_MAX_TIME_IN_SECONDS / NUM_CHAINS:
                             print('exceeded HARD time limit; STOPPING')
                             return None
+            return trace[discard:]
         else:   # ADVI for neural networks
             scale = theano.shared(pm.floatX(1))
             vi = pm.ADVI(cost_part_grad_scale=scale)
@@ -85,8 +88,7 @@ def sample_chain(model, chain_i=0, step=None, num_samples=MAX_NUM_SAMPLES,
             min_num_samples = get_min_samples_per_chain(
                 len(trace.varnames), MIN_SAMPLES_CONSTANT, 1)
             trace = approx.sample(draws=min_num_samples)
-            
-    return trace
+            return trace
 
 
 def get_min_samples_per_chain(dimension, min_samples_constant, n_chains):
