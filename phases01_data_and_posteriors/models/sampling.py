@@ -17,7 +17,8 @@ from . import MAX_NUM_SAMPLES, NUM_INIT_STEPS, SOFT_MAX_TIME_IN_SECONDS, \
 
 
 def sample_model(model, step=None, num_samples=MAX_NUM_SAMPLES, advi=False,
-                 n_chains=NUM_CHAINS, num_scale1_iters=NUM_SCALE1_ITERS,
+                 n_chains=NUM_CHAINS, raw_trace=False,
+                 num_scale1_iters=NUM_SCALE1_ITERS,
                  num_scale0_iters=NUM_SCALE0_ITERS):
     """
     Sample parallel chains from constructed Bayesian model.
@@ -27,6 +28,7 @@ def sample_model(model, step=None, num_samples=MAX_NUM_SAMPLES, advi=False,
         sample_chain, step=step, num_samples=num_samples, advi=advi,
         num_scale1_iters=num_scale1_iters, num_scale0_iters=num_scale0_iters)
   
+    diagnostics = None
     if not advi:
         traces = []
         for i in range(n_chains):
@@ -36,13 +38,17 @@ def sample_model(model, step=None, num_samples=MAX_NUM_SAMPLES, advi=False,
         # copy and rebuild traces list because merge_traces modifies
         # the first trace in the list
         trace0 = deepcopy(traces[0])
-        df = format_trace(merge_traces(traces), to_df=True)
+        trace = merge_traces(traces)
         traces = [trace0] + traces[1:]
-        
+
         diagnostics = get_diagnostics(merge_truncated_traces(traces))
-        return df, diagnostics
     else:
-        return format_trace(sample_chain_with_args(model), to_df=True), None
+        trace = sample_chain_with_args(model)
+        
+    if raw_trace:
+        return trace, diagnostics
+    else:
+        return format_trace(trace, to_df=True), diagnostics
 
 
 def sample_chain(model, chain_i=0, step=None, num_samples=MAX_NUM_SAMPLES,
@@ -56,7 +62,7 @@ def sample_chain(model, chain_i=0, step=None, num_samples=MAX_NUM_SAMPLES,
             pm._log.info('Assigning NUTS sampler...')
             if step is None:
                 start_, step = pm.init_nuts(init='advi', njobs=1, n_init=NUM_INIT_STEPS,
-                                            random_seed=-1, progressbar=False)
+                                            random_seed=-1, progressbar=True)
             
             discard = tune if discard_tuned_samples else 0
             for i, trace in enumerate(pm.iter_sample(
