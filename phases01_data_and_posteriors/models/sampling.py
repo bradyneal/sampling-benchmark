@@ -123,9 +123,14 @@ def merge_truncated_traces(traces):
 
 
 def get_diagnostics(trace):
+    num_samples = len(trace)
     d1 = pm.diagnostics.gelman_rubin(trace)
     d2 = pm.diagnostics.effective_n(trace)
     d1['diagnostic'] = 'Gelman-Rubin'
     d2['diagnostic'] = 'ESS'
-    return {'Gelman-Rubin': d1, 'ESS': d2}
+    return {
+        'Gelman-Rubin': d1,
+        'ESS': d2,
+        'num_samples_per_chain': num_samples
+    }
     
