@@ -26,6 +26,7 @@ dependencies:
 - matplotlib=2.0.0=np112py27_0
 - mkl=2017.0.1=0
 - mkl-service=1.1.2=py27_3
+- nomkl
 - numpy=1.12.0=py27_0
 - openssl=1.0.2k=0
 - pandas=0.19.2=np112py27_1

@@ -21,7 +21,7 @@ from .regression import build_pm_gp_cov
 
 CLASSIFICATION_MODEL_NAMES = \
     [
-     # 'softmax-linear-class',
+     'softmax-linear-class',
      'shallow-nn-class',
      # 'gp-ExpQuad-class', 'gp-Exponential-class', 'gp-Matern32-class', 'gp-Matern52-class',
      # 'gp-RatQuad-class'
@@ -52,7 +52,7 @@ def sample_classification_model(model_name, X, y, num_samples=MAX_NUM_SAMPLES,
     reduced_d = X.shape[1]
     if reduced_d < d:
         num_non_categorical = reduced_d
-    
+
     model_name = model_name.replace('-class', '')
     print('X shape:', X.shape)
     
@@ -63,7 +63,7 @@ def sample_classification_model(model_name, X, y, num_samples=MAX_NUM_SAMPLES,
         return sample_model(model, step=step, advi=False)
 
 
-def build_model(model_name, X, y, num_non_categorical):
+def build_model(model_name, X, y, num_non_categorical=None):
     """Build model for specified classificaiton model name"""
     if 'softmax-linear' == model_name:
         model = build_softmax_linear(X, y)
@@ -85,20 +85,31 @@ def build_model(model_name, X, y, num_non_categorical):
     return model
 
 
-def build_softmax_linear(X, y):
+def build_softmax_linear(X, y, force_softmax=False):
     """
     Sample from Bayesian Softmax Linear Regression
     """
     num_features = X.shape[1]
     num_classes = len(np.unique(y))
+    logistic_regression = num_classes == 2
     Xt = theano.shared(X)
-    with pm.Model() as model_softmax:
-        W = pm.Normal('W', 0, sd=1e6, shape=(num_features, num_classes))
-        b = pm.Flat('b', shape=num_classes)
-        logit = Xt.dot(W) + b
-        p = tt.nnet.softmax(logit)
-        observed = pm.Categorical('obs', p=p, observed=y)
-    return model_softmax
+    
+    if logistic_regression and not force_softmax:
+        print('running logistic regression')
+        with pm.Model() as model:
+            W = pm.Normal('W', 0, sd=1e6, shape=num_features)
+            b = pm.Flat('b')
+            logit = Xt.dot(W) + b
+            p = tt.nnet.sigmoid(logit)
+            observed = pm.Bernoulli('obs', p=p, observed=y)
+    else:
+        with pm.Model() as model:
+            W = pm.Normal('W', 0, sd=1e6, shape=(num_features, num_classes))
+            b = pm.Flat('b', shape=num_classes)
+            logit = Xt.dot(W) + b
+            p = tt.nnet.softmax(logit)
+            observed = pm.Categorical('obs', p=p, observed=y)
+    return model
 
 
 def sample_shallow_nn_class(X, y, num_samples=MAX_NUM_SAMPLES):

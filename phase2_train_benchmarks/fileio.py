@@ -31,6 +31,21 @@ def load_np(input_path, fname, ext):
     return X
 
 
+def load_input_diagnostics_list(input_path):
+    return list(load_input_diagnostics_gen(input_path))
+
+
+def load_input_diagnostics_gen(input_path):
+    fname = os.path.join(input_path, 'diagnostics.pkl')
+    print 'loading %s' % fname
+    with open(fname, 'rb') as f:
+        while True:
+            try:
+                yield pickle.load(f)
+            except EOFError:
+                break
+
+
 def chomp(ss, ext):
     L = len(ext)
     if ss[-L:] != ext:

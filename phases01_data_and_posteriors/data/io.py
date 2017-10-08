@@ -44,15 +44,15 @@ def read_samples(model_name, dataset_id, csv=CSV_DEFAULT):
         return read_file(filename)
     
 
-def read_sample_diagnostics():
+def read_sample_diagnostics_list():
     """
     Return the sample diagnostics as a list where each element corresponds to
     the diagnostics of a single sampled posterior.
     """
-    return list(read_next_sample_diagnostic())
+    return list(read_sample_diagnostics_gen())
 
 
-def read_next_sample_diagnostic():
+def read_sample_diagnostics_gen():
     """
     Returns a generator that reads the diagnostics of one sampled posterior at
     a time.
