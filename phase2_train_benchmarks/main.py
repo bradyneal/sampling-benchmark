@@ -16,7 +16,9 @@ from sklearn.preprocessing import StandardScaler
 import fileio as io
 from model_wrappers import STD_BENCH_MODELS
 from validate_input_data import moments_report
-
+# TODO eliminate this cross-phase import, it is ugly quick solution stuff
+from models_p3 import BUILD_MODEL
+import pymc3 as pm
 
 PHASE3_MODELS = ('MoG', 'VBMoG', 'RNADE')  # Models implemented in phase 3
 DATA_CENTER = 'data_center'
@@ -152,6 +154,27 @@ def run_experiment(config, chain_name, debug_dump=False, shuffle=False,
     assert(DATA_SCALE not in params_obj)
     params_obj[DATA_CENTER] = mean_
     params_obj[DATA_SCALE] = scale_
+
+    def logpdf(x, p=params_obj):
+        x_std = (x - p[DATA_CENTER]) / p[DATA_SCALE]
+        ll = BUILD_MODEL[model_name](x_std, p)
+        ll = ll - np.sum(np.log(p[DATA_SCALE]))
+        return ll
+
+    meta = {}  # TODO add header information to meta
+    with pm.Model():
+        pm.DensityDist('x', logpdf, shape=D)
+        try:
+            start, step = pm.sampling.init_nuts('advi', progressbar=False)
+        except Exception as err:
+            print 'fancy init failed'
+            print str(err)
+        else:
+            meta['start'] = start
+            meta['scaling'] = step.potential.s
+    print 'saving meta information:'
+    print meta
+    params_obj['meta'] = meta
 
     # Now dump to finish the job
     dump_file = io.build_output_name(chain_name, model_name, config['pkl_ext'])

@@ -11,7 +11,7 @@ def main():
     num_args = len(sys.argv) - 1
     if num_args < 1:
         config_path = '../config.ini'
-    elif len(sys.argv) > 1:
+    elif num_args > 1:
         raise Exception('too many arguments: %d. %d expected' % (num_args, 1))
     else:
         config_path = sys.argv[1]
@@ -41,9 +41,9 @@ def try_run_experiment(config, mc_chain_name):
         run_experiment(config, mc_chain_name)
     except (KeyboardInterrupt, SystemExit):
         raise
-    except:
+    except Exception as err:
         print '%s failed' % mc_chain_name
-
+        print str(err)
 
 if __name__ == '__main__':
     main()
