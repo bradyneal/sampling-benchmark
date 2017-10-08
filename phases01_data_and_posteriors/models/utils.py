@@ -82,6 +82,12 @@ def subtrace(trace, chains):
             raise ValueError('Invalid chain {} not in {}'.format(chain, trace.chains))
         straces.append(trace._straces[chain])
     return MultiTrace(straces)
+
+
+def strace_gen(trace):
+    """Generator over chains in Multitrace"""
+    for chain in trace.chains:
+        yield subtrace(trace, chain)
     
     
 def get_max_dimension(model_name):
