@@ -70,7 +70,7 @@ def reduce_data_dimension(X, model_name, transform=None,
         return (X, None) if return_transform else X
     
 
-def subtrace(trace, chains):
+def subtrace(trace, chains, reset_chains=True):
     """Get Multitrace with subset of chains from a super Multitrace"""
     if type(chains) is int:
         chains = [chains]
@@ -81,6 +81,9 @@ def subtrace(trace, chains):
         if chain not in trace.chains:
             raise ValueError('Invalid chain {} not in {}'.format(chain, trace.chains))
         straces.append(trace._straces[chain])
+    if reset_chains:
+        for new_chain_i, strace in enumerate(straces):
+            strace.chain = new_chain_i
     return MultiTrace(straces)
 
 
