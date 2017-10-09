@@ -170,7 +170,7 @@ def run_experiment(config, chain_name, debug_dump=False, shuffle=False,
             print 'fancy init failed'
             print str(err)
         else:
-            meta['start'] = start
+            meta['start'] = start['x']
             meta['scaling'] = step.potential.s
     print 'saving meta information:'
     print meta
