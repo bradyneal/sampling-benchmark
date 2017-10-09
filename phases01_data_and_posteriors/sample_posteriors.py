@@ -77,9 +77,8 @@ def process_dataset(i_and_dataset_id, model_names, sample_model):
             output = sample_model(
                 model_name, X, y, num_non_categorical=num_non_categorical)
             print('len(output):', len(output))
-            samples, diagnostics = output
-            # samples, diagnostics = sample_model(
-            #     model_name, X, y, num_non_categorical=num_non_categorical)
+            samples, diagnostics = sample_model(
+                model_name, X, y, num_non_categorical=num_non_categorical)
             print('Finished sampling ' + name)
             if samples is not None:
                 write_samples(samples, model_name, dataset_id, overwrite=False)
