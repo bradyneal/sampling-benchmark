@@ -158,7 +158,7 @@ def run_experiment(config, chain_name, debug_dump=False, shuffle=False,
     params_obj[DATA_SCALE] = scale_
 
     # Now build a meta-data dictionary
-    meta = {}  # TODO add header information to meta
+    meta = {headers: chain_df.columns.values.tolist()}
     print 'saving meta information:'
     print meta
     params_obj[META] = meta
