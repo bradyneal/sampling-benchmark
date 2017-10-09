@@ -12,8 +12,6 @@ import bt.benchmark_tools_regr as btr
 import bt.data_splitter as ds
 
 import matplotlib.pyplot as plt
-from matplotlib import rcParams
-c_cycle = rcParams['axes.color_cycle']
 
 DIAGS = ('Geweke', 'ESS', 'Gelman_Rubin')  # TODO import from elsewhere
 
@@ -141,39 +139,42 @@ def try_models(df_train, df_test, metric, feature_list, target, methods):
 
     pred_tbl = btr.get_gauss_pred(X_train, y_train, X_test, methods)
     loss_tbl = btr.loss_table(pred_tbl, y_test, loss_dict)
-    summary = loss_tbl.mean(axis=0)
-    return summary
+    return loss_tbl
 
 
-def run_experiment(df, metric, split_dict, all_features, target):
+def run_experiment(df, metric, split_dict, all_features, target,
+                   ref_method='iid'):
     # TODO also do MLP
     k = 1.0 * RBF(length_scale=np.ones(len(all_features))) + \
         WhiteKernel(noise_level=0.1**2, noise_level_bounds=(1e-3, np.inf))
     methods = {'iid': btr.JustNoise(), 'linear': BayesianRidge(),
                'GPR': GaussianProcessRegressor(kernel=k)}
-
     # Really dumb but GPR kernel needs to know D in advance
-    k = 1.0 * RBF(length_scale=np.ones(len(all_features) - 1)) + \
+    k_sub = 1.0 * RBF(length_scale=np.ones(len(all_features) - 1)) + \
         WhiteKernel(noise_level=0.1**2, noise_level_bounds=(1e-3, np.inf))
-    methods_sub = {'iid': btr.JustNoise(), 'linear': BayesianRidge(),
-                   'GPR': GaussianProcessRegressor(kernel=k)}
 
     summary = {}
     for split_name, splits in split_dict.iteritems():
         print split_name
         df_train, df_test, _ = ds.split_df(df, splits=splits)
 
+        loss_tbl = \
+            try_models(df_train, df_test, metric, all_features, target, methods)
+
         # Could also try just removing one
+        L = [loss_tbl]
         for feature in all_features:
+            mname = 'GPR-' + feature
+            methods_sub = {mname: GaussianProcessRegressor(kernel=k_sub)}
             sub_f = list(all_features)
             sub_f.remove(feature)
-            summary[(split_name, feature)] = \
-                try_models(df_train, df_test, metric, sub_f, target, methods_sub)
+            loss_tbl = try_models(df_train, df_test,
+                                  metric, sub_f, target, methods_sub)
+            L.append(loss_tbl)
 
-        # Now try all:
-        summary[(split_name, 'all')] = \
-            try_models(df_train, df_test, metric, all_features, target, methods)
-    summary = pd.concat(summary, axis=1)
+        # Aggregate
+        loss_tbl = pd.concat(L, axis=1)
+        summary[split_name] = btr.loss_summary_table(loss_tbl, ref_method)
     return summary
 
 # TODO config
@@ -226,4 +227,6 @@ df_anal = df_anal[~missing]
 assert(not df_anal.isnull().any().any())
 
 summary = run_experiment(df_anal, metric, split_dict, all_features, target)
-print summary.to_string()
+for split, tbl in summary.iteritems():
+    print split
+    print tbl.to_string()
