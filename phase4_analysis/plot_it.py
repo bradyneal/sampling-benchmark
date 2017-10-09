@@ -9,10 +9,7 @@ from sklearn.gaussian_process.kernels import RBF, WhiteKernel
 from metrics import METRICS_REF
 
 import bt.benchmark_tools_regr as btr
-from bt.benchmark_tools_regr import METRIC
 import bt.data_splitter as ds
-
-import statsmodels.formula.api as smf
 
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
@@ -77,22 +74,18 @@ def augment_df(df):
     for metric in sorted(METRICS_REF.keys()):
         metric_ref = METRICS_REF[metric]
         df['real_ess_' + metric] = metric_ref / df[metric]
-        df['real_ess_' + metric + '_jac'] = metric_ref / (df[metric] ** 2)
         df['real_ness_' + metric] = df['real_ess_' + metric] / df['n_ref']
-        df['real_ness_' + metric + '_jac'] = df['real_ess_' + metric + '_jac'] / df['n_ref']
         df['real_eff_' + metric] = df['real_ess_' + metric] / df['N']
-        df['real_eff_' + metric + '_jac'] = df['real_ess_' + metric + '_jac'] / df['N']
-        df['real_essd_' + metric] = ESS_deviation(df[metric].values, df['ESS'].values, df['n_chains'].values, metric_ref)
+        df['real_essd_' + metric] = ESS_deviation(df[metric].values,
+            df['ESS'].values, df['n_chains'].values, metric_ref)
 
         metric = metric + '_pooled'
         df['real_ess_' + metric] = metric_ref / df[metric]
-        df['real_ess_' + metric + '_jac'] = metric_ref / (df[metric] ** 2)
         df['real_ness_' + metric] = df['real_ess_' + metric] / df['n_ref']
-        df['real_ness_' + metric + '_jac'] = df['real_ess_' + metric + '_jac'] / df['n_ref']
         total_samples = df['N'] * df['n_chains']
         df['real_eff_' + metric] = df['real_ess_' + metric] / total_samples
-        df['real_eff_' + metric + '_jac'] = df['real_ess_' + metric + '_jac'] / total_samples
-        df['real_essd_' + metric] = ESS_deviation(df[metric].values, df['ESS_pooled'].values, 1.0, metric_ref)
+        df['real_essd_' + metric] = ESS_deviation(df[metric].values,
+            df['ESS_pooled'].values, 1.0, metric_ref)
     return df  # return anyway
 
 
@@ -122,8 +115,7 @@ def all_finite(X):
     return R
 
 
-def try_models(df_train, df_test, metric, feature_list, target, methods,
-               augment=False):
+def try_models(df_train, df_test, metric, feature_list, target, methods):
     loss_dict = btr.STD_REGR_LOSS
 
     X_train = df_train[feature_list].values
@@ -131,13 +123,9 @@ def try_models(df_train, df_test, metric, feature_list, target, methods,
     assert(all_pos_finite(X_train))
     assert(all_pos_finite(X_test))
 
-    # Add transformed features
-    if augment:
-        X_train = np.concatenate((X_train, np.log(X_train), 1.0 / X_train), axis=1)
-        X_test = np.concatenate((X_test, np.log(X_test), 1.0 / X_test), axis=1)
-    else:
-        X_train = np.log(X_train)
-        X_test = np.log(X_test)
+    # Make transformed features
+    X_train = np.log(X_train)
+    X_test = np.log(X_test)
 
     scaler = RobustScaler()
     X_train = scaler.fit_transform(X_train)
@@ -157,18 +145,34 @@ def try_models(df_train, df_test, metric, feature_list, target, methods,
     return summary
 
 
-def run_experiment(df, metric, methods, ref_method, split_dict, all_features, target):
+def run_experiment(df, metric, split_dict, all_features, target):
+    # TODO also do MLP
+    k = 1.0 * RBF(length_scale=np.ones(len(all_features))) + \
+        WhiteKernel(noise_level=0.1**2, noise_level_bounds=(1e-3, np.inf))
+    methods = {'iid': btr.JustNoise(), 'linear': BayesianRidge(),
+               'GPR': GaussianProcessRegressor(kernel=k)}
+
+    # Really dumb but GPR kernel needs to know D in advance
+    k = 1.0 * RBF(length_scale=np.ones(len(all_features) - 1)) + \
+        WhiteKernel(noise_level=0.1**2, noise_level_bounds=(1e-3, np.inf))
+    methods_sub = {'iid': btr.JustNoise(), 'linear': BayesianRidge(),
+                   'GPR': GaussianProcessRegressor(kernel=k)}
+
     summary = {}
     for split_name, splits in split_dict.iteritems():
         print split_name
         df_train, df_test, _ = ds.split_df(df, splits=splits)
 
         # Could also try just removing one
-        #for feature in all_features:
-        #    summary[(split_name, feature)] = try_models(df_train, df_test, metric, [feature], target, methods)
+        for feature in all_features:
+            sub_f = list(all_features)
+            sub_f.remove(feature)
+            summary[(split_name, feature)] = \
+                try_models(df_train, df_test, metric, sub_f, target, methods_sub)
 
         # Now try all:
-        summary[(split_name, 'all')] = try_models(df_train, df_test, metric, all_features, target, methods)
+        summary[(split_name, 'all')] = \
+            try_models(df_train, df_test, metric, all_features, target, methods)
     summary = pd.concat(summary, axis=1)
     return summary
 
@@ -221,14 +225,5 @@ missing = df_anal[all_features + [target]].isnull().any(axis=1)
 df_anal = df_anal[~missing]
 assert(not df_anal.isnull().any().any())
 
-methods = {'iid': btr.JustNoise(), 'linear': BayesianRidge()}
-ref_method = 'iid'
-
-# TODO also do ARD-GP and MLP
-k = 1.0 * RBF(length_scale=np.ones(len(all_features))) + \
-    WhiteKernel(noise_level=0.1**2, noise_level_bounds=(1e-3, np.inf))
-methods = {'iid': btr.JustNoise(), 'linear': BayesianRidge(),
-           'GPR': GaussianProcessRegressor(kernel=k)}
-
-summary = run_experiment(df_anal, metric, methods, ref_method, split_dict, all_features, target)
+summary = run_experiment(df_anal, metric, split_dict, all_features, target)
 print summary.to_string()
