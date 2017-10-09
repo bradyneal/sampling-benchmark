@@ -173,10 +173,6 @@ def sample_emcee(logpdf_tt, sampler, start, timers, time_grid_ms, n_grid,
         tau = integrated_time(trace, axis=0)
         print 'flat auto-corr'
         print tau
-        tau = np.mean([integrated_time(w[:cum_size, :], axis=0)
-                       for w in sampler_obj.chain], axis=0)
-        print 'mean auto-corr'
-        print tau
     except Exception as err:
         print 'emcee autocorr est failed'
         print str(err)
