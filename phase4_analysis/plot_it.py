@@ -175,7 +175,11 @@ def run_experiment(df, metric, split_dict, all_features, target,
 
         # Aggregate
         loss_tbl = pd.concat(L, axis=1)
-        summary[split_name] = btr.loss_summary_table(loss_tbl, ref_method)
+        full_tbl = btr.loss_summary_table(loss_tbl, ref_method,
+                                          pairwise_CI=True)
+        # TODO use const names
+        full_tbl[('NLL', 'mean')] -= full_tbl.loc[ref_method, ('NLL', 'mean')]
+        summary[split_name] = full_tbl
     return summary
 
 # TODO config
