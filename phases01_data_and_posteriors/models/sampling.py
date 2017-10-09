@@ -42,7 +42,7 @@ def sample_model(model, step=None, num_samples=MAX_NUM_SAMPLES, advi=False,
         trace = merge_traces(traces)
         traces = [trace0] + traces[1:]
 
-        # diagnostics = get_diagnostics(merge_truncated_traces(traces))
+        diagnostics = get_diagnostics(merge_truncated_traces(traces), model)
     else:
         trace = sample_chain_with_args(model)
         
