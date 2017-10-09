@@ -69,6 +69,9 @@ def load_config(config_file):
     D['input_path'] = abspath2(config.get('phase2', 'output_path'))
     D['output_path'] = abspath2(config.get('phase3', 'output_path'))
 
+    D['start_mode'] = config.get('phase3', 'start_mode')
+    D['scale_mode'] = config.get('phase3', 'scale_mode')
+
     D['t_grid_ms'] = config.getint('phase3', 'time_grid_ms')
     assert(D['t_grid_ms'] > 0)
     D['n_grid'] = config.getint('phase3', 'n_grid')

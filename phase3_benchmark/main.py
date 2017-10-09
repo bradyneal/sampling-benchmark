@@ -3,6 +3,7 @@ import cPickle as pkl
 import os
 import sys
 import warnings
+from emcee.autocorr import integrated_time
 import numpy as np
 import pandas as pd
 import pymc3 as pm
@@ -91,10 +92,8 @@ def sample_pymc3(logpdf_tt, sampler, start, timers, time_grid_ms, n_grid,
     with pm.Model():
         pm.DensityDist('x', logpdf_tt, shape=D)
 
-        print 'doing init'
         step_kwds = {}
         if data_scale is not None:
-            # Allow method to cheat with access to true data scale
             assert(data_scale.shape == (D,))
             step_kwds['scaling'] = data_scale
         print 'step arguments'
@@ -165,14 +164,37 @@ def sample_emcee(logpdf_tt, sampler, start, timers, time_grid_ms, n_grid,
     # Build rep for trace data
     # Same as:
     # np.concatenate([X[ii, :, :] for ii in xrange(X.shape[0])], axis=0)
-    # TODO compare to EnsembleSampler.flatchain
+    # EnsembleSampler.flatchain does this too but doesn't truncate at cum_size
     trace = np.reshape(sampler_obj.chain[:, :cum_size, :], (-1, D))
-    assert(trace.shape== (cum_size * n_walkers, D))
+    assert(trace.shape == (cum_size * n_walkers, D))
+
+    # Log the emcee version of autocorr for future ref
+    try:
+        tau = integrated_time(trace, axis=0)
+        print 'flat auto-corr'
+        print tau
+        tau = np.mean([integrated_time(w[:cum_size, :], axis=0)
+                       for w in sampler_obj.chain], axis=0)
+        print 'mean auto-corr'
+        print tau
+    except Exception as err:
+        print 'emcee autocorr est failed'
+        print str(err)
+
     return trace, meta
 
 
+def init_setup(logpdf_tt, D, init='advi'):
+    with pm.Model():
+        pm.DensityDist('x', logpdf_tt, shape=D)
+        start, step = pm.sampling.init_nuts(init, progressbar=False)
+    start = start['x']
+    scale = step.potential.s
+    return start, scale
+
+
 def controller(model_setup, sampler, time_grid_ms, n_grid,
-               init_exact=True, n_ref_exact=1000):
+               start_mode='default', scale_mode='default', n_ref_exact=1000):
     assert(time_grid_ms > 0)
 
     model_name, D, params_dict = model_setup
@@ -190,11 +212,6 @@ def controller(model_setup, sampler, time_grid_ms, n_grid,
     assert(D >= 1)
     assert(params_dict[DATA_CENTER].shape == (D,))
     assert(params_dict[DATA_SCALE].shape == (D,))
-
-    start = None
-    if init_exact:
-        start = sample_exact(model_name, D, params_dict, N=1)[0, :]
-        assert(start.shape == (D,))
 
     # Use default arg trick to get params to bind to model now
     def logpdf(x, p=params_dict):
@@ -214,13 +231,39 @@ def controller(model_setup, sampler, time_grid_ms, n_grid,
         ll = ll - np.sum(np.log(p[DATA_SCALE]))
         return ll + s * 0
 
+    # Process input options for initialization
+    if start_mode == 'advi' or scale_mode == 'advi':
+        advi_start, advi_scale = init_setup(logpdf, D)
+
+    start = None
+    if start_mode == 'exact':
+        start = sample_exact(model_name, D, params_dict, N=1)[0, :]
+        assert(start.shape == (D,))
+    elif start_mode == 'advi':
+        start = advi_start
+        assert(start.shape == (D,))
+    else:
+        assert(start_mode == 'default')
+
+    data_scale = None
+    if scale_mode == 'exact':
+        data_scale = params_dict[DATA_SCALE]
+        assert(data_scale.shape == (D,))
+    elif scale_mode == 'advi':
+        data_scale = advi_scale
+        assert(data_scale.shape == (D,))
+    else:
+        assert(scale_mode == 'default')
+
     reset_counters()
     if sampler in BUILD_STEP_PM:
         trace, meta = sample_pymc3(logpdf, sampler, start,
                                    timers, time_grid_ms, n_grid,
-                                   params_dict[DATA_SCALE])
+                                   data_scale)
     else:
         assert(sampler in BUILD_STEP_MC)
+        # Intentionally not passing data_scale, since emcee doesn't seem to
+        # have a good way to use it, built in.
         trace, meta = sample_emcee(logpdf, sampler, start,
                                    timers, time_grid_ms, n_grid)
     moments_report(trace)
@@ -276,7 +319,8 @@ def run_experiment(config, param_name, sampler):
         X = sample_exact(model_name, D, params_dict, N=config['n_exact'])
     else:
         X, meta = controller(model_setup, sampler,
-                             config['t_grid_ms'], config['n_grid'])
+                             config['t_grid_ms'], config['n_grid'],
+                             config['start_mode'], config['scale_mode'])
     # Now save the data
     data_file = io.build_output_name(param_name, sampler)
     data_file = io.get_temp_filename(config['output_path'], data_file,

@@ -6,8 +6,18 @@ from emcee import EnsembleSampler
 # See:
 # http://docs.pymc.io/api/inference.html#step-methods
 
-def test_case_mix(step_kwds):
+def mix1(step_kwds):
     steps = [pm.NUTS(), pm.Metropolis()]
+    return steps
+
+
+def mix3(step_kwds):
+    steps = [pm.NUTS()] + [pm.Metropolis() for _ in xrange(3)]
+    return steps
+
+
+def mix10(step_kwds):
+    steps = [pm.NUTS()] + [pm.Metropolis() for _ in xrange(10)]
     return steps
 
 
@@ -47,7 +57,9 @@ BUILD_STEP_PM = {'NUTS-default': NUTS,
                  'Metro-default': metro_default,
                  'Cauchy-proposal': cauchy,
                  'Laplace-proposal': laplace,
-                 'mix': test_case_mix,
+                 'mix1': mix1,
+                 'mix3': mix3,
+                 'mix10': mix10,
                  'HMC-default': HMC,
                  'slice-default': slice_default}
 
