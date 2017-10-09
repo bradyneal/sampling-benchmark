@@ -31,8 +31,8 @@ def main():
     Parallel(n_jobs=config['njobs'])(
         map(delayed(try_run_experiment_with_config), chains))
     print 'done'
-    
-    
+
+
 def try_run_experiment(config, mc_chain_name):
     """
     Put run_experiment inside a try-except so that one failed experiment
