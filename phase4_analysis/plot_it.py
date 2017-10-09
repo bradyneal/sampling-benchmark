@@ -10,6 +10,7 @@ from metrics import METRICS_REF
 
 import bt.benchmark_tools_regr as btr
 import bt.data_splitter as ds
+from bt.sciprint import just_format_it, NAN_STR
 
 import matplotlib.pyplot as plt
 
@@ -143,7 +144,7 @@ def try_models(df_train, df_test, metric, feature_list, target, methods):
 
 
 def run_experiment(df, metric, split_dict, all_features, target,
-                   ref_method='iid'):
+                   ref_method='GPR'):
     # TODO also do MLP
     k = 1.0 * RBF(length_scale=np.ones(len(all_features))) + \
         WhiteKernel(noise_level=0.1**2, noise_level_bounds=(1e-3, np.inf))
@@ -229,4 +230,7 @@ assert(not df_anal.isnull().any().any())
 summary = run_experiment(df_anal, metric, split_dict, all_features, target)
 for split, tbl in summary.iteritems():
     print split
-    print tbl.to_string()
+
+    perf_tbl = just_format_it(tbl, shift_mod=3, unit_dict={'NLL': 'nats'},
+                              non_finite_fmt={NAN_STR: '{--}'}, use_tex=True)
+    print perf_tbl
