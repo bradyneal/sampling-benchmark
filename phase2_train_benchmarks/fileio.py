@@ -43,6 +43,20 @@ def load_df(input_path, fname, ext):
     return X
 
 
+def load_fisher_info(input_path, chain_name):
+    """Get fisher information from diagnostic dictionary"""
+    diagnostic = load_chain_diagnostic_info(input_path, chain_name)
+    if diagnostic is not None and 'max_scale' in diagnostic:
+        return diagnostic['max_scale']
+
+
+def load_chain_diagnostic_info(input_path, chain_name):
+    """Load the diagnostic info of a specific chain"""
+    for chain_diagnostic in load_input_diagnostics_gen(input_path):
+        if chain_diagnostic['name'] == chain_name:
+            return chain_diagnostic
+
+
 def load_input_diagnostics_list(input_path):
     return list(load_input_diagnostics_gen(input_path))
 

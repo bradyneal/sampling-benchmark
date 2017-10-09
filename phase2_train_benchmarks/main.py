@@ -82,6 +82,8 @@ def run_experiment(config, chain_name, debug_dump=False, shuffle=False,
     burn_in_frac = 0.05
 
     chain_df = io.load_df(config['input_path'], chain_name, config['csv_ext'])
+    max_scale = io.load_fisher_info(config['input_path'], chain_name)        
+    
     MC_chain = pd.DataFrame.as_matrix(chain_df)
     print 'full'
     moments_report(MC_chain)
