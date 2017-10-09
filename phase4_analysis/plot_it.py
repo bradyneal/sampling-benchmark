@@ -97,6 +97,7 @@ def augment_df(df):
 
 
 def plot_by(df, x, y, by, fac_lines=(1.0,)):
+    # TODO make logscale arg
     plt.figure()
     gdf = df.groupby(by)
     for name, sdf in gdf:
@@ -104,18 +105,6 @@ def plot_by(df, x, y, by, fac_lines=(1.0,)):
     xgrid = np.logspace(np.log10(df[x].min()), np.log10(df[x].max()), 100)
     for f in fac_lines:
         plt.loglog(xgrid, f * xgrid, 'k--')
-    plt.legend(loc=3, ncol=4, fontsize=6,
-               bbox_to_anchor=(0.0, 1.02, 1.0, 0.102))
-    plt.grid()
-    plt.xlabel(x)
-    plt.ylabel(y)
-
-
-def plot_by_tmp(df, x, y, by, fac_lines=(1.0,)):
-    plt.figure()
-    gdf = df.groupby(by)
-    for name, sdf in gdf:
-        plt.semilogx(sdf[x].values, sdf[y].values, '.', label=name, alpha=0.5)
     plt.legend(loc=3, ncol=4, fontsize=6,
                bbox_to_anchor=(0.0, 1.02, 1.0, 0.102))
     plt.grid()
@@ -134,7 +123,7 @@ def all_finite(X):
 
 
 def try_models(df_train, df_test, metric, feature_list, target, methods,
-               augment=True):
+               augment=False):
     loss_dict = btr.STD_REGR_LOSS
 
     X_train = df_train[feature_list].values
@@ -175,8 +164,8 @@ def run_experiment(df, metric, methods, ref_method, split_dict, all_features, ta
         df_train, df_test, _ = ds.split_df(df, splits=splits)
 
         # Could also try just removing one
-        for feature in all_features:
-            summary[(split_name, feature)] = try_models(df_train, df_test, metric, [feature], target, methods)
+        #for feature in all_features:
+        #    summary[(split_name, feature)] = try_models(df_train, df_test, metric, [feature], target, methods)
 
         # Now try all:
         summary[(split_name, 'all')] = try_models(df_train, df_test, metric, all_features, target, methods)
@@ -236,7 +225,7 @@ methods = {'iid': btr.JustNoise(), 'linear': BayesianRidge()}
 ref_method = 'iid'
 
 # TODO also do ARD-GP and MLP
-k = 1.0 * RBF(length_scale=1.0) + \
+k = 1.0 * RBF(length_scale=np.ones(len(all_features))) + \
     WhiteKernel(noise_level=0.1**2, noise_level_bounds=(1e-3, np.inf))
 methods = {'iid': btr.JustNoise(), 'linear': BayesianRidge(),
            'GPR': GaussianProcessRegressor(kernel=k)}
