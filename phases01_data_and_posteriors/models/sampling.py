@@ -82,7 +82,7 @@ def sample_chain(model, chain_i=0, step=None, num_samples=MAX_NUM_SAMPLES,
                               .format(i + 1 - discard, min_num_samples))
                         if elapsed > HARD_MAX_TIME_IN_SECONDS / NUM_CHAINS:
                             print('exceeded HARD time limit; STOPPING')
-                            return None
+                            break
             return trace[discard:]
         else:   # ADVI for neural networks
             scale = theano.shared(pm.floatX(1))
