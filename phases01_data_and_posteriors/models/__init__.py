@@ -9,7 +9,8 @@ MIN_SAMPLES_CONSTANT = 25
 MAX_DATA_DIMENSION = {
     'linear': 25,
     'pairwise': 7,
-    'quadratic': 6
+    'quadratic': 6,
+    'other': 100
 }
 MAX_GP_N = 1000
 MAX_N = 50000
