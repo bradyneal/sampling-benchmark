@@ -11,6 +11,7 @@ import pandas as pd
 from copy import deepcopy
 
 from .utils import format_trace
+from .diagnostics import get_diagnostics
 from . import MAX_NUM_SAMPLES, NUM_INIT_STEPS, SOFT_MAX_TIME_IN_SECONDS, \
               HARD_MAX_TIME_IN_SECONDS, MIN_SAMPLES_CONSTANT, NUM_CHAINS, \
               NUM_SCALE1_ITERS, NUM_SCALE0_ITERS
@@ -41,7 +42,7 @@ def sample_model(model, step=None, num_samples=MAX_NUM_SAMPLES, advi=False,
         trace = merge_traces(traces)
         traces = [trace0] + traces[1:]
 
-        diagnostics = get_diagnostics(merge_truncated_traces(traces))
+        diagnostics = get_diagnostics(merge_truncated_traces(traces), model)
     else:
         trace = sample_chain_with_args(model)
         
@@ -52,7 +53,7 @@ def sample_model(model, step=None, num_samples=MAX_NUM_SAMPLES, advi=False,
 
 
 def sample_chain(model, chain_i=0, step=None, num_samples=MAX_NUM_SAMPLES,
-                 advi=False, tune=500, discard_tuned_samples=True,
+                 advi=False, tune=5, discard_tuned_samples=True,
                  num_scale1_iters=NUM_SCALE1_ITERS,
                  num_scale0_iters=NUM_SCALE0_ITERS):
     """Sample single chain from constructed Bayesian model"""
@@ -78,7 +79,7 @@ def sample_chain(model, chain_i=0, step=None, num_samples=MAX_NUM_SAMPLES,
                         break
                     else:
                         print('but only collected {} of {}; continuing...'
-                              .format(i + 1, min_num_samples))
+                              .format(i + 1 - discard, min_num_samples))
                         if elapsed > HARD_MAX_TIME_IN_SECONDS / NUM_CHAINS:
                             print('exceeded HARD time limit; STOPPING')
                             return None
@@ -120,17 +121,4 @@ def merge_truncated_traces(traces):
     truncated_traces = list(map(lambda trace: trace[-min_chain_length:],
                                 traces))
     return merge_traces(truncated_traces)
-
-
-def get_diagnostics(trace):
-    num_samples = len(trace)
-    d1 = pm.diagnostics.gelman_rubin(trace)
-    d2 = pm.diagnostics.effective_n(trace)
-    d1['diagnostic'] = 'Gelman-Rubin'
-    d2['diagnostic'] = 'ESS'
-    return {
-        'Gelman-Rubin': d1,
-        'ESS': d2,
-        'num_samples_per_chain': num_samples
-    }
     
