@@ -4,6 +4,7 @@ import ConfigParser
 import os
 from os.path import join, getsize
 import numpy as np
+import pandas as pd
 
 # ============================================================================
 # TODO move everything here to general util file
@@ -33,15 +34,28 @@ def load_np(input_path, fname, ext):
     return X
 
 
+def load_df(input_path, fname, ext):
+    """Read chain as Pandas DataFrame"""
+    fname = os.path.join(input_path, fname + ext)
+    print 'loading %s' % fname
+    assert(os.path.isabs(fname))
+    X = pd.DataFrame.from_csv(fname)
+    return X
+
+
 def load_input_diagnostics_list(input_path):
     return list(load_input_diagnostics_gen(input_path))
 
 
 def load_input_diagnostics_gen(input_path):
+    """
+    Returns a generator that reads the diagnostics of one sampled posterior at
+    a time. They are written with successive calls to pickle.dump as the chains
+    finish and their diagnostics are computed.
+    """
     # TODO get this filename into a config
     fname = os.path.join(input_path, 'diagnostics.pkl')
     print 'loading %s' % fname
-    # TODO explain, usually load does everything at once
     with open(fname, 'rb') as f:
         while True:
             try:

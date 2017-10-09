@@ -16,6 +16,7 @@ from sklearn.preprocessing import StandardScaler
 import fileio as io
 from model_wrappers import STD_BENCH_MODELS
 from validate_input_data import moments_report
+import pandas as pd
 
 PHASE3_MODELS = ('MoG', 'VBMoG', 'RNADE')  # Models implemented in phase 3
 DATA_CENTER = 'data_center'
@@ -80,7 +81,8 @@ def run_experiment(config, chain_name, debug_dump=False, shuffle=False,
     # TODO remove: new phase 1 already takes out burn in
     burn_in_frac = 0.05
 
-    MC_chain = io.load_np(config['input_path'], chain_name, config['csv_ext'])
+    chain_df = io.load_df(config['input_path'], chain_name, config['csv_ext'])
+    MC_chain = pd.DataFrame.as_matrix(chain_df)
     print 'full'
     moments_report(MC_chain)
 
