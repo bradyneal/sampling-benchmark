@@ -63,7 +63,7 @@ def sample_chain(model, chain_i=0, step=None, num_samples=MAX_NUM_SAMPLES,
             pm._log.info('Assigning NUTS sampler...')
             if step is None:
                 start_, step = pm.init_nuts(init='advi', njobs=1, n_init=NUM_INIT_STEPS,
-                                            random_seed=-1, progressbar=True)
+                                            random_seed=-1, progressbar=False)
             
             discard = tune if discard_tuned_samples else 0
             for i, trace in enumerate(pm.iter_sample(
