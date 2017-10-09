@@ -29,7 +29,8 @@ CLASSIFICATION_MODEL_NAMES = \
 
 
 def sample_classification_model(model_name, X, y, num_samples=MAX_NUM_SAMPLES,
-                                step=None, num_non_categorical=None):
+                                step=None, num_non_categorical=None,
+                                raw_trace=False):
     """
     Sample from the posteriors of any of the supported models
 
@@ -58,9 +59,9 @@ def sample_classification_model(model_name, X, y, num_samples=MAX_NUM_SAMPLES,
     
     model = build_model(model_name, X, y, num_non_categorical)
     if 'nn' in model_name:
-        return sample_model(model, step=step, advi=True)
+        return sample_model(model, step=step, advi=True, raw_trace=raw_trace)
     else:
-        return sample_model(model, step=step, advi=False)
+        return sample_model(model, step=step, advi=False, raw_trace=raw_trace)
 
 
 def build_model(model_name, X, y, num_non_categorical=None):

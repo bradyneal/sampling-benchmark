@@ -8,6 +8,7 @@ from itertools import combinations
 import pandas as pd
 import numpy as np
 from sklearn.decomposition import PCA
+from pymc3.backends.base import MultiTrace
 
 from . import MAX_DATA_DIMENSION, MAX_GP_N, MAX_N
 from data.preprocessing.format import make_col_names
@@ -67,6 +68,26 @@ def reduce_data_dimension(X, model_name, transform=None,
         return (X_reduced, transform) if return_transform else X_reduced
     else:
         return (X, None) if return_transform else X
+    
+
+def subtrace(trace, chains):
+    """Get Multitrace with subset of chains from a super Multitrace"""
+    if type(chains) is int:
+        chains = [chains]
+    elif type(chains) is not list:
+        raise TypeError('chains is of type {}. Expected int or list of int')
+    straces = []
+    for chain in chains:
+        if chain not in trace.chains:
+            raise ValueError('Invalid chain {} not in {}'.format(chain, trace.chains))
+        straces.append(trace._straces[chain])
+    return MultiTrace(straces)
+
+
+def strace_gen(trace):
+    """Generator over chains in Multitrace"""
+    for chain in trace.chains:
+        yield subtrace(trace, chain)
     
     
 def get_max_dimension(model_name):
