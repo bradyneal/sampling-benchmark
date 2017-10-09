@@ -21,7 +21,8 @@ def main():
     config = io.load_config(config_file)
     print(config['input_path'])
 
-    chains = io.get_chains(config['input_path'], config['csv_ext'])
+    chains = io.get_chains(config['input_path'], config['csv_ext'],
+                           config['size_limit_bytes'])
     print 'inputs chains:'
     print chains
 
