@@ -11,7 +11,7 @@ def main():
     num_args = len(sys.argv) - 1
     if num_args < 1:
         config_path = '../config.ini'
-    elif len(sys.argv) > 1:
+    elif num_args > 1:
         raise Exception('too many arguments: %d. %d expected' % (num_args, 1))
     else:
         config_path = sys.argv[1]
@@ -21,7 +21,8 @@ def main():
     config = io.load_config(config_file)
     print(config['input_path'])
 
-    chains = io.get_chains(config['input_path'], config['csv_ext'])
+    chains = io.get_chains(config['input_path'], config['csv_ext'],
+                           config['size_limit_bytes'])
     print 'inputs chains:'
     print chains
 
@@ -41,9 +42,9 @@ def try_run_experiment(config, mc_chain_name):
         run_experiment(config, mc_chain_name)
     except (KeyboardInterrupt, SystemExit):
         raise
-    except:
+    except Exception as err:
         print '%s failed' % mc_chain_name
-
+        print str(err)
 
 if __name__ == '__main__':
     main()

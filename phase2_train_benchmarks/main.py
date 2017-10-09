@@ -16,11 +16,14 @@ from sklearn.preprocessing import StandardScaler
 import fileio as io
 from model_wrappers import STD_BENCH_MODELS
 from validate_input_data import moments_report
-
+# TODO eliminate this cross-phase import, it is ugly quick solution stuff
+from models_p3 import BUILD_MODEL
+import pymc3 as pm
 
 PHASE3_MODELS = ('MoG', 'VBMoG', 'RNADE')  # Models implemented in phase 3
 DATA_CENTER = 'data_center'
 DATA_SCALE = 'data_scale'
+META = 'meta'
 
 
 def get_default_run_setup(config):
@@ -50,6 +53,22 @@ def get_default_run_setup(config):
     return run_config
 
 
+def init_setup(model_name, D, params_obj, init='advi'):
+    def logpdf(x, p=params_obj):
+        x_std = (x - p[DATA_CENTER]) / p[DATA_SCALE]
+        ll = BUILD_MODEL[model_name](x_std, p)
+        ll = ll - np.sum(np.log(p[DATA_SCALE]))
+        return ll
+
+    with pm.Model():
+        pm.DensityDist('x', logpdf, shape=D)
+        start, step = pm.sampling.init_nuts(init, progressbar=False)
+
+    start = start['x']
+    scale = step.potential.s
+    return start, scale
+
+
 def use_model(model_name, args, cv_args, X_train, X_test):
     '''Anything that uses the model obj goes here to be in try-catch.'''
     model = STD_BENCH_MODELS[model_name](**args)
@@ -77,7 +96,8 @@ def run_experiment(config, chain_name, debug_dump=False, shuffle=False,
                    setup=get_default_run_setup):
     '''Call this instead of main for scripted multiple runs within python.'''
     run_config = setup(config)
-    burn_in_frac = 0.05  # TODO put in config
+    # TODO remove: new phase 1 already takes out burn in
+    burn_in_frac = 0.05
 
     MC_chain = io.load_np(config['input_path'], chain_name, config['csv_ext'])
     print 'full'
@@ -152,6 +172,17 @@ def run_experiment(config, chain_name, debug_dump=False, shuffle=False,
     assert(DATA_SCALE not in params_obj)
     params_obj[DATA_CENTER] = mean_
     params_obj[DATA_SCALE] = scale_
+
+    # Now build a meta-data dictionary
+    meta = {}  # TODO add header information to meta
+    try:
+        meta['start'], meta['scaling'] = init_setup(model_name, D, params_obj)
+    except Exception as err:
+        print 'fancy init failed'
+        print str(err)
+    print 'saving meta information:'
+    print meta
+    params_obj[META] = meta
 
     # Now dump to finish the job
     dump_file = io.build_output_name(chain_name, model_name, config['pkl_ext'])

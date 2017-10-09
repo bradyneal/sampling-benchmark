@@ -1,6 +1,8 @@
 # Ryan Turner (turnerry@iro.umontreal.ca)
+import cPickle as pkl
 import ConfigParser
 import os
+from os.path import join, getsize
 import numpy as np
 
 # ============================================================================
@@ -36,12 +38,14 @@ def load_input_diagnostics_list(input_path):
 
 
 def load_input_diagnostics_gen(input_path):
+    # TODO get this filename into a config
     fname = os.path.join(input_path, 'diagnostics.pkl')
     print 'loading %s' % fname
+    # TODO explain, usually load does everything at once
     with open(fname, 'rb') as f:
         while True:
             try:
-                yield pickle.load(f)
+                yield pkl.load(f)
             except EOFError:
                 break
 
@@ -56,8 +60,9 @@ def chomp(ss, ext):
 # ============================================================================
 
 
-def get_chains(input_path, ext):
-    chains = sorted(chomp(fname, ext) for fname in os.listdir(input_path) if fname.endswith(ext))
+def get_chains(input_path, ext, limit=np.inf):
+    chains = sorted(chomp(fname, ext) for fname in os.listdir(input_path)
+        if fname.endswith(ext) and getsize(join(input_path, fname)) <= limit)
     return chains
 
 
@@ -69,6 +74,8 @@ def load_config(config_file):
     D = {}
     D['input_path'] = abspath2(config.get('phase1', 'output_path'))
     D['output_path'] = abspath2(config.get('phase2', 'output_path'))
+
+    D['size_limit_bytes'] = config.getint('phase2', 'size_limit_bytes')
 
     D['csv_ext'] = config.get('common', 'csv_ext')
     D['pkl_ext'] = config.get('common', 'pkl_ext')
