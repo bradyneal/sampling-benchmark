@@ -3,8 +3,7 @@ import numpy as np
 import scipy.stats as ss
 #from diagnostics import MIN_ESS
 
-MIN_ESS = 1.0  # TODO limit dupes
-DEFAULT_CLIP = 1.0
+MIN_ESS_PER_CHAIN = 1.0  # TODO limit dupes
 
 
 def stack_first(X):
@@ -71,7 +70,7 @@ def eval_inc(exact_chain, all_chains, metric, all_idx):
         estimator = OTHER_METRICS[metric]
         moment_metric = False
 
-    clip = METRICS_REF[metric] / MIN_ESS
+    clip = METRICS_REF[metric] / MIN_ESS_PER_CHAIN
 
     err = np.zeros((n_grid, n_chains))
     for c_num, chain in enumerate(all_chains):
@@ -104,7 +103,7 @@ def eval_total(exact_chain, all_chains, metric):
         estimator = OTHER_METRICS[metric]
         moment_metric = False
 
-    clip = METRICS_REF[metric] / MIN_ESS
+    clip = METRICS_REF[metric] / MIN_ESS_PER_CHAIN
 
     err = np.zeros((D, n_chains))
     for c_num, chain in enumerate(all_chains):
@@ -135,7 +134,7 @@ def eval_pooled(exact_chain, all_chains, metric):
         estimator = OTHER_METRICS[metric]
         moment_metric = False
 
-    clip = METRICS_REF[metric] / MIN_ESS
+    clip = METRICS_REF[metric] / (MIN_ESS_PER_CHAIN * n_chains)
 
     all_chains = stack_first(np.asarray(all_chains))
     if moment_metric:

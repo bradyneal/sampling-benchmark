@@ -106,7 +106,7 @@ def build_metrics_array(samplers, examples, metrics, file_lookup, config,
 
     cols = pd.MultiIndex.from_product([samplers, examples, metrics + ['N']],
                                       names=['sampler', 'example', 'metric'])
-    perf_df = pd.DataFrame(index=xrange(n_grid), columns=cols)
+    perf_df = pd.DataFrame(index=xrange(n_grid), columns=cols, dtype=float)
     perf_df.index.name = 'time'
 
     # Assume later that these keys are distinct
@@ -114,9 +114,19 @@ def build_metrics_array(samplers, examples, metrics, file_lookup, config,
     metrics_sync = STD_DIAGNOSTICS.keys() + metrics
     sync_perf = {}
     for example in examples:
-        fname, = file_lookup[(example, config['exact_name'])]  # singleton set
+        fname_exact = file_lookup[(example, config['exact_name'])]
+        if len(fname_exact) != 1:
+            print 'warning expected 1 exact file, found %d' % len(fname_exact)
+        fname = fname_exact.pop()
+
         exact_chain = io.load_np(config['input_path'], fname, ext='')
+        print exact_chain.shape
         D = exact_chain.shape[1]
+        # TODO add warning if need to remove any
+        keep = np.all(np.isfinite(exact_chain), axis=1)
+        exact_chain = exact_chain[keep, :]
+        print exact_chain.shape
+
         # In ESS calculations we assume that var=1, so we need standard scaler
         # and not robust, but maybe we could add warning if the two diverge.
         scaler = StandardScaler()

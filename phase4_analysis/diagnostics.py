@@ -3,7 +3,7 @@ import numpy as np
 import scipy.stats as ss
 import pymc3 as pm
 
-MIN_ESS = 1.0
+MIN_ESS_PER_CHAIN = 1.0
 
 
 def summaries(x):
@@ -99,7 +99,7 @@ def effective_n(chains):
 
         Vhat = get_vhat(x)
         n_eff[ii] = get_neff(x, Vhat)
-    n_eff = np.maximum(MIN_ESS, n_eff)
+    n_eff = np.maximum(MIN_ESS_PER_CHAIN * n_chains, n_eff)
     return n_eff
 
 ESS = 'ESS'

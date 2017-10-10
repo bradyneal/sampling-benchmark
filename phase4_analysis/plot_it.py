@@ -191,7 +191,7 @@ do_plots = False
 df = pd.read_csv(fname, header=0, index_col=None)
 
 n_chains = df['n_chains'].max()
-assert(n_chains == df['n_chains'].min())
+# assert(n_chains == df['n_chains'].min())
 
 agg_df = aggregate_df(df)
 df = augment_df(df)
