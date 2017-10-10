@@ -32,8 +32,8 @@ def main():
 
     # Run n_chains in the outer loop since if process get killed we have less
     # chains but with even distribution over models and samplers.
-    for _ in xrange(config['n_chains']):
-        for model_name in model_list:
+    for model_name in model_list:
+        for _ in xrange(config['n_chains']):
             # TODO could put ADVI init here to keep it fixed across samplers
             for sampler in sampler_list:
                 t = time()
