@@ -3,6 +3,7 @@ import sys
 from time import time
 import fileio as io
 from main import run_experiment
+from clusterlib.scheduler import submit
 # This will import pymc3 which is not needed if the experiments are run in a
 # separate process in the future. Loading pymc3 will be a bit of a waste just
 # to get the dictionary keys. We could re-work this, but prob not worth effort.
@@ -37,11 +38,11 @@ def main():
             # TODO could put ADVI init here to keep it fixed across samplers
             for sampler in sampler_list:
                 t = time()
-                try:
-                    run_experiment(config, model_name, sampler)
-                except Exception as err:
-                    print '%s/%s failed' % (model_name, sampler)
-                    print str(err)
+                cmd_line_args = (config_file, model_name, sampler)
+                script = submit(
+                    "sbatch -c 1 main.py %s %s %s" % cmd_line_args,
+                    job_name="phase3-%s-%s" % (model_name, sampler),
+                    time="15:00", memory=32000, backend="slurm")
                 print 'wall time %fs' % (time() - t)
     print 'done'
 
