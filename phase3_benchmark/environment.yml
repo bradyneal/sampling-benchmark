@@ -37,6 +37,3 @@ dependencies:
 - pip:
   - emcee==2.2.1
   - protobuf==3.2.0
-  - tensorflow-gpu==1.0.1
-prefix: /u/turnerry/.conda/envs/SB_P3
-
