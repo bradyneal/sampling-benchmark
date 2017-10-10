@@ -183,21 +183,22 @@ def run_experiment(df, metric, split_dict, all_features, target,
     return summary
 
 # TODO config
-fname = '../../sampler-local/full_size/phase4/perf_sync.csv'
+fname = '../../sampler-local/full_size/phase4_initial_tests/perf_sync.csv'
 
 np.random.seed(56456)
-do_plots = False
+do_plots = True
 
 df = pd.read_csv(fname, header=0, index_col=None)
-
-n_chains = df['n_chains'].max()
-# assert(n_chains == df['n_chains'].min())
 
 agg_df = aggregate_df(df)
 df = augment_df(df)
 
 if do_plots:
+    n_chains = df['n_chains'].min()
+    if n_chains != df['n_chains'].max():
+        print 'warning! error bars assume n_chains constant'
     lb, ub = ESS_EB_fac(n_chains)
+
     plot_by(df, 'ESS', 'real_ess_mean', 'sampler', (lb, 1.0, ub))
 
     plot_by(df, 'eff', 'real_eff_mean', 'sampler')
