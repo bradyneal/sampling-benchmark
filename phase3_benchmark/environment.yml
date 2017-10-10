@@ -1,4 +1,4 @@
-name: SB_P3
+name: samp-phase3
 channels:
 - defaults
 dependencies:
@@ -35,7 +35,7 @@ dependencies:
 - wheel=0.29.0=py27_0
 - zlib=1.2.11=0
 - pip:
-  - git+git://github.com/rdturnermtl/pymc3/tree/slicer_safe.git
+  - git+git://github.com/rdturnermtl/pymc3.git
   - git+git://github.com/clusterlib/clusterlib.git
   - emcee==2.2.1
   - protobuf==3.2.0
