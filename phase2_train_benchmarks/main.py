@@ -16,6 +16,7 @@ from sklearn.preprocessing import StandardScaler
 import fileio as io
 from model_wrappers import STD_BENCH_MODELS
 from validate_input_data import moments_report
+import pandas as pd
 
 PHASE3_MODELS = ('MoG', 'VBMoG', 'RNADE')  # Models implemented in phase 3
 DATA_CENTER = 'data_center'
@@ -78,9 +79,30 @@ def run_experiment(config, chain_name, debug_dump=False, shuffle=False,
     '''Call this instead of main for scripted multiple runs within python.'''
     run_config = setup(config)
     # TODO remove: new phase 1 already takes out burn in
-    burn_in_frac = 0.05
+    if 'gp' in chain_name or 'robust' in chain_name:
+        burn_in_frac = 0.05
+    else:
+        burn_in_frac = 0.0
 
-    MC_chain = io.load_np(config['input_path'], chain_name, config['csv_ext'])
+    chain_df = io.load_df(config['input_path'], chain_name, config['csv_ext'])
+    
+    # drop redundant columns according to Fisher information
+    if config['drop_redundant_cols']:
+        max_scale = io.load_fisher_info(config['input_path'], chain_name)
+        print 'max_scale:'
+        print max_scale
+        if len(chain_df.columns) != max_scale.shape[0] or max_scale.ndim != 1:
+            print 'Incorrect number of columns!!!! Not dropping any columns.'
+            print 'shape of max_scale', max_scale.shape
+            print 'num actual columns:', len(chain_df.columns)
+        else:
+            chain_df = chain_df.iloc[:, max_scale > config['max_scale_epsilon']]
+            if chain_df.empty:
+                print 'All columns redundant! Moving on...'
+                assert(False)
+        
+    MC_chain = pd.DataFrame.as_matrix(chain_df)
+    
     print 'full'
     moments_report(MC_chain)
 
@@ -156,7 +178,7 @@ def run_experiment(config, chain_name, debug_dump=False, shuffle=False,
     params_obj[DATA_SCALE] = scale_
 
     # Now build a meta-data dictionary
-    meta = {}  # TODO add header information to meta
+    meta = {headers: chain_df.columns.values.tolist()}
     print 'saving meta information:'
     print meta
     params_obj[META] = meta

@@ -107,8 +107,7 @@ def get_max_dimension(model_name):
     elif is_linear:
         max_dimension = MAX_DATA_DIMENSION['linear']
     elif is_nn or is_gp:
-        # Should this be changed?
-        max_dimension = float('inf')
+        max_dimension = MAX_DATA_DIMENSION['other']
     else:
         raise ValueError('Invalid model: ' + model_name)
     return max_dimension

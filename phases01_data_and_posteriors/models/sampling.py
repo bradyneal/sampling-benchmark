@@ -18,7 +18,7 @@ from . import MAX_NUM_SAMPLES, NUM_INIT_STEPS, SOFT_MAX_TIME_IN_SECONDS, \
 
 
 def sample_model(model, step=None, num_samples=MAX_NUM_SAMPLES, advi=False,
-                 n_chains=NUM_CHAINS, raw_trace=False,
+                 n_chains=NUM_CHAINS, raw_trace=False, single_chain=True,
                  num_scale1_iters=NUM_SCALE1_ITERS,
                  num_scale0_iters=NUM_SCALE0_ITERS):
     """
@@ -31,20 +31,26 @@ def sample_model(model, step=None, num_samples=MAX_NUM_SAMPLES, advi=False,
   
     diagnostics = None
     if not advi:
-        traces = []
-        for i in range(n_chains):
-            print('chain {} of {}'.format(i + 1, n_chains))
-            traces.append(sample_chain_with_args(model, chain_i=i))
-        
-        # copy and rebuild traces list because merge_traces modifies
-        # the first trace in the list
-        trace0 = deepcopy(traces[0])
-        trace = merge_traces(traces)
-        traces = [trace0] + traces[1:]
-
-        diagnostics = get_diagnostics(merge_truncated_traces(traces), model)
+        if single_chain:
+            trace = sample_chain_with_args(model)
+            diagnostics = get_diagnostics(trace, model, single_chain=True)
+        else:
+            traces = []
+            for i in range(n_chains):
+                print('chain {} of {}'.format(i + 1, n_chains))
+                traces.append(sample_chain_with_args(model, chain_i=i))
+            
+            # copy and rebuild traces list because merge_traces modifies
+            # the first trace in the list
+            trace0 = deepcopy(traces[0])
+            trace = merge_traces(traces)
+            traces = [trace0] + traces[1:]
+    
+            diagnostics = get_diagnostics(merge_truncated_traces(traces),
+                                          model, single_chain=False)
     else:
         trace = sample_chain_with_args(model)
+        diagnostics = get_diagnostics(trace, model, single_chain=True)
         
     if raw_trace:
         return trace, diagnostics
@@ -82,7 +88,7 @@ def sample_chain(model, chain_i=0, step=None, num_samples=MAX_NUM_SAMPLES,
                               .format(i + 1 - discard, min_num_samples))
                         if elapsed > HARD_MAX_TIME_IN_SECONDS / NUM_CHAINS:
                             print('exceeded HARD time limit; STOPPING')
-                            return None
+                            break
             return trace[discard:]
         else:   # ADVI for neural networks
             scale = theano.shared(pm.floatX(1))
