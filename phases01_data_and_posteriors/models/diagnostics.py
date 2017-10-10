@@ -6,27 +6,42 @@ from functools import partial
 import traceback
 
 
-def get_diagnostics(trace, model):
+def get_diagnostics(trace, model, single_chain):
     num_samples = len(trace)
-    d1 = pm.diagnostics.gelman_rubin(trace)
-    d2 = pm.diagnostics.effective_n(trace)
-    d1['diagnostic'] = 'Gelman-Rubin'
-    d2['diagnostic'] = 'ESS'
-    try:
-        max_corr = compute_max_corr_all(trace)
-    except Exception:
-        max_corr = traceback.format_exc()
-    try:
-        max_scale = compute_max_fisher_scale_all(trace, model)
-    except Exception:
-        max_scale = traceback.format_exc()
-    return {
-        'Gelman-Rubin': d1,
-        'ESS': d2,
-        'num_samples_per_chain': num_samples,
-        'max_corr': max_corr,
-        'max_scale': max_scale
-    }
+    if single_chain:
+        try:
+            max_corr = compute_max_corr(trace)
+        except Exception:
+            max_corr = traceback.format_exc()
+        try:
+            max_scale = compute_max_fisher_scale(trace, model)
+        except Exception:
+            max_scale = traceback.format_exc()
+        return {
+            'num_samples_per_chain': num_samples,
+            'max_corr': max_corr,
+            'max_scale': max_scale
+        }
+    else:
+        d1 = pm.diagnostics.gelman_rubin(trace)
+        d2 = pm.diagnostics.effective_n(trace)
+        d1['diagnostic'] = 'Gelman-Rubin'
+        d2['diagnostic'] = 'ESS'
+        try:
+            max_corr = compute_max_corr_all(trace)
+        except Exception:
+            max_corr = traceback.format_exc()
+        try:
+            max_scale = compute_max_fisher_scale_all(trace, model)
+        except Exception:
+            max_scale = traceback.format_exc()
+        return {
+            'Gelman-Rubin': d1,
+            'ESS': d2,
+            'num_samples_per_chain': num_samples,
+            'max_corr': max_corr,
+            'max_scale': max_scale
+        }
 
 
 def compute_max_corr_all(trace):
