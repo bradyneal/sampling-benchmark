@@ -5,6 +5,7 @@ from joblib import Parallel, delayed
 from functools import partial
 import fileio as io
 from main import run_experiment
+import traceback
 
 
 def main():
@@ -42,9 +43,9 @@ def try_run_experiment(config, mc_chain_name):
         run_experiment(config, mc_chain_name)
     except (KeyboardInterrupt, SystemExit):
         raise
-    except Exception as err:
+    except Exception:
         print '%s failed' % mc_chain_name
-        print str(err)
+        traceback.print_exc()
 
 if __name__ == '__main__':
     main()
