@@ -79,7 +79,10 @@ def run_experiment(config, chain_name, debug_dump=False, shuffle=False,
     '''Call this instead of main for scripted multiple runs within python.'''
     run_config = setup(config)
     # TODO remove: new phase 1 already takes out burn in
-    burn_in_frac = 0.05
+    if 'gp' in chain_name or 'robust' in chain_name:
+        burn_in_frac = 0.05
+    else:
+        burn_in_frac = 0.0
 
     chain_df = io.load_df(config['input_path'], chain_name, config['csv_ext'])
     
