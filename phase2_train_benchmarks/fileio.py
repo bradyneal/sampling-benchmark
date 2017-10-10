@@ -125,4 +125,8 @@ def load_config(config_file):
     assert(0.0 <= D['train_frac'] and D['train_frac'] <= 1.0)
 
     D['rnade_scratch'] = abspath2(config.get('phase2', 'rnade_scratch_dir'))
+
+    D['drop_redundant_cols'] = config.getboolean('phase2', 'drop_redundant_cols')
+    D['max_scale_epsilon'] = config.getfloat('phase2', 'max_scale_epsilon')
+    
     return D

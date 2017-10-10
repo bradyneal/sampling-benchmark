@@ -82,9 +82,24 @@ def run_experiment(config, chain_name, debug_dump=False, shuffle=False,
     burn_in_frac = 0.05
 
     chain_df = io.load_df(config['input_path'], chain_name, config['csv_ext'])
-    max_scale = io.load_fisher_info(config['input_path'], chain_name)        
     
+    # drop redundant columns according to Fisher information
+    if config['drop_redundant_cols']:
+        max_scale = io.load_fisher_info(config['input_path'], chain_name)
+        print 'max_scale:'
+        print max_scale
+        if len(chain_df.columns) != max_scale.shape[0] or max_scale.ndim != 1:
+            print 'Incorrect number of columns!!!! Not dropping any columns.'
+            print 'shape of max_scale', max_scale.shape
+            print 'num actual columns:', len(chain_df.columns)
+        else:
+            chain_df = chain_df.iloc[:, max_scale > config['max_scale_epsilon']]
+            if chain_df.empty:
+                print 'All columns redundant! Moving on...'
+                assert(False)
+        
     MC_chain = pd.DataFrame.as_matrix(chain_df)
+    
     print 'full'
     moments_report(MC_chain)
 
