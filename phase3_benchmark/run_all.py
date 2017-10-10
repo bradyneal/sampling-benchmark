@@ -10,8 +10,14 @@ from samplers import BUILD_STEP_PM, BUILD_STEP_MC
 
 
 def main():
-    assert(len(sys.argv) == 2)
-    config_file = io.abspath2(sys.argv[1])
+    num_args = len(sys.argv) - 1
+    if num_args < 1:
+        config_path = '../config.ini'
+    elif num_args > 1:
+        raise Exception('too many arguments: %d. %d expected' % (num_args, 1))
+    else:
+        config_path = sys.argv[1]
+    config_file = io.abspath2(config_path)
 
     config = io.load_config(config_file)
 
