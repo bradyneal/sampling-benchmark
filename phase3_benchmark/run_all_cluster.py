@@ -38,28 +38,27 @@ def main():
     print 'using samplers:'
     print sampler_list
 
-    # Get the exact samples
-    for model_name in model_list:
-        run_experiment(config, model_name, config['exact_name'])
-
     # Run n_chains in the outer loop since if process get killed we have less
     # chains but with even distribution over models and samplers.
     scheduled_jobs = set(queued_or_running_jobs())
     for model_name in model_list:
-        for _ in xrange(config['n_chains']):
+        # Get the exact samples
+        run_experiment(config, model_name, config['exact_name'])
+
+        # Get the sampler samples
+        for i in xrange(config['n_chains']):
             # TODO could put ADVI init here to keep it fixed across samplers
             for sampler in sampler_list:
                 t = time()
-                job_name = "phase3-%s-%s" % (model_name, sampler)
+                job_name = "slurm-%s-%s-%d" % (model_name, sampler, i)
                 cmd_line_args = (config_file, model_name, sampler)
-                if job_name not in scheduled_jobs:
-                    script = submit(
-                        "sbatch -c 1 main.py %s %s %s" % cmd_line_args,
-                        job_name=job_name, time="15:00", memory=32000,
-                        backend="slurm")
-                    
-                    print 'Executing:', script
-                    os.system(script)
+                if job_name in scheduled_jobs:
+                    print '%s already in scheduled jobs, but running anyway' % job_name
+                options = "-c 1 --job-name=%s -t 45:00 --mem=32gb --output %s.out" % (job_name, job_name)
+                end = "slurm_job_main.sh %s %s %s" % cmd_line_args
+                command = "sbatch %s %s" % (options, end) 
+                print 'Executing:', command
+                os.system(command)
                 print 'wall time %fs' % (time() - t)
     print 'done'
 

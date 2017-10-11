@@ -16,7 +16,7 @@ dependencies:
 - nose=1.3.7=py27_1
 - numpy=1.12.0=py27_0
 - openssl=1.0.2l=0
-- pandas=0.19.2=np112py27_1
+- pandas
 - patsy=0.4.1=py27_0
 - pip=9.0.1=py27_1
 - pygpu=0.6.9=py27_0
@@ -35,7 +35,7 @@ dependencies:
 - wheel=0.29.0=py27_0
 - zlib=1.2.11=0
 - pip:
-  - git+git://github.com/rdturnermtl/pymc3.git
+  - git+git://github.com/rdturnermtl/pymc3.git@slicer_safe
   - git+git://github.com/clusterlib/clusterlib.git
   - emcee==2.2.1
   - protobuf==3.2.0
