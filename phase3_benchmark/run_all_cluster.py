@@ -38,14 +38,14 @@ def main():
     print 'using samplers:'
     print sampler_list
 
-    # Get the exact samples
-    for model_name in model_list:
-        run_experiment(config, model_name, config['exact_name'])
-
     # Run n_chains in the outer loop since if process get killed we have less
     # chains but with even distribution over models and samplers.
     scheduled_jobs = set(queued_or_running_jobs())
     for model_name in model_list:
+        # Get the exact samples
+        run_experiment(config, model_name, config['exact_name'])
+
+        # Get the sampler samples
         for i in xrange(config['n_chains']):
             # TODO could put ADVI init here to keep it fixed across samplers
             for sampler in sampler_list:
