@@ -54,8 +54,8 @@ def main():
                 cmd_line_args = (job_name, config_file, model_name, sampler)
                 if job_name not in scheduled_jobs:
                     script = submit(
-                        "srun -c 1 --output %s.out main.py %s %s %s" % cmd_line_args,
-                        job_name=job_name, time="15:00", memory=32000,
+                        "sbatch -c 1 --output %s.out slurm_job.sh %s %s %s" % cmd_line_args,
+                        job_name=job_name, time="30:00", memory=32000,
                         backend="slurm")
                     
                     print 'Executing:', script
