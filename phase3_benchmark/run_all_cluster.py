@@ -56,7 +56,7 @@ def main():
                     options = "-c 1 --job-name=%s -t 30:00 --mem=32gb --output %s.out" % (job_name, job_name)
                     print(options)
                     print type(options)
-                    end = "slurm_job.sh %s %s %s" % cmd_line_args
+                    end = "slurm_job_main.sh %s %s %s" % cmd_line_args
                     command = "sbatch %s %s" % (options, end) 
                     print 'Executing:', command
                     os.system(command)
