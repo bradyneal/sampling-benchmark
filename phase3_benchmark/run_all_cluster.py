@@ -46,15 +46,15 @@ def main():
     # chains but with even distribution over models and samplers.
     scheduled_jobs = set(queued_or_running_jobs())
     for model_name in model_list:
-        for _ in xrange(config['n_chains']):
+        for i in xrange(config['n_chains']):
             # TODO could put ADVI init here to keep it fixed across samplers
             for sampler in sampler_list:
                 t = time()
-                job_name = "phase3-%s-%s" % (model_name, sampler)
-                cmd_line_args = (config_file, model_name, sampler)
+                job_name = "slurm-%s-%s-$s" % (model_name, sampler, i)
+                cmd_line_args = (job_name, config_file, model_name, sampler)
                 if job_name not in scheduled_jobs:
                     script = submit(
-                        "sbatch -c 1 main.py %s %s %s" % cmd_line_args,
+                        "srun -c 1 --output %s.out main.py %s %s %s" % cmd_line_args,
                         job_name=job_name, time="15:00", memory=32000,
                         backend="slurm")
                     
