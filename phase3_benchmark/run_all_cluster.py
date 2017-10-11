@@ -4,6 +4,8 @@ from time import time
 import numpy as np
 import fileio as io
 from main import run_experiment
+import os
+from clusterlib.scheduler import submit, queued_or_running_jobs
 # This will import pymc3 which is not needed if the experiments are run in a
 # separate process in the future. Loading pymc3 will be a bit of a waste just
 # to get the dictionary keys. We could re-work this, but prob not worth effort.
@@ -11,8 +13,14 @@ from samplers import BUILD_STEP_PM, BUILD_STEP_MC
 
 
 def main():
-    assert(len(sys.argv) == 2)
-    config_file = io.abspath2(sys.argv[1])
+    num_args = len(sys.argv) - 1
+    if num_args < 1:
+        config_path = '../config.ini'
+    elif num_args > 1:
+        raise Exception('too many arguments: %d. %d expected' % (num_args, 1))
+    else:
+        config_path = sys.argv[1]
+    config_file = io.abspath2(config_path)
 
     np.random.seed(3463)
 
@@ -36,16 +44,22 @@ def main():
 
     # Run n_chains in the outer loop since if process get killed we have less
     # chains but with even distribution over models and samplers.
+    scheduled_jobs = set(queued_or_running_jobs())
     for model_name in model_list:
         for _ in xrange(config['n_chains']):
             # TODO could put ADVI init here to keep it fixed across samplers
             for sampler in sampler_list:
                 t = time()
-                try:
-                    run_experiment(config, model_name, sampler)
-                except Exception as err:
-                    print '%s/%s failed' % (model_name, sampler)
-                    print str(err)
+                job_name = "phase3-%s-%s" % (model_name, sampler)
+                cmd_line_args = (config_file, model_name, sampler)
+                if job_name not in scheduled_jobs:
+                    script = submit(
+                        "sbatch -c 1 main.py %s %s %s" % cmd_line_args,
+                        job_name=job_name, time="15:00", memory=32000,
+                        backend="slurm")
+                    
+                    print 'Executing:', script
+                    os.system(script)
                 print 'wall time %fs' % (time() - t)
     print 'done'
 
