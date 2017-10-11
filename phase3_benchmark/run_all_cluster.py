@@ -1,6 +1,7 @@
 # Ryan Turner (turnerry@iro.umontreal.ca)
 import sys
 from time import time
+import numpy as np
 import fileio as io
 from main import run_experiment
 # This will import pymc3 which is not needed if the experiments are run in a
@@ -13,9 +14,12 @@ def main():
     assert(len(sys.argv) == 2)
     config_file = io.abspath2(sys.argv[1])
 
+    np.random.seed(3463)
+
     config = io.load_config(config_file)
 
     model_list = io.get_model_list(config['input_path'], config['pkl_ext'])
+    np.random.shuffle(model_list)  # In case we don't finish at least random subset
     # model_list = model_list[:5]  # TODO remove, test only
     assert(all(io.is_safe_name(ss) for ss in model_list))
     print 'using models:'
