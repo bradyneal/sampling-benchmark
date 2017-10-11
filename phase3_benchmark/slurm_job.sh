@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 export HOME=`getent passwd $USER | cut -d':' -f6`
 source ~/.bashrc
