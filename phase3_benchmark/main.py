@@ -147,7 +147,7 @@ def sample_emcee(logpdf_tt, sampler, start, timers, time_grid_ms, n_grid,
     # Might want to consider putting save chain to false since emcee uses
     # np.concat to grow chain. Might be less overhead to append to list in the
     # loop below.
-    sample_gen = sampler_obj.sample(start, iterations=MAX_N * thin, thin=thin,
+    sample_gen = sampler_obj.sample(start, iterations=(MAX_N * thin) / n_walkers, thin=thin,
                                     storechain=True)
 
     time_grid_s = 1e-3 * time_grid_ms
@@ -160,13 +160,14 @@ def sample_emcee(logpdf_tt, sampler, start, timers, time_grid_ms, n_grid,
     for trace, metarow in TC:
         meta.append(metarow)
         cum_size += metarow[CHUNK_SIZE]
-        assert(sampler_obj.chain.shape == (n_walkers, MAX_N, D))
+        # assert(sampler_obj.chain.shape == (n_walkers, MAX_N, D))
     # Build rep for trace data
     # Same as:
     # np.concatenate([X[ii, :, :] for ii in xrange(X.shape[0])], axis=0)
     # EnsembleSampler.flatchain does this too but doesn't truncate at cum_size
     trace = np.reshape(sampler_obj.chain[:, :cum_size, :], (-1, D))
-    assert(trace.shape == (cum_size * n_walkers, D))
+    # TODO
+    # assert(trace.shape == (cum_size * n_walkers, D))
 
     # Log the emcee version of autocorr for future ref
     try:
