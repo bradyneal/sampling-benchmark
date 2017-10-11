@@ -50,7 +50,7 @@ def main():
             # TODO could put ADVI init here to keep it fixed across samplers
             for sampler in sampler_list:
                 t = time()
-                job_name = "slurm-%s-%s-$s" % (model_name, sampler, i)
+                job_name = "slurm-%s-%s-%d" % (model_name, sampler, i)
                 cmd_line_args = (job_name, config_file, model_name, sampler)
                 if job_name not in scheduled_jobs:
                     script = submit(
