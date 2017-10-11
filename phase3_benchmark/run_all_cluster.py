@@ -53,13 +53,10 @@ def main():
                 job_name = "slurm-%s-%s-%d" % (model_name, sampler, i)
                 cmd_line_args = (job_name, config_file, model_name, sampler)
                 if job_name not in scheduled_jobs:
-                    script = submit(
-                        "sbatch -c 1 --output %s.out slurm_job.sh %s %s %s" % cmd_line_args,
-                        job_name=job_name, time="30:00", memory=32000,
-                        backend="slurm")
-                    
-                    print 'Executing:', script
-                    os.system(script)
+                    command = "sbatch -c 1 --output %s.out slurm_job.sh %s %s %s" % cmd_line_args + \
+                              "--job_name=%s -t 30:00 --mem=32gb" % job_name
+                    print 'Executing:', command
+                    os.system(command)
                 print 'wall time %fs' % (time() - t)
     print 'done'
 
