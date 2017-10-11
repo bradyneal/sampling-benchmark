@@ -6,4 +6,4 @@ export PYTHONUNBUFFERED=1
 echo Running on $HOSTNAME
 
 source activate samp-phase3
-python run_all_clusters.py
+python run_all_cluster.py
