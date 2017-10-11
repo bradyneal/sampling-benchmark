@@ -1,7 +1,4 @@
 #!/usr/bin/env bash
-#SBATCH --job-name=phase2
-#SBATCH --mem=128g
-#SBATCH --mem-per-cpu=8192
 
 export HOME=`getent passwd $USER | cut -d':' -f6`
 source ~/.bashrc
