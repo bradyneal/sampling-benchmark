@@ -166,7 +166,7 @@ def sample_emcee(logpdf_tt, sampler, start, timers, time_grid_ms, n_grid,
     # np.concatenate([X[ii, :, :] for ii in xrange(X.shape[0])], axis=0)
     # EnsembleSampler.flatchain does this too but doesn't truncate at cum_size
     trace = np.reshape(sampler_obj.chain[:, :cum_size, :], (-1, D))
-    assert(trace.shape == (cum_size * n_walkers, D))
+    # assert(trace.shape == (cum_size * n_walkers, D))
 
     # Log the emcee version of autocorr for future ref
     try:
