@@ -12,6 +12,8 @@ import bt.benchmark_tools_regr as btr
 import bt.data_splitter as ds
 from bt.sciprint import just_format_it, NAN_STR
 
+from matplotlib import rcParams
+rcParams['font.family'] = 'STIXGeneral'
 import matplotlib.pyplot as plt
 
 DIAGS = ('Geweke', 'ESS', 'Gelman_Rubin')  # TODO import from elsewhere
@@ -108,8 +110,8 @@ def plot_by(df, x, y, by, fac_lines=(1.0,)):
                bbox_to_anchor=(0.0, 1.02, 1.0, 0.102))
     plt.grid()
     ax.tick_params(labelsize=6)
-    plt.xlabel(x, fontsize=10)
-    plt.ylabel(y, fontsize=10)
+    #plt.xlabel(x, fontsize=10)
+    #plt.ylabel(y, fontsize=10)
     return ax
 
 
@@ -208,6 +210,8 @@ def NESS_tbl_tex(df):
 
 
 def make_all_plots(df):
+    metric_clean = {'ks': 'KS', 'mean': '$\mu$', 'var': '$\sigma^2$'}
+
     n_chains = df['n_chains'].max()
     if n_chains != df['n_chains'].min():
         print 'warning! error bars assume n_chains constant'
@@ -219,9 +223,13 @@ def make_all_plots(df):
     for metric in metric_list:
         plot_by(df_sub, 'ESS', 'real_ess_' + metric,
                 'short_name', (lb, 1.0, ub))
+        plt.xlabel('ESS')
+        plt.ylabel('RESS ' + metric_clean[metric], fontsize=10)
         plt.savefig('real_ess_' + metric + '.pdf', dpi=300, format='pdf')
 
         ax = plot_by(df_sub, 'eff', 'real_eff_' + metric, 'short_name')
+        plt.xlabel('ESS / $N$')
+        plt.ylabel('EFF ' + metric_clean[metric], fontsize=10)
         ax.set_xscale('linear')
         plt.savefig('real_eff_' + metric + '.pdf', dpi=300, format='pdf')
 
@@ -238,7 +246,7 @@ def make_all_plots(df):
         ax.set_yscale('log')
         ax.tick_params(labelsize=6)
         plt.xlabel('sampler', fontsize=10)
-        plt.ylabel('NESS ' + metric, fontsize=10)
+        plt.ylabel('NESS ' + metric_clean[metric], fontsize=10)
         plt.show()
         plt.savefig('ness_' + metric + '.pdf', dpi=300, format='pdf')
 
@@ -251,7 +259,7 @@ def make_all_plots(df):
         ax.set_yscale('log')
         ax.tick_params(labelsize=6)
         plt.xlabel('sampler', fontsize=10)
-        plt.ylabel('EFF ' + metric, fontsize=10)
+        plt.ylabel('EFF ' + metric_clean[metric], fontsize=10)
         plt.show()
         plt.savefig('box_eff_' + metric + '.pdf', dpi=300, format='pdf')
 
