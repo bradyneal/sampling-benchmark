@@ -17,6 +17,7 @@ import matplotlib.pyplot as plt
 DIAGS = ('Geweke', 'ESS', 'Gelman_Rubin')  # TODO import from elsewhere
 
 # TODO run with both perf agg that has had rectified and unrectified sq loss
+# TODO save figs to output dir in config
 
 
 def ESS_EB_fac(n_estimates, conf=0.95):
@@ -76,8 +77,9 @@ def augment_df(df, success_thold=12):
         df['real_ess_' + metric] = metric_ref / df[metric]
         df['real_ness_' + metric] = df['real_ess_' + metric] / df['n_ref']
         df['real_eff_' + metric] = df['real_ess_' + metric] / df['N']
-        df['real_essd_' + metric] = ESS_deviation(df[metric].values,
-            df['ESS'].values, df['n_chains'].values, metric_ref)
+        df['real_essd_' + metric] = \
+            ESS_deviation(df[metric].values,
+                          df['ESS'].values, df['n_chains'].values, metric_ref)
         df['success_' + metric] = df['real_ess_' + metric] > success_thold
 
         metric = metric + '_pooled'
@@ -85,8 +87,9 @@ def augment_df(df, success_thold=12):
         df['real_ness_' + metric] = df['real_ess_' + metric] / df['n_ref']
         total_samples = df['N'] * df['n_chains']
         df['real_eff_' + metric] = df['real_ess_' + metric] / total_samples
-        df['real_essd_' + metric] = ESS_deviation(df[metric].values,
-            df['ESS_pooled'].values, 1.0, metric_ref)
+        df['real_essd_' + metric] = \
+            ESS_deviation(df[metric].values, df['ESS_pooled'].values,
+                          1.0, metric_ref)
     return df  # return anyway
 
 
@@ -155,15 +158,15 @@ def run_experiment(df, metric, split_dict, all_features, target,
     summary = {}
     ref_model = {}
     for split_name, splits in split_dict.iteritems():
-        print split_name
+        print 'running', split_name
         df_train, df_test, _ = ds.split_df(df, splits=splits)
 
         k = 1.0 * RBF(length_scale=np.ones(len(all_features))) + \
             WhiteKernel(noise_level=0.1**2, noise_level_bounds=(1e-3, np.inf))
         methods = {'iid': btr.JustNoise(), 'linear': BayesianRidge(),
                    'GPR': GaussianProcessRegressor(kernel=k)}
-        loss_tbl, scaler = \
-            try_models(df_train, df_test, metric, all_features, target, methods)
+        loss_tbl, scaler = try_models(df_train, df_test, metric,
+                                      all_features, target, methods)
         ref_model[split_name] = (methods[ref_method], scaler)
 
         # Could also try just removing one
@@ -171,7 +174,8 @@ def run_experiment(df, metric, split_dict, all_features, target,
         for feature in all_features:
             mname = 'GPR-' + feature
             k_sub = 1.0 * RBF(length_scale=np.ones(len(all_features) - 1)) + \
-                WhiteKernel(noise_level=0.1**2, noise_level_bounds=(1e-3, np.inf))
+                WhiteKernel(noise_level=0.1**2,
+                            noise_level_bounds=(1e-3, np.inf))
             methods_sub = {mname: GaussianProcessRegressor(kernel=k_sub)}
             sub_f = list(all_features)
             sub_f.remove(feature)
@@ -192,42 +196,29 @@ def run_experiment(df, metric, split_dict, all_features, target,
 def ecdf(x):
     plt.plot(np.sort(x), np.linspace(0, 1, len(x), endpoint=False))
 
-# TODO config
-#fname = '../../sampler-local/full_size/phase4_initial_tests/perf_sync.csv'
-#fname = '/u/turnerry/Documents/git/sampler-local/graham/phase4/perf_sync.csv'
-#fname = '/data/lisatmp3/turnerry/sampling-benchmark/cedar/phase4/perf_sync.csv'
-fname = './cedar1_P4/perf_sync.csv'
 
-np.random.seed(56456)
-do_plots = True
+def NESS_tbl_tex(df):
+    metric_list = sorted(METRICS_REF.keys())
+    gdf = df.groupby('sampler')
+    cols = ['success_' + m for m in metric_list]
+    success_tbl = gdf[cols].mean()
+    NESS_tbl = gdf[['real_ness_' + m for m in metric_list]].mean()
+    rdf = pd.concat((NESS_tbl, success_tbl), axis=1)
+    return rdf.to_latex(float_format='%.3f')
 
-df = pd.read_csv(fname, header=0, index_col=None)
-df = df[df['n_chains'] > 1]
 
-agg_df = aggregate_df(df)
-df = augment_df(df)
-
-metric_list = sorted(METRICS_REF.keys())
-gdf = df.groupby('sampler')
-cols = ['success'] + ['success_' + m for m in metric_list]
-success_tbl = gdf[cols].mean()
-print success_tbl.to_string()
-print success_tbl.to_latex()
-
-NESS_tbl = gdf[['real_ness_' + m for m in metric_list]].mean()
-
-print pd.concat((NESS_tbl, success_tbl), axis=1).to_latex(float_format='%.3f')
-
-if do_plots:
+def make_all_plots(df):
     n_chains = df['n_chains'].max()
     if n_chains != df['n_chains'].min():
         print 'warning! error bars assume n_chains constant'
     lb, ub = ESS_EB_fac(n_chains)
+    metric_list = sorted(METRICS_REF.keys())
 
     # Calibration plots
     df_sub = df[(df['n_chains'] == n_chains) & (df['success'])]
     for metric in metric_list:
-        plot_by(df_sub, 'ESS', 'real_ess_' + metric, 'short_name', (lb, 1.0, ub))
+        plot_by(df_sub, 'ESS', 'real_ess_' + metric,
+                'short_name', (lb, 1.0, ub))
         plt.savefig('real_ess_' + metric + '.pdf', dpi=300, format='pdf')
 
         ax = plot_by(df_sub, 'eff', 'real_eff_' + metric, 'short_name')
@@ -238,7 +229,8 @@ if do_plots:
     for metric in metric_list:
         df_sub = df[df['success_' + metric]]
 
-        fig = plt.figure(figsize=(3.5, 3.5), dpi=80, facecolor='w', edgecolor='k')
+        fig = plt.figure(figsize=(3.5, 3.5), dpi=80,
+                         facecolor='w', edgecolor='k')
         ax = fig.add_axes([0.15, 0.2, 0.8, 0.75])
         df_sub.boxplot('real_ness_' + metric, by='short_name', rot=45, ax=ax)
         plt.title('')
@@ -250,7 +242,8 @@ if do_plots:
         plt.show()
         plt.savefig('ness_' + metric + '.pdf', dpi=300, format='pdf')
 
-        fig = plt.figure(figsize=(3.5, 3.5), dpi=80, facecolor='w', edgecolor='k')
+        fig = plt.figure(figsize=(3.5, 3.5), dpi=80,
+                         facecolor='w', edgecolor='k')
         ax = fig.add_axes([0.15, 0.2, 0.8, 0.75])
         df_sub.boxplot('real_eff_' + metric, by='short_name', rot=45, ax=ax)
         plt.title('')
@@ -262,23 +255,52 @@ if do_plots:
         plt.show()
         plt.savefig('box_eff_' + metric + '.pdf', dpi=300, format='pdf')
 
-split_dict = {'random': {ds.INDEX: (ds.RANDOM, 0.8)},
-              'example': {'example': (ds.RANDOM, 0.8)}}
 
-metric = 'mean'
-target = 'real_essd_mean'
-all_features = ['TG', 'TGR', 'ESS', 'D']
+def meta_analysis_tex(df):
+    split_dict = {'random': {ds.INDEX: (ds.RANDOM, 0.8)},
+                  'example': {'example': (ds.RANDOM, 0.8)}}
 
-df_anal = df[df['success']]
+    metric = 'mean'
+    target = 'real_essd_mean'
+    all_features = ['TG', 'TGR', 'ESS', 'D']
 
-missing = df_anal[all_features + [target]].isnull().any(axis=1)
-df_anal = df_anal[~missing]
-assert(not df_anal.isnull().any().any())
+    df_anal = df[df['success']]
 
-summary, ref_model = run_experiment(df_anal, metric, split_dict, all_features, target)
-for split, tbl in summary.iteritems():
-    print split
+    missing = df_anal[all_features + [target]].isnull().any(axis=1)
+    df_anal = df_anal[~missing]
+    assert(not df_anal.isnull().any().any())
 
-    perf_tbl = just_format_it(tbl, shift_mod=3, unit_dict={'NLL': 'nats'},
-                              non_finite_fmt={NAN_STR: '{--}'}, use_tex=True)
-    print perf_tbl
+    summary, ref_model = run_experiment(df_anal, metric, split_dict,
+                                        all_features, target)
+    perf_tex = {}
+    for split, tbl in summary.iteritems():
+        perf_tbl = just_format_it(tbl, shift_mod=3, unit_dict={'NLL': 'nats'},
+                                  non_finite_fmt={NAN_STR: '{--}'},
+                                  use_tex=True)
+        perf_tex[split] = perf_tbl
+    return perf_tex
+
+# TODO config
+fname = '../../sampler-local/cedar1_P4/perf_sync.csv'
+
+np.random.seed(56456)
+do_plots = True
+
+df = pd.read_csv(fname, header=0, index_col=None)
+df = df[df['n_chains'] > 1]  # Filter out where no way to average error
+
+agg_df = aggregate_df(df)
+df = augment_df(df)
+
+# Overall performance table
+print NESS_tbl_tex(df)
+
+# All of the plots
+make_all_plots(df)
+
+# meta-analysis
+tbl_dict = meta_analysis_tex(df)
+for k, tbl in tbl_dict.iteritems():
+    print k
+    print tbl
+print 'done'
