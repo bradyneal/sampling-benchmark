@@ -12,7 +12,9 @@ import bt.benchmark_tools_regr as btr
 import bt.data_splitter as ds
 from bt.sciprint import just_format_it, NAN_STR
 
-from matplotlib import rcParams
+from matplotlib import rcParams, use
+use('pdf')
+rcParams['mathtext.fontset'] = 'stix'
 rcParams['font.family'] = 'STIXGeneral'
 import matplotlib.pyplot as plt
 
@@ -103,16 +105,18 @@ def plot_by(df, x, y, by, fac_lines=(1.0,)):
     gdf = df.groupby(by)
     for name, sdf in gdf:
         ax.loglog(sdf[x].values, sdf[y].values, '.', label=name, alpha=0.5)
-    xgrid = np.logspace(np.log10(df[x].min()), np.log10(df[x].max()), 100)
+    lower, upper = ax.get_xlim()
+    xgrid = np.logspace(np.log10(lower), np.log10(upper), 100)
     for f in fac_lines:
-        ax.loglog(xgrid, f * xgrid, 'k--')
-    plt.legend(loc=3, ncol=4, fontsize=6,
-               bbox_to_anchor=(0.0, 1.02, 1.0, 0.102))
+        style = 'k--' if f == 1 else 'k:'
+        ax.loglog(xgrid, f * xgrid, style)
+    plt.legend(loc=3, ncol=5, fontsize=6,
+               bbox_to_anchor=(0.0, 1.02, 0.9, 0.102))
     plt.grid()
     ax.tick_params(labelsize=6)
     #plt.xlabel(x, fontsize=10)
     #plt.ylabel(y, fontsize=10)
-    return ax
+    return ax, xgrid
 
 
 def all_pos_finite(X):
@@ -210,7 +214,7 @@ def NESS_tbl_tex(df):
 
 
 def make_all_plots(df):
-    metric_clean = {'ks': 'KS', 'mean': '$\mu$', 'var': '$\sigma^2$'}
+    metric_clean = {'ks': 'KS', 'mean': r'$\mu$', 'var': r'$\sigma^2$'}
 
     n_chains = df['n_chains'].max()
     if n_chains != df['n_chains'].min():
@@ -221,16 +225,20 @@ def make_all_plots(df):
     # Calibration plots
     df_sub = df[(df['n_chains'] == n_chains) & (df['success'])]
     for metric in metric_list:
-        plot_by(df_sub, 'ESS', 'real_ess_' + metric,
-                'short_name', (lb, 1.0, ub))
+        ax, xgrid = plot_by(df_sub, 'ESS', 'real_ess_' + metric,
+                            'short_name', (lb, 1.0, ub))
+        ax.set_ylim(top=1.05 * np.max(ub * xgrid))
+        ax.set_xlim(xgrid[0], xgrid[-1])
         plt.xlabel('ESS')
         plt.ylabel('RESS ' + metric_clean[metric], fontsize=10)
         plt.savefig('real_ess_' + metric + '.pdf', dpi=300, format='pdf')
 
-        ax = plot_by(df_sub, 'eff', 'real_eff_' + metric, 'short_name')
+        ax, xgrid = plot_by(df_sub, 'eff', 'real_eff_' + metric, 'short_name')
         plt.xlabel('ESS / $N$')
         plt.ylabel('EFF ' + metric_clean[metric], fontsize=10)
         ax.set_xscale('linear')
+        ax.set_ylim(top=1.05 * np.max(ub * xgrid))
+        ax.set_xlim(xgrid[0], xgrid[-1])
         plt.savefig('real_eff_' + metric + '.pdf', dpi=300, format='pdf')
 
     # Box plots
@@ -244,6 +252,7 @@ def make_all_plots(df):
         plt.title('')
         plt.suptitle('')
         ax.set_yscale('log')
+        ax.set_ylim(top=20)
         ax.tick_params(labelsize=6)
         plt.xlabel('sampler', fontsize=10)
         plt.ylabel('NESS ' + metric_clean[metric], fontsize=10)
@@ -257,6 +266,7 @@ def make_all_plots(df):
         plt.title('')
         plt.suptitle('')
         ax.set_yscale('log')
+        ax.set_ylim(top=20)
         ax.tick_params(labelsize=6)
         plt.xlabel('sampler', fontsize=10)
         plt.ylabel('EFF ' + metric_clean[metric], fontsize=10)
