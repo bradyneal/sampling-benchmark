@@ -7,41 +7,27 @@ import traceback
 
 
 def get_diagnostics(trace, model, single_chain):
-    num_samples = len(trace)
-    if single_chain:
-        try:
-            max_corr = compute_max_corr(trace)
-        except Exception:
-            max_corr = traceback.format_exc()
-        try:
-            max_scale = compute_max_fisher_scale(trace, model)
-        except Exception:
-            max_scale = traceback.format_exc()
-        return {
-            'num_samples_per_chain': num_samples,
-            'max_corr': max_corr,
-            'max_scale': max_scale
-        }
-    else:
+    try:
+        max_corr = compute_max_corr(trace)
+    except Exception:
+        max_corr = traceback.format_exc()
+    try:
+        max_scale = compute_max_fisher_scale(trace, model)
+    except Exception:
+        max_scale = traceback.format_exc()
+    diagnostics = {
+        'num_samples_per_chain': len(trace),
+        'max_corr': max_corr,
+        'max_scale': max_scale
+    }
+    if not single_chain:
         d1 = pm.diagnostics.gelman_rubin(trace)
         d2 = pm.diagnostics.effective_n(trace)
         d1['diagnostic'] = 'Gelman-Rubin'
         d2['diagnostic'] = 'ESS'
-        try:
-            max_corr = compute_max_corr_all(trace)
-        except Exception:
-            max_corr = traceback.format_exc()
-        try:
-            max_scale = compute_max_fisher_scale_all(trace, model)
-        except Exception:
-            max_scale = traceback.format_exc()
-        return {
-            'Gelman-Rubin': d1,
-            'ESS': d2,
-            'num_samples_per_chain': num_samples,
-            'max_corr': max_corr,
-            'max_scale': max_scale
-        }
+        diagnostics['Gelman-Rubin'] = d1
+        diagnostics['ESS'] = d2
+    return diagnostics
 
 
 def compute_max_corr_all(trace):
@@ -55,7 +41,7 @@ def compute_max_fisher_scale_all(trace, model):
                      strace_gen(trace))
     max_scale = np.nanmax(np.stack(max_scales), axis=0)
     return max_scale
-    
+
 
 def compute_max_corr(strace):
     df = trace_to_dataframe(strace)
@@ -69,12 +55,12 @@ def compute_max_corr(strace):
 def compute_max_fisher_scale(strace, model):
     epsilon = 1e-10
     n_checks = 20
-    
+
     df = trace_to_dataframe(strace)
-    
+
     idx_list = np.linspace(0, len(strace) - 1, n_checks, dtype=int)
     f = model.fastd2logp()
-    
+
     # max_scale can be what we log
     max_scale = np.zeros(df.shape[1])
     for idx in idx_list:

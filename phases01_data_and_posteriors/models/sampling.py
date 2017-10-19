@@ -28,7 +28,7 @@ def sample_model(model, step=None, num_samples=MAX_NUM_SAMPLES, advi=False,
     sample_chain_with_args = partial(
         sample_chain, step=step, num_samples=num_samples, advi=advi,
         num_scale1_iters=num_scale1_iters, num_scale0_iters=num_scale0_iters)
-  
+
     diagnostics = None
     if not advi:
         if single_chain:
@@ -39,19 +39,19 @@ def sample_model(model, step=None, num_samples=MAX_NUM_SAMPLES, advi=False,
             for i in range(n_chains):
                 print('chain {} of {}'.format(i + 1, n_chains))
                 traces.append(sample_chain_with_args(model, chain_i=i))
-            
+
             # copy and rebuild traces list because merge_traces modifies
             # the first trace in the list
             trace0 = deepcopy(traces[0])
             trace = merge_traces(traces)
             traces = [trace0] + traces[1:]
-    
+
             diagnostics = get_diagnostics(merge_truncated_traces(traces),
                                           model, single_chain=False)
     else:
         trace = sample_chain_with_args(model)
         diagnostics = get_diagnostics(trace, model, single_chain=True)
-        
+
     if raw_trace:
         return trace, diagnostics
     else:
@@ -70,7 +70,7 @@ def sample_chain(model, chain_i=0, step=None, num_samples=MAX_NUM_SAMPLES,
             if step is None:
                 start_, step = pm.init_nuts(init='advi', njobs=1, n_init=NUM_INIT_STEPS,
                                             random_seed=-1, progressbar=False)
-            
+
             discard = tune if discard_tuned_samples else 0
             for i, trace in enumerate(pm.iter_sample(
                 num_samples + discard, step, start=start_, chain=chain_i)):
@@ -127,4 +127,3 @@ def merge_truncated_traces(traces):
     truncated_traces = list(map(lambda trace: trace[-min_chain_length:],
                                 traces))
     return merge_traces(truncated_traces)
-    
